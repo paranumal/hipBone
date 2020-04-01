@@ -1,0 +1,77 @@
+#####################################################################################
+#
+#The MIT License (MIT)
+#
+#Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+#
+#Permission is hereby granted, free of charge, to any person obtaining a copy
+#of this software and associated documentation files (the "Software"), to deal
+#in the Software without restriction, including without limitation the rights
+#to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#copies of the Software, and to permit persons to whom the Software is
+#furnished to do so, subject to the following conditions:
+#
+#The above copyright notice and this permission notice shall be included in all
+#copies or substantial portions of the Software.
+#
+#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#SOFTWARE.
+#
+#####################################################################################
+
+#can be GNU or INTEL
+HIPBONE_ARCH=GNU
+
+#absolute path to HIPBONE
+export HIPBONE_DIR:=$(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+
+export HIPBONE_INCLUDE_DIR=${HIPBONE_DIR}/include
+export HIPBONE_CORE_DIR=${HIPBONE_DIR}/core
+export HIPBONE_TPL_DIR=${HIPBONE_DIR}/core/3rdParty
+
+export OPENBLAS_DIR?=/usr/lib/x86_64-linux-gnu
+export HIPBONE_BLAS_LIB=-L${OPENBLAS_DIR} -lopenblas
+
+#include OCCA
+export OCCA_DIR=${HIPBONE_DIR}/occa
+
+#compilers to use for C/C++
+export HIPBONE_CC = mpicc
+export HIPBONE_CXX= mpic++
+export HIPBONE_LD = mpic++
+
+export HIPBONE_CFLAGS=-fopenmp -g -Wall -Wshadow -Wno-unused-function
+export HIPBONE_CXXFLAGS=-fopenmp -g -Wall -Wshadow -Wno-unused-function -std=c++11
+
+export HIPBONE_LIBS= ${HIPBONE_BLAS_LIB}  \
+                     -Wl,-rpath,$(OCCA_DIR)/lib -L$(OCCA_DIR)/lib -locca
+
+export HIPBONE_DEFINES=
+
+export HIPBONE_INCLUDES=-I${HIPBONE_INCLUDE_DIR} -I${OCCA_DIR}/include
+
+ifeq (GNU,${HIPBONE_ARCH})
+  CXXFLAGS+=-O2 -mavx2 -ftree-vectorize -march=native
+  #-funroll-all-loops
+  #HIPBONE_LIBS+=-L/opt/apps/gcc5_2/atlas/3.10.2/lib/ -llapack -latlas  -lf77blas -lcblas -lptcblas -lptf77blas -lsatlas  -lgfortran  -L../../../libxsmm/lib -lxsmm -ldl
+else ifeq (INTEL,${HIPBONE_ARCH})
+  CXXFLAGS+=-funroll-loops -xHost
+  HIPBONE_LIBS+=-L/opt/apps/intel15_3/mkl/11.2.3/lib/intel64  -lmkl_rt
+  #  -fopt-info-vec-missed  -fopt-info
+  #-fopt-info
+else
+  $(error unknown arch for [HIPBONE_ARCH] specified)
+endif
+
+export OBJ_COLOR = \033[0;36m
+export LIB_COLOR = \033[0;34m
+export EXE_COLOR = \033[0;32m
+export SOL_COLOR = \033[0;33m
+export NO_COLOR  = \033[m
+
+export HIPBONE_MAKETOP_LOADED=true
