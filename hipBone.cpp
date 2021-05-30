@@ -37,26 +37,20 @@ int main(int argc, char **argv){
   if (settings.compareSetting("VERBOSE", "TRUE"))
     settings.report();
 
-  // set up occa device
-  occa::device device;
-  occa::properties props;
-  occaDeviceConfig(device, comm, settings, props);
+  // set up platform
+  platform_t platform(settings);
 
   // set up mesh
-  mesh_t& mesh = mesh_t::Setup(device, comm, settings, props);
-
-  // set up linear algebra module
-  linAlg_t& linAlg = linAlg_t::Setup(device, settings, props);
+  mesh_t& mesh = mesh_t::Setup(platform);
 
   // set up hb solver
-  hipBone_t& hb = hipBone_t::Setup(mesh, linAlg);
+  hipBone_t& hb = hipBone_t::Setup(platform, mesh);
 
   // run
   hb.Run();
 
   // clean up
   delete &hb;
-  delete &linAlg;
   delete &mesh;
 
   // close down MPI

@@ -150,7 +150,7 @@ void mesh_t::GatherScatterSetup() {
   int verbose=0;
   ogs_t::Unique(maskedGlobalIds, Nelements*Np, comm);     //flag a unique node in every gather node
   ogsMasked = ogs_t::Setup(Nelements*Np, maskedGlobalIds,
-                           comm, verbose, device);
+                           comm, verbose, platform);
 
   /* use the masked gs handle to define a global ordering */
   hlong Ngather = ogsMasked->Ngather;     // number of degrees of freedom on this rank (after gathering)

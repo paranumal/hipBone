@@ -73,10 +73,7 @@ endif
 endif
 
 #libraries
-GS_DIR       =${HIPBONE_TPL_DIR}/gslib
-CORE_DIR     =${HIPBONE_DIR}/core
-OGS_DIR      =${CORE_DIR}/ogs
-MESH_DIR     =${CORE_DIR}/mesh
+GS_DIR =${HIPBONE_TPL_DIR}/gslib
 
 #includes
 INCLUDES=${HIPBONE_INCLUDES} \
@@ -92,7 +89,7 @@ DEFINES =${HIPBONE_DEFINES} \
 HB_CXXFLAGS=${HIPBONE_CXXFLAGS} ${DEFINES} ${INCLUDES}
 
 #link libraries
-LIBS=-L${CORE_DIR} -lmesh -logs -lcore \
+LIBS=-L${HIPBONE_LIBS_DIR} -lmesh -logs -lcore \
      -L$(GS_DIR)/lib -lgs \
      ${HIPBONE_LIBS}
 
@@ -108,52 +105,31 @@ SRC =$(wildcard src/*.cpp)
 
 OBJS=$(SRC:.cpp=.o)
 
-.PHONY: all libcore libmesh libogs clean clean-libs \
+.PHONY: all clean clean-libs \
 		clean-kernels realclean help info hipBone
 
 all: hipBone
 
-hipBone:$(OBJS) hipBone.o | libmesh
+hipBone:$(OBJS) hipBone.o hipbone_libs
 ifneq (,${verbose})
-	$(HIPBONE_LD) -o hipBone hipBone.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
+	$(HIPBONE_LD) -o hipBone hipBone.o $(OBJS) $(LFLAGS)
 else
 	@printf "%b" "$(EXE_COLOR)Linking $(@F)$(NO_COLOR)\n";
-	@$(HIPBONE_LD) -o hipBone hipBone.o $(OBJS) $(MESH_OBJS) $(LFLAGS)
+	@$(HIPBONE_LD) -o hipBone hipBone.o $(OBJS) $(LFLAGS)
+endif
+
+hipbone_libs: ${OCCA_DIR}/lib/libocca.so
+ifneq (,${verbose})
+	${MAKE} -C ${HIPBONE_LIBS_DIR} mesh ogs core verbose=${verbose}
+else
+	@${MAKE} -C ${HIPBONE_LIBS_DIR} mesh ogs core --no-print-directory
 endif
 
 ${OCCA_DIR}/lib/libocca.so:
 	${MAKE} -C ${OCCA_DIR}
 
-libmesh: libogs libgs libcore
-ifneq (,${verbose})
-	${MAKE} -C ${MESH_DIR} lib verbose=${verbose}
-else
-	@${MAKE} -C ${MESH_DIR} lib --no-print-directory
-endif
-
-libogs: libcore
-ifneq (,${verbose})
-	${MAKE} -C ${OGS_DIR} lib verbose=${verbose}
-else
-	@${MAKE} -C ${OGS_DIR} lib --no-print-directory
-endif
-
-libcore: libgs
-ifneq (,${verbose})
-	${MAKE} -C ${CORE_DIR} lib verbose=${verbose}
-else
-	@${MAKE} -C ${CORE_DIR} lib --no-print-directory
-endif
-
-libgs: ${OCCA_DIR}/lib/libocca.so
-ifneq (,${verbose})
-	${MAKE} -C $(GS_DIR) install verbose=${verbose}
-else
-	@${MAKE} -C $(GS_DIR) install --no-print-directory
-endif
-
 # rule for .cpp files
-%.o: %.cpp $(DEPS) | libmesh
+%.o: %.cpp $(DEPS) | hipbone_libs
 ifneq (,${verbose})
 	$(HIPBONE_CXX) -o $*.o -c $*.cpp $(HB_CXXFLAGS)
 else
@@ -166,17 +142,14 @@ clean:
 	rm -f src/*.o *.o hipBone
 
 clean-libs: clean
-	${MAKE} -C ${OGS_DIR} clean
-	${MAKE} -C ${MESH_DIR} clean
-	${MAKE} -C ${CORE_DIR} clean
+	${MAKE} -C ${HIPBONE_LIBS_DIR} clean
 
 clean-kernels: clean-libs
 	rm -rf ${HIPBONE_DIR}/.occa/
 
-realclean: clean-libs
-	${MAKE} -C ${GS_DIR} clean
+realclean: clean-kernels
+	${MAKE} -C ${HIPBONE_LIBS_DIR} realclean
 	${MAKE} -C ${OCCA_DIR} clean
-	rm -rf ${HIPBONE_DIR}/.occa/
 
 help:
 	$(info $(value HIPBONE_HELP_MSG))

@@ -26,61 +26,48 @@ SOFTWARE.
 
 #include "linearSolver.hpp"
 
-#define CG_BLOCKSIZE 512
+constexpr int CG_BLOCKSIZE = 512;
 
-#define STRINGIFY(x) #x
-#define TOSTRING(x) STRINGIFY(x)
-
-cg::cg(solver_t& _solver):
-  linearSolver_t(_solver) {};
-
-cg::~cg() {
-  updateCGKernel1.free();
-  updateCGKernel2.free();
-}
-
-void cg::Init(dlong _N, dlong Nhalo) {
+cg::cg(platform_t& _platform, dlong _N, dlong _Nhalo):
+  linearSolver_t(_platform, _N, _Nhalo) {
 
   N = _N;
   dlong Ntotal = N + Nhalo;
 
   /*aux variables */
   dfloat *dummy = (dfloat *) calloc(Ntotal,sizeof(dfloat)); //need this to avoid uninitialized memory warnings
-  o_p  = device.malloc(Ntotal*sizeof(dfloat),dummy);
-  o_Ap = device.malloc(Ntotal*sizeof(dfloat),dummy);
+  o_p  = platform.malloc(Ntotal*sizeof(dfloat),dummy);
+  o_Ap = platform.malloc(Ntotal*sizeof(dfloat),dummy);
   free(dummy);
 
   //pinned tmp buffer for reductions
-  occa::properties mprops;
-  mprops["host"] = true;
-  h_tmprdotr = device.malloc(1*sizeof(dfloat), mprops);
-  tmprdotr = (dfloat*) h_tmprdotr.ptr();
-  o_tmprdotr = device.malloc(CG_BLOCKSIZE*sizeof(dfloat));
+  tmprdotr = (dfloat*) platform.hostMalloc(1*sizeof(dfloat),
+                                          NULL, h_tmprdotr);
+  o_tmprdotr = platform.malloc(CG_BLOCKSIZE*sizeof(dfloat));
 
   /* build kernels */
-  occa::properties kernelInfo = props; //copy base properties
+  occa::properties kernelInfo = platform.props; //copy base properties
 
   //add defines
   kernelInfo["defines/" "p_blockSize"] = (int)CG_BLOCKSIZE;
 
-  if (device.mode()=="HIP") {
-    kernelInfo["compiler_flags"] += " --gpu-max-threads-per-block=" + std::string(TOSTRING(CG_BLOCKSIZE));
+  if (platform.device.mode()=="HIP") {
+    kernelInfo["compiler_flags"] += " --gpu-max-threads-per-block=" + std::to_string(CG_BLOCKSIZE);
   }
 
   // combined CG update and r.r kernel
-  updateCGKernel1 = buildKernel(device,
-                                HIPBONE_DIR "/core/okl/linearSolverUpdateCG.okl",
-                                "updateCG_1", kernelInfo, comm);
-  updateCGKernel2 = buildKernel(device,
-                                HIPBONE_DIR "/core/okl/linearSolverUpdateCG.okl",
-                                "updateCG_2", kernelInfo, comm);
+  updateCGKernel1 = platform.buildKernel(HIPBONE_DIR "/libs/core/okl/linearSolverUpdateCG.okl",
+                                "updateCG_1", kernelInfo);
+  updateCGKernel2 = platform.buildKernel(HIPBONE_DIR "/libs/core/okl/linearSolverUpdateCG.okl",
+                                "updateCG_2", kernelInfo);
 }
 
 int cg::Solve(solver_t& solver,
                occa::memory &o_x, occa::memory &o_r,
                const dfloat tol, const int MAXIT, const int verbose) {
 
-  int rank = mesh.rank;
+  int rank = platform.rank;
+  linAlg_t &linAlg = platform.linAlg;
 
   // register scalars
   dfloat rdotr1 = 0.0;
@@ -154,10 +141,15 @@ dfloat cg::UpdateCG(const dfloat alpha, occa::memory &o_x, occa::memory &o_r){
 
   o_tmprdotr.copyTo(tmprdotr, 1*sizeof(dfloat), 0, "async: true");
 
-  device.finish();
+  platform.device.finish();
 
   dfloat rdotr1 = 0.0;
   MPI_Allreduce(tmprdotr, &rdotr1, 1, MPI_DFLOAT, MPI_SUM, comm);
 
   return rdotr1;
+}
+
+cg::~cg() {
+  updateCGKernel1.free();
+  updateCGKernel2.free();
 }

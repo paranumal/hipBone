@@ -26,32 +26,28 @@ SOFTWARE.
 
 #include "hipBone.hpp"
 
-hipBone_t& hipBone_t::Setup(mesh_t& mesh, linAlg_t& linAlg){
+hipBone_t& hipBone_t::Setup(platform_t& platform, mesh_t& mesh){
 
-  hipBone_t* hipBone = new hipBone_t(mesh, linAlg);
+  hipBone_t* hipBone = new hipBone_t(platform, mesh);
 
   hipBone->lambda = 0.1; //hard code
 
   //setup linear algebra module
-  hipBone->linAlg.InitKernels({"set", "axpy", "innerProd", "norm2"},
+  platform.linAlg.InitKernels({"set", "axpy", "innerProd", "norm2"},
                                 mesh.comm);
 
   //tmp local storage buffer for Ax op
-  hipBone->o_AqL = mesh.device.malloc(mesh.Np*mesh.Nelements*sizeof(dfloat));
+  hipBone->o_AqL = platform.malloc(mesh.Np*mesh.Nelements*sizeof(dfloat));
 
   // OCCA build stuff
-  occa::properties kernelInfo = hipBone->props; //copy base occa properties
+  occa::properties kernelInfo = platform.props; //copy base occa properties
 
   // Ax kernel
-  hipBone->operatorKernel = buildKernel(mesh.device,
-                                   DHIPBONE "/okl/hipBoneAx.okl",
-                                   "hipBoneAx",
-                                   kernelInfo, mesh.comm);
+  hipBone->operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx.okl",
+                                   "hipBoneAx", kernelInfo);
 
-  hipBone->forcingKernel = buildKernel(mesh.device,
-                                   DHIPBONE "/okl/hipBoneRhs.okl",
-                                   "hipBoneRhs",
-                                   kernelInfo, mesh.comm);
+  hipBone->forcingKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneRhs.okl",
+                                   "hipBoneRhs", kernelInfo);
 
   return *hipBone;
 }

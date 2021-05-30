@@ -26,22 +26,19 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
-mesh_t& mesh_t::Setup(occa::device& device_, MPI_Comm comm_,
-                      settings_t& settings_, occa::properties& props_) {
-  return *(new mesh_t(device_, comm_, settings_, props_));
+mesh_t& mesh_t::Setup(platform_t& _platform) {
+  return *(new mesh_t(_platform));
 }
 
-mesh_t::mesh_t(occa::device& device_, MPI_Comm comm_,
-               settings_t& settings_, occa::properties& props_):
-  device(device_),
-  comm(comm_),
-  settings(settings_),
-  props(props_) {
+mesh_t::mesh_t(platform_t& _platform):
+  platform(_platform),
+  settings(platform.settings) {
 
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &size);
+  comm = platform.comm;
+  MPI_Comm_rank(platform.comm, &rank);
+  MPI_Comm_size(platform.comm, &size);
 
-  settings.getSetting("POLYNOMIAL DEGREE", N);
+  platform.settings.getSetting("POLYNOMIAL DEGREE", N);
 
   dim = 3;
   Nverts = 8; // number of vertices per element

@@ -25,6 +25,7 @@ SOFTWARE.
 */
 
 #include "linAlg.hpp"
+#include "platform.hpp"
 
 /*********************/
 /* vector operations */
@@ -51,7 +52,7 @@ dfloat linAlg_t::norm2(const dlong N, occa::memory& o_a, MPI_Comm comm) {
   norm2Kernel2(Nblock, o_scratch);
 
   o_scratch.copyTo(scratch, 1*sizeof(dfloat), 0, "async: true");
-  device.finish();
+  platform->device.finish();
 
   dfloat norm = 0;
   MPI_Allreduce(scratch, &norm, 1, MPI_DFLOAT, MPI_SUM, comm);
@@ -70,7 +71,7 @@ dfloat linAlg_t::innerProd(const dlong N, occa::memory& o_x, occa::memory& o_y,
   innerProdKernel2(Nblock, o_scratch);
 
   o_scratch.copyTo(scratch, 1*sizeof(dfloat), 0, "async: true");
-  device.finish();
+  platform->device.finish();
 
   dfloat dot = 0;
   MPI_Allreduce(scratch, &dot, 1, MPI_DFLOAT, MPI_SUM, comm);

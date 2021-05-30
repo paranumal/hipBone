@@ -30,40 +30,40 @@ void mesh_t::OccaSetup(){
 
   if(NinternalElements)
     o_internalElementIds    =
-      device.malloc(NinternalElements*sizeof(dlong), internalElementIds);
+      platform.malloc(NinternalElements*sizeof(dlong), internalElementIds);
 
   if(NhaloElements)
-    o_haloElementIds = device.malloc(NhaloElements*sizeof(dlong), haloElementIds);
+    o_haloElementIds = platform.malloc(NhaloElements*sizeof(dlong), haloElementIds);
 
   if(NglobalGatherElements)
     o_globalGatherElementList =
-      device.malloc(NglobalGatherElements*sizeof(dlong), globalGatherElementList);
+      platform.malloc(NglobalGatherElements*sizeof(dlong), globalGatherElementList);
 
   if(NlocalGatherElements)
     o_localGatherElementList =
-      device.malloc(NlocalGatherElements*sizeof(dlong), localGatherElementList);
+      platform.malloc(NlocalGatherElements*sizeof(dlong), localGatherElementList);
 
-  defaultStream = device.getStream();
+  defaultStream = platform.device.getStream();
 
-  props["defines/" "p_dim"]= dim;
-  props["defines/" "p_N"]= N;
-  props["defines/" "p_Nq"]= N+1;
-  props["defines/" "p_Np"]= Np;
-  props["defines/" "p_Nfp"]= Nfp;
-  props["defines/" "p_Nfaces"]= Nfaces;
-  props["defines/" "p_NfacesNfp"]= Nfp*Nfaces;
-  props["defines/" "p_Nggeo"]= Nggeo;
+  platform.props["defines/" "p_dim"]= dim;
+  platform.props["defines/" "p_N"]= N;
+  platform.props["defines/" "p_Nq"]= N+1;
+  platform.props["defines/" "p_Np"]= Np;
+  platform.props["defines/" "p_Nfp"]= Nfp;
+  platform.props["defines/" "p_Nfaces"]= Nfaces;
+  platform.props["defines/" "p_NfacesNfp"]= Nfp*Nfaces;
+  platform.props["defines/" "p_Nggeo"]= Nggeo;
 
-  props["defines/" "p_G00ID"]= G00ID;
-  props["defines/" "p_G01ID"]= G01ID;
-  props["defines/" "p_G02ID"]= G02ID;
-  props["defines/" "p_G11ID"]= G11ID;
-  props["defines/" "p_G12ID"]= G12ID;
-  props["defines/" "p_G22ID"]= G22ID;
-  props["defines/" "p_GWJID"]= GWJID;
+  platform.props["defines/" "p_G00ID"]= G00ID;
+  platform.props["defines/" "p_G01ID"]= G01ID;
+  platform.props["defines/" "p_G02ID"]= G02ID;
+  platform.props["defines/" "p_G11ID"]= G11ID;
+  platform.props["defines/" "p_G12ID"]= G12ID;
+  platform.props["defines/" "p_G22ID"]= G22ID;
+  platform.props["defines/" "p_GWJID"]= GWJID;
 
 
-  o_D = device.malloc(Nq*Nq*sizeof(dfloat), D);
+  o_D = platform.malloc(Nq*Nq*sizeof(dfloat), D);
 
-  o_ggeo = device.malloc(Nelements*Np*Nggeo*sizeof(dfloat), ggeo);
+  o_ggeo = platform.malloc(Nelements*Np*Nggeo*sizeof(dfloat), ggeo);
 }

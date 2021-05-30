@@ -29,22 +29,20 @@ SOFTWARE.
 void hipBone_t::Run(){
 
   //setup linear solver
-  linearSolver_t *linearSolver = linearSolver_t::Setup(*this);
-
   dlong N = mesh.ogsMasked->Ngather;
   dlong Nhalo = mesh.ogsMasked->NgatherHalo;
-  linearSolver->Init(N, Nhalo);
+  linearSolver_t *linearSolver = new cg(platform, N, Nhalo);
 
   dlong NGlobal = mesh.ogsMasked->NgatherGlobal;
   dlong NLocal = mesh.Np*mesh.Nelements;
 
   //create occa buffers
   dlong Nall = N+Nhalo;
-  occa::memory o_r = device.malloc(Nall*sizeof(dfloat));
-  occa::memory o_x = device.malloc(Nall*sizeof(dfloat));
+  occa::memory o_r = platform.malloc(Nall*sizeof(dfloat));
+  occa::memory o_x = platform.malloc(Nall*sizeof(dfloat));
 
   //set x =0
-  linAlg.set(Nall, 0.0, o_x);
+  platform.linAlg.set(Nall, 0.0, o_x);
 
   //NekBone-like RHS
   forcingKernel(N, o_r);
@@ -52,16 +50,16 @@ void hipBone_t::Run(){
   int maxIter = 100;
   int verbose = settings.compareSetting("VERBOSE", "TRUE") ? 1 : 0;
 
-  device.finish();
-  MPI_Barrier(comm);
+  platform.device.finish();
+  MPI_Barrier(mesh.comm);
   double startTime = MPI_Wtime();
 
   //call the solver
   dfloat tol = 0.0;
   int Niter = linearSolver->Solve(*this, o_x, o_r, tol, maxIter, verbose);
 
-  device.finish();
-  MPI_Barrier(comm);
+  platform.device.finish();
+  MPI_Barrier(mesh.comm);
   double endTime = MPI_Wtime();
   double elapsedTime = endTime - startTime;
 
@@ -69,11 +67,11 @@ void hipBone_t::Run(){
 
   hlong Nblocks = mesh.ogsMasked->localScatter.NrowBlocks+mesh.ogsMasked->haloScatter.NrowBlocks;
   hlong NblocksGlobal;
-  MPI_Allreduce(&Nblocks, &NblocksGlobal, 1, MPI_HLONG, MPI_SUM, comm);
+  MPI_Allreduce(&Nblocks, &NblocksGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
 
   hlong NunMasked = NLocal - mesh.Nmasked;
   hlong NunMaskedGlobal;
-  MPI_Allreduce(&NunMasked, &NunMaskedGlobal, 1, MPI_HLONG, MPI_SUM, comm);
+  MPI_Allreduce(&NunMasked, &NunMaskedGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
 
   hlong Ndofs = NGlobal;
 

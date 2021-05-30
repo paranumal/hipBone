@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -24,22 +24,11 @@ SOFTWARE.
 
 */
 
-#include <unistd.h>
-#include <mpi.h>
-#include "occa.hpp"
-#include "types.h"
-#include "utils.hpp"
-#include "core.hpp"
-#include "settings.hpp"
-//#include "omp.h"
+#include "platform.hpp"
+// #include "omp.h"
 
-void occaDeviceConfig(occa::device &device, MPI_Comm comm,
-                      settings_t& settings, occa::properties& props){
-
-  // OCCA build stuff
-  int rank, size;
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &size);
+// OCCA build stuff
+void platform_t::DeviceConfig(){
 
   int plat=0;
   int device_id=0;
@@ -139,6 +128,4 @@ void occaDeviceConfig(occa::device &device, MPI_Comm comm,
     }
   }
   occa::env::setOccaCacheDir(occaCacheDir);
-
-  occaDeviceProperties(device, props);
 }

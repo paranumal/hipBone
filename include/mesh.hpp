@@ -42,12 +42,11 @@ SOFTWARE.
 
 class mesh_t {
 public:
-  occa::device& device;
-  MPI_Comm comm;
+  platform_t& platform;
   settings_t& settings;
-  occa::properties& props;
 
-  int rank, size; // MPI rank and size (process count)
+  MPI_Comm comm;
+  int rank, size;
 
   int dim;
   int Nverts, Nfaces, NfaceVertices;
@@ -126,13 +125,11 @@ public:
   occa::memory o_D; // tensor product differentiation matrix (for Hexes)
   occa::memory o_ggeo; // second order geometric factors
 
-  mesh_t(occa::device& device, MPI_Comm comm,
-         settings_t& settings, occa::properties& props);
+  mesh_t(platform_t& _platform);
 
   ~mesh_t();
 
-  static mesh_t& Setup(occa::device& device_, MPI_Comm comm_,
-                       settings_t& settings_, occa::properties& props_);
+  static mesh_t& Setup(platform_t& _platform);
 
   // box mesh
   void SetupBox();
