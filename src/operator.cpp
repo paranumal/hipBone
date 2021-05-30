@@ -28,26 +28,28 @@
 
 void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
 
-  mesh.ogsMasked->GatheredHaloExchangeStart(o_q, 1, ogs_dfloat);
+  mesh.gHalo->ExchangeStart(o_q, 1, ogs::Dfloat);
 
   if(mesh.NlocalGatherElements){
-    operatorKernel(mesh.NlocalGatherElements, mesh.o_localGatherElementList,
-                   mesh.ogsMasked->o_GlobalToLocal,
+    operatorKernel(mesh.NlocalGatherElements,
+                   mesh.o_localGatherElementList,
+                   mesh.o_GlobalToLocal,
                    mesh.o_ggeo, mesh.o_D,
                    lambda, o_q, o_AqL);
   }
 
   // finalize halo exchange
-  mesh.ogsMasked->GatheredHaloExchangeFinish(o_q, 1, ogs_dfloat);
+  mesh.gHalo->ExchangeFinish(o_q, 1, ogs::Dfloat);
 
   if(mesh.NglobalGatherElements) {
-    operatorKernel(mesh.NglobalGatherElements, mesh.o_globalGatherElementList,
-                   mesh.ogsMasked->o_GlobalToLocal,
+    operatorKernel(mesh.NglobalGatherElements,
+                   mesh.o_globalGatherElementList,
+                   mesh.o_GlobalToLocal,
                    mesh.o_ggeo, mesh.o_D,
                    lambda, o_q, o_AqL);
   }
 
   //gather result to Aq
-  mesh.ogsMasked->Gather(o_Aq, o_AqL, ogs_dfloat, ogs_add, ogs_trans);
+  mesh.ogsMasked->Gather(o_Aq, o_AqL, 1, ogs::Dfloat, ogs::Add, ogs::Trans);
 }
 

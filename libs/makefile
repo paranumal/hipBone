@@ -33,16 +33,13 @@ endif
 endif
 
 #libraries
-GS_DIR =${HIPBONE_TPL_DIR}/gslib
-
-#libraries
 LIBCORE_DIR=${HIPBONE_LIBS_DIR}/core
 LIBMESH_DIR=${HIPBONE_LIBS_DIR}/mesh
 LIBOGS_DIR=${HIPBONE_LIBS_DIR}/ogs
 
 #includes
 INCLUDES=${HIPBONE_INCLUDES}
-LIBOGS_INCLUDES= -I${HIPBONE_LIBS_DIR}/ogs/include
+LIBOGS_INCLUDES= -I${HIPBONE_INCLUDES}/ogs
 
 #defines
 LIBCORE_DEFINES=-DHIPBONE_DIR='"${HIPBONE_DIR}"'
@@ -54,14 +51,13 @@ LIB_CXXFLAGS=${HIPBONE_CXXFLAGS} ${DEFINES} ${INCLUDES}
 
 #object dependancies
 LIB_DEPS=$(wildcard $(HIPBONE_INCLUDE_DIR)/*.h) \
-         $(wildcard $(HIPBONE_INCLUDE_DIR)/*.hpp) \
-         $(wildcard $(HIPBONE_INCLUDE_DIR)/ogs/*.hpp)
+         $(wildcard $(HIPBONE_INCLUDE_DIR)/*.hpp)
 LIBOGS_DEPS=${LIB_DEPS} \
             $(wildcard $(HIPBONE_INCLUDE_DIR)/ogs/*.hpp)
 
 LIBCORE_SRC =$(wildcard core/*.cpp)
 LIBMESH_SRC =$(wildcard mesh/*.cpp)
-LIBOGS_SRC =$(wildcard ogs/src/*.cpp)
+LIBOGS_SRC =$(wildcard ogs/*.cpp)
 
 LIBCORE_OBJS=$(LIBCORE_SRC:.cpp=.o)
 LIBMESH_OBJS=$(LIBMESH_SRC:.cpp=.o)
@@ -85,14 +81,7 @@ else
 	@ar -cr libcore.a $(LIBCORE_OBJS)
 endif
 
-libgs: | libcore.a
-ifneq (,${verbose})
-	${MAKE} -C $(GS_DIR) install verbose=${verbose}
-else
-	@${MAKE} -C $(GS_DIR) install --no-print-directory
-endif
-
-libogs.a: $(LIBOGS_OBJS) | libgs
+libogs.a: $(LIBOGS_OBJS) | libcore.a
 ifneq (,${verbose})
 	ar -cr libogs.a $(LIBOGS_OBJS)
 else
@@ -142,17 +131,14 @@ else
 	@$(HIPBONE_CXX) -o $@ -c $< ${LIBMESH_DEFINES} $(LIB_CXXFLAGS)
 endif
 
-ogs/src/%.o: ogs/src/%.cpp $(LIBOGS_DEPS) | libcore.a
+ogs/%.o: ogs/%.cpp $(LIBOGS_DEPS) | libcore.a
 ifneq (,${verbose})
-	$(HIPBONE_CXX) -o $@ -c $< ${LIBOGS_DEFINES} -I${GS_DIR}/src $(LIB_CXXFLAGS) $(LIBOGS_INCLUDES)
+	$(HIPBONE_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS) $(LIBOGS_INCLUDES)
 else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(HIPBONE_CXX) -o $@ -c $< ${LIBOGS_DEFINES} -I${GS_DIR}/src $(LIB_CXXFLAGS) $(LIBOGS_INCLUDES)
+	@$(HIPBONE_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS) $(LIBOGS_INCLUDES)
 endif
 
 #cleanup
 clean:
-	rm -f core/*.o mesh/*.o ogs/src/*.o *.a
-
-realclean: clean
-	${MAKE} -C ${GS_DIR} clean
+	rm -f core/*.o mesh/*.o ogs/*.o *.a

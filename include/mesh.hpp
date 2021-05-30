@@ -67,7 +67,7 @@ public:
   dlong *VmapP;  // list of vertices that are paired with face vertices
 
   // MPI halo exchange info
-  halo_t *halo;            // halo exchange pointer
+  ogs::halo_t *halo;            // halo exchange pointer
   dlong NinternalElements; // number of elements that can update without halo exchange
   dlong NhaloElements;     // number of elements that cannot update without halo exchange
   dlong  totalHaloPairs;   // number of elements to be received in halo exchange
@@ -77,10 +77,13 @@ public:
   occa::memory o_haloElementIds;      // list of elements to be sent in halo exchange
 
   // CG gather-scatter info
-  ogs_t *ogs;              //occa gs pointer
-  ogs_t *ogsMasked;
+  ogs::ogs_t *ogsMasked;
+  ogs::halo_t *gHalo;
   hlong *globalIds, *maskedGlobalIds, *maskedGlobalNumbering;
   dlong Nmasked;
+
+  dlong* GlobalToLocal;
+  occa::memory o_GlobalToLocal;
 
   // list of elements that are needed for global gather-scatter
   dlong NglobalGatherElements;

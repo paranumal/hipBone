@@ -106,9 +106,10 @@ void mesh_t::HaloSetup(){
   }
 
   //make a halo exchange op
-  int verbose = 0;
-  halo = halo_t::Setup(Nelements+totalHaloPairs, globalElementId, comm,
-                       verbose, platform);
+  bool verbose = false;
+  halo = new ogs::halo_t(platform);
+  halo->Setup(Nelements+totalHaloPairs, globalElementId, comm,
+              ogs::Pairwise, verbose);
 
   free(globalElementId);
   free(globalOffset);
