@@ -30,7 +30,7 @@ SOFTWARE.
 hipBoneSettings_t::hipBoneSettings_t(const int argc, char** argv, MPI_Comm &_comm):
   settings_t(_comm) {
 
-  occaAddSettings(*this);
+  platformAddSettings(*this);
   meshAddSettings(*this);
 
   newSetting("-v", "--verbose",
@@ -49,7 +49,7 @@ void hipBoneSettings_t::report() {
 
   if (rank==0) {
     std::cout << "Settings:\n\n";
-    occaReportSettings(*this);
+    platformReportSettings(*this);
     meshReportSettings(*this);
   }
 }

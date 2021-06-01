@@ -27,37 +27,24 @@ SOFTWARE.
 #ifndef LINEARSOLVER_HPP
 #define LINEARSOLVER_HPP
 
-#include <occa.hpp>
-#include "types.h"
-#include "utils.hpp"
 #include "core.hpp"
-#include "settings.hpp"
+#include "platform.hpp"
 #include "solver.hpp"
-#include "linAlg.hpp"
 
 //virtual base linear solver class
 class linearSolver_t {
 public:
-  MPI_Comm& comm;
-  occa::device& device;
+  platform_t& platform;
   settings_t& settings;
-  occa::properties& props;
-  mesh_t& mesh;
-  linAlg_t& linAlg;
+  MPI_Comm comm;
 
   dlong N;
+  dlong Nhalo;
 
-  linearSolver_t(solver_t& solver):
-    comm(solver.comm),
-    device(solver.device),
-    settings(solver.settings),
-    props(solver.props),
-    mesh(solver.mesh),
-    linAlg(solver.linAlg) {}
+  linearSolver_t(platform_t& _platform, dlong _N, dlong _Nhalo):
+    platform(_platform), settings(platform.settings), comm(platform.comm),
+    N(_N), Nhalo(_Nhalo) {}
 
-  static linearSolver_t* Setup(solver_t& solver);
-
-  virtual void Init(dlong _N, dlong Nhalo)=0;
   virtual int Solve(solver_t& solver,
                     occa::memory& o_x, occa::memory& o_rhs,
                     const dfloat tol, const int MAXIT, const int verbose)=0;
@@ -80,10 +67,9 @@ private:
   dfloat UpdateCG(const dfloat alpha, occa::memory &o_x, occa::memory &o_r);
 
 public:
-  cg(solver_t& solver);
+  cg(platform_t& _platform, dlong _N, dlong _Nhalo);
   ~cg();
 
-  void Init(dlong _N, dlong Nhalo);
   int Solve(solver_t& solver,
             occa::memory& o_x, occa::memory& o_rhs,
             const dfloat tol, const int MAXIT, const int verbose);

@@ -31,7 +31,7 @@ SOFTWARE.
 void mesh_t::ConnectNodes(){
 
   dlong localNodeCount = Np*Nelements;
-  dlong *allLocalNodeCounts = (dlong*) calloc(size, sizeof(dlong));
+  dlong *allLocalNodeCounts = (dlong*) calloc(platform.size, sizeof(dlong));
 
   MPI_Allgather(&localNodeCount,    1, MPI_DLONG,
                 allLocalNodeCounts, 1, MPI_DLONG,

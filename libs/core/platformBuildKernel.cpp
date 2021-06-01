@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -24,24 +24,24 @@ SOFTWARE.
 
 */
 
-#include <unistd.h>
-#include <stdio.h>
-#include "occa.hpp"
+#include "platform.hpp"
 
-void *occaHostMallocPinned(occa::device &device, size_t size, void *source, occa::memory &mem, occa::memory &h_mem){
+occa::kernel platform_t::buildKernel(std::string fileName, std::string kernelName,
+                                     occa::properties& kernelInfo){
 
-  occa::properties props;
-  props["host"] = true;
+  occa::kernel kernel;
 
-  if(source!=NULL)
-    mem =  device.malloc(size, source);
-  else
-    mem =  device.malloc(size);
+  //build on root first
+  if (!rank)
+    kernel = device.buildKernel(fileName, kernelName, kernelInfo);
 
-  h_mem =  device.malloc(size, props);
+  MPI_Barrier(comm);
 
-  void *ptr = h_mem.ptr();
+  //remaining ranks find the cached version (ideally)
+  if (rank)
+    kernel = device.buildKernel(fileName, kernelName, kernelInfo);
 
-  return ptr;
+  MPI_Barrier(comm);
 
+  return kernel;
 }

@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -24,12 +24,10 @@ SOFTWARE.
 
 */
 
-#include <occa.hpp>
-#include "types.h"
-#include "utils.hpp"
+#include "platform.hpp"
 
 //initialize occa::properties with common props
-void occaDeviceProperties(occa::device &device, occa::properties& props){
+void platform_t::DeviceProperties(){
 
   props["defines"].asObject();
   props["includes"].asArray();
@@ -52,7 +50,7 @@ void occaDeviceProperties(occa::device &device, occa::properties& props){
     props["defines/" "dfloat4"]="double4";
     props["defines/" "dfloat8"]="double8";
   }
-
+  
   if(sizeof(dlong)==4){
     props["defines/" "dlong"]="int";
   }
@@ -61,17 +59,17 @@ void occaDeviceProperties(occa::device &device, occa::properties& props){
   }
 
   if(device.mode()=="Serial") {
-    props["compiler_flags"] += " -g "; //debugging
-    props["compiler_flags"] += " -O3 ";
+    props["compiler_flags"] += "-O3 ";
+    props["compiler_flags"] += "-g "; //debugging
   }
 
   if(device.mode()=="CUDA"){ // add backend compiler optimization for CUDA
-    props["compiler_flags"] += " --ftz=true ";
-    props["compiler_flags"] += " --prec-div=false ";
-    props["compiler_flags"] += " --prec-sqrt=false ";
-    props["compiler_flags"] += " --use_fast_math ";
-    props["compiler_flags"] += " --fmad=true "; // compiler option for cuda
-    props["compiler_flags"] += " -Xptxas -dlcm=ca";
+    props["compiler_flags"] += "--ftz=true ";
+    props["compiler_flags"] += "--prec-div=false ";
+    props["compiler_flags"] += "--prec-sqrt=false ";
+    props["compiler_flags"] += "--use_fast_math ";
+    props["compiler_flags"] += "--fmad=true "; // compiler option for cuda
+    props["compiler_flags"] += "-Xptxas -dlcm=ca";
   }
 
   if(device.mode()=="OpenCL"){ // add backend compiler optimization for OPENCL
@@ -89,6 +87,5 @@ void occaDeviceProperties(occa::device &device, occa::properties& props){
     props["compiler_flags"] += " -funsafe-math-optimizations ";
     props["compiler_flags"] += " -ffast-math ";
     props["compiler_flags"] += "--gpu-max-threads-per-block=256";
-
   }
 }

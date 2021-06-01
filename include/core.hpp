@@ -32,26 +32,19 @@ SOFTWARE.
 #include <string>
 #include <cstring>
 #include <algorithm>
-#include "types.h"
+#include <cmath>
 #include "utils.hpp"
-#include "settings.hpp"
 
-void occaAddSettings(settings_t& settings);
+void matrixRightSolve(int NrowsA, int NcolsA, double *A, int NrowsB, int NcolsB, double *B, double *C);
+void matrixRightSolve(int NrowsA, int NcolsA, float *A, int NrowsB, int NcolsB, float *B, float *C);
 
-void occaReportSettings(settings_t& settings);
+void matrixEigenVectors(int N, double *A, double *VR, double *WR, double *WI);
+void matrixEigenVectors(int N, float *A, float *VR, float *WR, float *WI);
 
-void occaDeviceConfig(occa::device &device, MPI_Comm comm,
-                      settings_t& settings, occa::properties& kernelInfo);
+void matrixEigenValues(int N, double *A, double *WR, double *WI);
+void matrixEigenValues(int N, float *A, float *WR, float *WI);
 
-void occaDeviceProperties(occa::device &device, occa::properties& props);
-
-void *occaHostMallocPinned(occa::device &device, size_t size, void *source, occa::memory &mem, occa::memory &h_mem);
-
-occa::kernel buildKernel(occa::device& device, std::string fileName, std::string kernelName,
-                         occa::properties& kernelInfo, MPI_Comm& comm);
-
-void matrixRightSolve(int NrowsA, int NcolsA, dfloat *A, int NrowsB, int NcolsB, dfloat *B, dfloat *C);
-void matrixEig(int N, dfloat *A, dfloat *VR, dfloat *WR, dfloat *WI);
-void matrixInverse(int N, dfloat *A);
+void matrixInverse(int N, double *A);
+void matrixInverse(int N, float *A);
 
 #endif

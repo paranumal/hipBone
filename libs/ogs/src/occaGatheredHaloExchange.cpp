@@ -35,6 +35,7 @@ void ogs_t::GatheredHaloExchangeStart(occa::memory& o_v,
                                   const int k,
                                   const ogs_type type){
 
+  occa::device &device = platform.device;
   const size_t Nbytes = ogs_type_size[type];
 
   reallocOccaBuffer(Nbytes*k);
@@ -58,6 +59,7 @@ void ogs_t::GatheredHaloExchangeFinish(occa::memory& o_v,
                                      const int k,
                                      const ogs_type type){
 
+  occa::device &device = platform.device;
   const size_t Nbytes = ogs_type_size[type];
 
   occa::stream currentStream = device.getStream();
@@ -117,5 +119,5 @@ void ogs_t::GatheredHaloExchangeSetup(){
 
   free(ids);
 
-  o_GlobalToLocal = device.malloc(N*sizeof(dlong), GlobalToLocal);
+  o_GlobalToLocal = platform.malloc(N*sizeof(dlong), GlobalToLocal);
 }

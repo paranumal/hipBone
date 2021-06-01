@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,7 @@ SOFTWARE.
 
 #include "settings.hpp"
 
-void occaAddSettings(settings_t& settings) {
+void platformAddSettings(settings_t& settings) {
 
   settings.newSetting("-m", "--mode",
                       "THREAD MODEL",
@@ -45,7 +45,7 @@ void occaAddSettings(settings_t& settings) {
                       "Parallel device number");
 }
 
-void occaReportSettings(settings_t& settings) {
+void platformReportSettings(settings_t& settings) {
 
   settings.reportSetting("THREAD MODEL");
 

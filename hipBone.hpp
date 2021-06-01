@@ -27,7 +27,7 @@ SOFTWARE.
 #ifndef HIPBONE_HPP
 #define HIPBONE_HPP 1
 
-#include "core.hpp"
+#include "platform.hpp"
 #include "mesh.hpp"
 #include "solver.hpp"
 #include "linAlg.hpp"
@@ -43,6 +43,8 @@ public:
 
 class hipBone_t: public solver_t {
 public:
+  mesh_t &mesh;
+
   dfloat lambda;
 
   occa::memory o_AqL;
@@ -51,13 +53,13 @@ public:
   occa::kernel forcingKernel;
 
   hipBone_t() = delete;
-  hipBone_t(mesh_t& _mesh, linAlg_t& _linAlg):
-    solver_t(_mesh, _linAlg) {}
+  hipBone_t(platform_t& _platform, mesh_t &_mesh):
+    solver_t(_platform), mesh(_mesh) {}
 
   ~hipBone_t();
 
   //setup
-  static hipBone_t& Setup(mesh_t& mesh, linAlg_t& linAlg);
+  static hipBone_t& Setup(platform_t& _platform, mesh_t& mesh);
 
   void Run();
 
