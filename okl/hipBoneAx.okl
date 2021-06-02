@@ -24,9 +24,14 @@ SOFTWARE.
 
 */
 
+#if p_N<=8
+#define USE_3D_SHMEM 1
+#else
 #define USE_3D_SHMEM 0
+#endif
 
 #if !USE_3D_SHMEM
+
 
 //This kernel processes 2D slices of the element in shmem and uses register arrays
 // to store the element itself. May be slower for low order but allows us to run
@@ -136,7 +141,10 @@ SOFTWARE.
     }
 
     // Layer by layer
-    // #pragma unroll 1
+#if OCCA_USE_CUDA==1
+    // only force some type of unrolling in CUDA mode
+    #pragma unroll p_Nq
+#endif
     for(int k = 0;k < p_Nq; k++){
 
       for(int es=0;es<p_NelementsPerBlk;++es;@inner(2)){
