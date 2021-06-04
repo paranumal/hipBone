@@ -90,6 +90,9 @@ ogsExchange_t* ogsBase_t::AutoSetup(dlong Nshared,
     printf("   Method         Device Exchange (avg, min, max)  Host Exchange \n");
 #endif
 
+  //Trigger JIT kernel builds
+  InitializeKernels(platform, ogs::Dfloat, ogs::Add);
+
   /********************************
    * Pairwise
    ********************************/
