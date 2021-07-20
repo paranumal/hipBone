@@ -61,6 +61,7 @@ void platform_t::DeviceProperties(){
   if(device.mode()=="Serial") {
     props["compiler_flags"] += "-O3 ";
     props["compiler_flags"] += "-g "; //debugging
+    props["defines/OCCA_USE_SERIAL"] = 1;
   }
 
   if(device.mode()=="CUDA"){ // add backend compiler optimization for CUDA
@@ -70,6 +71,7 @@ void platform_t::DeviceProperties(){
     props["compiler_flags"] += "--use_fast_math ";
     props["compiler_flags"] += "--fmad=true "; // compiler option for cuda
     props["compiler_flags"] += "-Xptxas -dlcm=ca";
+    props["defines/OCCA_USE_CUDA"] = 1;
   }
 
   if(device.mode()=="OpenCL"){ // add backend compiler optimization for OPENCL
@@ -79,6 +81,7 @@ void platform_t::DeviceProperties(){
     props["compiler_flags"] += " -cl-no-signed-zeros ";
     props["compiler_flags"] += " -cl-unsafe-math-optimizations ";
     props["compiler_flags"] += " -cl-fast-relaxed-math ";
+    props["defines/OCCA_USE_OPENCL"] = 1;
   }
 
   if(device.mode()=="HIP"){ // add backend compiler optimization for HIP
@@ -87,5 +90,6 @@ void platform_t::DeviceProperties(){
     props["compiler_flags"] += " -funsafe-math-optimizations ";
     props["compiler_flags"] += " -ffast-math ";
     props["compiler_flags"] += "--gpu-max-threads-per-block=256";
+    props["defines/OCCA_USE_HIP"] = 1;
   }
 }
