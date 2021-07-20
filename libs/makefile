@@ -46,7 +46,7 @@ LIBCORE_DEFINES=-DHIPBONE_DIR='"${HIPBONE_DIR}"'
 LIBMESH_DEFINES=-DMESH_DIR='"${LIBMESH_DIR}"'
 LIBOGS_DEFINES=-DHIPBONE_DIR='"${HIPBONE_DIR}"'  -DOGS_DIR='"${LIBOGS_DIR}"'
 
-ifeq ("true",${gpu-aware-mpi})
+ifeq (true,${gpu-aware-mpi})
   LIBOGS_DEFINES+= -DGPU_AWARE_MPI
 endif
 
