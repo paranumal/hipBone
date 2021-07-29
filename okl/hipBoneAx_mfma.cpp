@@ -1,3 +1,5 @@
+#include <hip/hip_runtime.h>
+
 /*
 
 The MIT License (MIT)
@@ -30,24 +32,27 @@ SOFTWARE.
 
 #define p_pad 1
 
-@kernel void hipBoneAx_mfma(const dlong Nelements,
-                            @restrict const  dlong  *  elementList,
-                            @restrict const  dlong  *  GlobalToLocal,
-                            @restrict const  dfloat *  ggeo,
-                            @restrict const  dfloat *  D,
-                            @restrict const  dfloat *  S,
-                            @restrict const  dfloat *  MM,
-                            const dfloat lambda,
-                            @restrict const  dfloat *  q,
-                                  @restrict dfloat *  Aq){
+extern "C" __global__ void hipBoneAx_mfma(const dlong Nelements,
+                                          const dlong  *  elementList,
+                                          const dlong  *  GlobalToLocal,
+                                          const dfloat *  ggeo,
+                                          const dfloat *  D,
+                                          const dfloat *  S,
+                                          const dfloat *  MM,
+                                          const dfloat lambda,
+                                          const dfloat *  q,
+                                                dfloat *  Aq){
 
   const int e = blockIdx.x;
+  const int r_e = e;
 
   // using dfloat4 = __attribute__((__vector_size__(4 * sizeof(dfloat)))) dfloat;
 
   __shared__ dfloat s_D[p_Nq][p_Nq+p_pad];
   __shared__ dfloat s_DT[p_Nq][p_Nq+p_pad];
   __shared__ dfloat s_q[p_Nq][p_Nq+p_pad];
+  __shared__ dfloat s_v[p_Nq][p_Nq+p_pad];
+  __shared__ dfloat s_w[p_Nq][p_Nq+p_pad];
 
   dfloat r_GDqt, r_Aqk;
 
@@ -139,7 +144,7 @@ SOFTWARE.
     r_GDqt    = (r_G02*qr + r_G12*qs + r_G22*qt);
 
     r_Aqk = r_GwJ*lambda*r_q[k];
-    __synthreads();
+    __syncthreads();
 
     #pragma unroll p_Nq
     for (int m=0;m<p_Nq;m++) {
