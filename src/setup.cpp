@@ -43,11 +43,15 @@ hipBone_t& hipBone_t::Setup(platform_t& platform, mesh_t& mesh){
   occa::properties kernelInfo = platform.props; //copy base occa properties
 
   // Ax kernel
-  hipBone->operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx.okl",
-                                   "hipBoneAx", kernelInfo);
-
   hipBone->forcingKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneRhs.okl",
                                    "hipBoneRhs", kernelInfo);
+
+
+  kernelInfo["okl/enabled"] = false;
+
+  hipBone->operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx_mfma.cpp",
+                                   "hipBoneAx_mfma", kernelInfo);
+
 
   return *hipBone;
 }

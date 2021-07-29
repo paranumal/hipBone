@@ -31,6 +31,7 @@ void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
   mesh.ogsMasked->GatheredHaloExchangeStart(o_q, 1, ogs_dfloat);
 
   if(mesh.NlocalGatherElements){
+    operatorKernel.setRunDims(mesh.NlocalGatherElements, occa::dim(16, 16));
     operatorKernel(mesh.NlocalGatherElements, mesh.o_localGatherElementList,
                    mesh.ogsMasked->o_GlobalToLocal,
                    mesh.o_ggeo, mesh.o_D,
@@ -41,6 +42,7 @@ void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
   mesh.ogsMasked->GatheredHaloExchangeFinish(o_q, 1, ogs_dfloat);
 
   if(mesh.NglobalGatherElements) {
+    operatorKernel.setRunDims(mesh.NglobalGatherElements, occa::dim(16, 16));
     operatorKernel(mesh.NglobalGatherElements, mesh.o_globalGatherElementList,
                    mesh.ogsMasked->o_GlobalToLocal,
                    mesh.o_ggeo, mesh.o_D,
