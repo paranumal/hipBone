@@ -37,8 +37,6 @@ extern "C" __global__ void hipBoneAx_mfma(const dlong Nelements,
                                           const dlong  *  GlobalToLocal,
                                           const dfloat *  ggeo,
                                           const dfloat *  D,
-                                          const dfloat *  S,
-                                          const dfloat *  MM,
                                           const dfloat lambda,
                                           const dfloat *  q,
                                                 dfloat *  Aq){
