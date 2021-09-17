@@ -33,7 +33,7 @@ void hipBone_t::Run(){
   dlong Nhalo = mesh.ogsMasked->NgatherHalo;
   linearSolver_t *linearSolver = new cg(platform, N, Nhalo);
 
-  dlong NGlobal = mesh.ogsMasked->NgatherGlobal;
+  hlong NGlobal = mesh.ogsMasked->NgatherGlobal;
   dlong NLocal = mesh.Np*mesh.Nelements;
 
   //create occa buffers
