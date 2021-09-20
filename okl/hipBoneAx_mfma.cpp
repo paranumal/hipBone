@@ -95,18 +95,18 @@ extern "C" __global__ void hipBoneAx_mfma(const dlong Nelements,
 
     dfloat r_G00, r_G01, r_G02, r_G11, r_G12, r_G22, r_GwJ;
 
-		if(r_e<Nelements){
-			// prefetch geometric factors
-			const dlong gbase = element*p_Nggeo*p_Np + k*p_Nq*p_Nq + j*p_Nq + i;
+    if(r_e<Nelements){
+	// prefetch geometric factors
+	const dlong gbase = element*p_Nggeo*p_Np + k*p_Nq*p_Nq + j*p_Nq + i;
 
-			r_GwJ = ggeo[gbase+p_GWJID*p_Np];
-			r_G00 = ggeo[gbase+p_G00ID*p_Np];
-			r_G01 = ggeo[gbase+p_G01ID*p_Np];
-			r_G11 = ggeo[gbase+p_G11ID*p_Np];
-			r_G12 = ggeo[gbase+p_G12ID*p_Np];
-			r_G02 = ggeo[gbase+p_G02ID*p_Np];
-			r_G22 = ggeo[gbase+p_G22ID*p_Np];
-		}
+	r_GwJ = ggeo[gbase+p_GWJID*p_Np];
+	r_G00 = ggeo[gbase+p_G00ID*p_Np];
+	r_G01 = ggeo[gbase+p_G01ID*p_Np];
+	r_G11 = ggeo[gbase+p_G11ID*p_Np];
+	r_G12 = ggeo[gbase+p_G12ID*p_Np];
+	r_G02 = ggeo[gbase+p_G02ID*p_Np];
+	r_G22 = ggeo[gbase+p_G22ID*p_Np];
+    }
 
     dfloat qr = 0.f;
     dfloat qs = 0.f;
@@ -136,7 +136,6 @@ extern "C" __global__ void hipBoneAx_mfma(const dlong Nelements,
       qs = __builtin_amdgcn_mfma_f64_4x4x4f64(A, B, qs, 0, 0, 0); // y-deriv
     }
 
-
     s_v[j][i] = (r_G00*qr + r_G01*qs + r_G02*qt);
     s_w[j][i] = (r_G01*qr + r_G11*qs + r_G12*qt);
     r_GDqt    = (r_G02*qr + r_G12*qs + r_G22*qt);
@@ -157,7 +156,7 @@ extern "C" __global__ void hipBoneAx_mfma(const dlong Nelements,
 
       // Ordering of the result is the same as the B matrix
       r_Aqk = __builtin_amdgcn_mfma_f64_4x4x4f64(A, B, r_Aqk, 0, 0, 0); // y-deriv
-		}
+    }
 
     #pragma unroll 4
 		for (int m=0;m<4;m++) {
