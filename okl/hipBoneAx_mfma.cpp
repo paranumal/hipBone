@@ -120,8 +120,8 @@ extern "C" __global__ void hipBoneAx_mfma(const dlong Nelements,
     #pragma unroll 4
     for (int m=0;m<4;m++) {
       dfloat A, B, C;
-      B = s_DT[4*m+j%4][i];
-      A = s_q[i%4+j/4][4*m+j%4];
+      B = s_DT[(4*m)+(j%4)][i];
+      A = s_q[(i%4)+4*(j/4)][(4*m)+(j%4)];
 
       qr = __builtin_amdgcn_mfma_f64_4x4x4f64(A, B, qr, 0, 0, 0); // x-deriv
     }
@@ -130,7 +130,7 @@ extern "C" __global__ void hipBoneAx_mfma(const dlong Nelements,
     for (int m=0;m<4;m++) {
       dfloat A, B, C;
       B = s_q[4*m+j%4][i];
-      A = s_DT[4*m+j%4][i%4+j/4];
+      A = s_DT[4*m+j%4][i%4+4*(j/4)];
 
       // Ordering of the result is the same as the B matrix
       qs = __builtin_amdgcn_mfma_f64_4x4x4f64(A, B, qs, 0, 0, 0); // y-deriv
@@ -152,17 +152,17 @@ extern "C" __global__ void hipBoneAx_mfma(const dlong Nelements,
     for (int m=0;m<4;m++) {
       dfloat A, B;
       B = s_w[4*m+j%4][i];
-      A = s_D[4*m+j%4][i%4+j/4];
+      A = s_D[4*m+j%4][i%4+4*(j/4)];
 
       // Ordering of the result is the same as the B matrix
       r_Aqk = __builtin_amdgcn_mfma_f64_4x4x4f64(A, B, r_Aqk, 0, 0, 0); // y-deriv
     }
 
     #pragma unroll 4
-		for (int m=0;m<4;m++) {
+    for (int m=0;m<4;m++) {
       dfloat A, B, C;
       B = s_D[4*m+j%4][i];
-      A = s_v[i%4+j/4][4*m+j%4];
+      A = s_v[i%4+4*(j/4)][4*m+j%4];
 
       r_Aqk = __builtin_amdgcn_mfma_f64_4x4x4f64(A, B, r_Aqk, 0, 0, 0); // x-deriv
     }
