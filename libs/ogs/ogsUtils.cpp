@@ -24,7 +24,7 @@ SOFTWARE.
 
 */
 
-
+#include <limits>
 #include "ogs.hpp"
 #include "ogs/ogsUtils.hpp"
 
