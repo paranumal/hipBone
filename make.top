@@ -32,7 +32,6 @@ export HIPBONE_DIR:=$(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST))
 
 export HIPBONE_INCLUDE_DIR=${HIPBONE_DIR}/include
 export HIPBONE_LIBS_DIR=${HIPBONE_DIR}/libs
-export HIPBONE_TPL_DIR=${HIPBONE_DIR}/libs/3rdParty
 
 export OPENBLAS_DIR?=/usr/lib/x86_64-linux-gnu
 export HIPBONE_BLAS_LIB=-L${OPENBLAS_DIR} -lopenblas

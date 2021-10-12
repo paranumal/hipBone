@@ -47,8 +47,8 @@ void mesh_t::GatherScatterSetup() {
     localChange = 0;
 
     // send halo data and recv into extension of buffer
-    halo->Exchange(minRank, Nverts, ogs_int);
-    halo->Exchange(maxRank, Nverts, ogs_int);
+    halo->Exchange(minRank, Nverts, ogs::Int32);
+    halo->Exchange(maxRank, Nverts, ogs::Int32);
 
     // compare trace vertices
     for(dlong e=0;e<Nelements;++e){
@@ -147,10 +147,20 @@ void mesh_t::GatherScatterSetup() {
     if (maskedGlobalIds[n]==0) Nmasked++;
 
   //use the masked ids to make another gs handle (signed so the gather is defined)
-  int verbose=0;
-  ogs_t::Unique(maskedGlobalIds, Nelements*Np, comm);     //flag a unique node in every gather node
-  ogsMasked = ogs_t::Setup(Nelements*Np, maskedGlobalIds,
-                           comm, verbose, platform);
+  bool verbose = settings.compareSetting("VERBOSE", "TRUE");
+  bool unique = true; //flag a unique node in every gather node
+  ogsMasked = new ogs::ogs_t(platform);
+  ogsMasked->Setup(Nelements*Np, maskedGlobalIds,
+                   comm, ogs::Signed, ogs::Auto,
+                   unique, verbose);
+
+  gHalo = new ogs::halo_t(platform);
+  gHalo->SetupFromGather(*ogsMasked);
+
+  GlobalToLocal = (dlong *) malloc(Nelements*Np*sizeof(dlong));
+  ogsMasked->SetupGlobalToLocalMapping(GlobalToLocal);
+
+  o_GlobalToLocal = platform.malloc(Nelements*Np*sizeof(dlong), GlobalToLocal);
 
   /* use the masked gs handle to define a global ordering */
   hlong Ngather = ogsMasked->Ngather;     // number of degrees of freedom on this rank (after gathering)
@@ -162,11 +172,11 @@ void mesh_t::GatherScatterSetup() {
   weightG = (dfloat*) calloc(ogsMasked->Ngather, sizeof(dfloat));
   for(dlong n=0;n<Ntotal;++n) weight[n] = 1.0;
 
-  ogsMasked->Gather(weightG, weight, ogs_dfloat, ogs_add, ogs_trans);
+  ogsMasked->Gather(weightG, weight, 1, ogs::Dfloat, ogs::Add, ogs::Trans);
   for(dlong n=0;n<ogsMasked->Ngather;++n)
     if (weightG[n]) weightG[n] = 1./weightG[n];
 
-  ogsMasked->Scatter(weight, weightG, ogs_dfloat, ogs_add, ogs_notrans);
+  ogsMasked->Scatter(weight, weightG, 1, ogs::Dfloat, ogs::Add, ogs::NoTrans);
 
   // o_weight  = device.malloc(Ntotal*sizeof(dfloat), weight);
   // o_weightG = device.malloc(ogsMasked->Ngather*sizeof(dfloat), weightG);
@@ -188,10 +198,7 @@ void mesh_t::GatherScatterSetup() {
   //scatter this numbering to the original nodes
   maskedGlobalNumbering = (hlong *) calloc(Ntotal,sizeof(hlong));
   for (dlong n=0;n<Ntotal;n++) maskedGlobalNumbering[n] = -1;
-  ogsMasked->Scatter(maskedGlobalNumbering, newglobalIds, ogs_hlong, ogs_add, ogs_notrans);
+  ogsMasked->Scatter(maskedGlobalNumbering, newglobalIds, 1, ogs::Hlong, ogs::Add, ogs::NoTrans);
 
   free(newglobalIds);
-
-  /* Build global to local mapping */
-  ogsMasked->GatheredHaloExchangeSetup();
 }

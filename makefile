@@ -72,9 +72,6 @@ include ./make.top
 endif
 endif
 
-#libraries
-GS_DIR =${HIPBONE_TPL_DIR}/gslib
-
 #includes
 INCLUDES=${HIPBONE_INCLUDES} \
 		 -I${HIPBONE_LIBS_DIR}/include \
@@ -90,7 +87,6 @@ HB_CXXFLAGS=${HIPBONE_CXXFLAGS} ${DEFINES} ${INCLUDES}
 
 #link libraries
 LIBS=-L${HIPBONE_LIBS_DIR} -lmesh -logs -lcore \
-     -L$(GS_DIR)/lib -lgs \
      ${HIPBONE_LIBS}
 
 #link flags
@@ -148,7 +144,6 @@ clean-kernels: clean-libs
 	rm -rf ${HIPBONE_DIR}/.occa/
 
 realclean: clean-kernels
-	${MAKE} -C ${HIPBONE_LIBS_DIR} realclean
 	${MAKE} -C ${OCCA_DIR} clean
 
 help:

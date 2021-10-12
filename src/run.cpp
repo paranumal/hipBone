@@ -30,7 +30,7 @@ void hipBone_t::Run(){
 
   //setup linear solver
   dlong N = mesh.ogsMasked->Ngather;
-  dlong Nhalo = mesh.ogsMasked->NgatherHalo;
+  dlong Nhalo = mesh.gHalo->Nhalo;
   linearSolver_t *linearSolver = new cg(platform, N, Nhalo);
 
   hlong NGlobal = mesh.ogsMasked->NgatherGlobal;
@@ -65,10 +65,6 @@ void hipBone_t::Run(){
 
   int Np = mesh.Np, Nq = mesh.Nq;
 
-  hlong Nblocks = mesh.ogsMasked->localScatter.NrowBlocks+mesh.ogsMasked->haloScatter.NrowBlocks;
-  hlong NblocksGlobal;
-  MPI_Allreduce(&Nblocks, &NblocksGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
-
   hlong NunMasked = NLocal - mesh.Nmasked;
   hlong NunMaskedGlobal;
   MPI_Allreduce(&NunMasked, &NunMaskedGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
@@ -81,8 +77,7 @@ void hipBone_t::Run(){
                    +  Np*sizeof(dlong) // GlobalToLocal
                    +  Np*sizeof(dfloat) /*Aq*/ )*mesh.NelementsGlobal;
 
-  size_t NbytesGather =  (NblocksGlobal+1)*sizeof(dlong) //block starts
-                       + (NGlobal+1)*sizeof(dlong) //row starts
+  size_t NbytesGather =  (NGlobal+1)*sizeof(dlong) //row starts
                        + NunMaskedGlobal*sizeof(dlong) //local Ids
                        + NunMaskedGlobal*sizeof(dfloat) //AqL
                        + NGlobal*sizeof(dfloat);
