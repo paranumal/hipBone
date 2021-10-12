@@ -26,7 +26,7 @@ SOFTWARE.
 
 #include "linearSolver.hpp"
 
-constexpr int CG_BLOCKSIZE = 512;
+constexpr int CG_BLOCKSIZE = 1024;
 
 cg::cg(platform_t& _platform, dlong _N, dlong _Nhalo):
   linearSolver_t(_platform, _N, _Nhalo) {
@@ -43,7 +43,7 @@ cg::cg(platform_t& _platform, dlong _N, dlong _Nhalo):
   //pinned tmp buffer for reductions
   tmprdotr = (dfloat*) platform.hostMalloc(1*sizeof(dfloat),
                                           NULL, h_tmprdotr);
-  o_tmprdotr = platform.malloc(CG_BLOCKSIZE*sizeof(dfloat));
+  o_tmprdotr = platform.malloc(1*sizeof(dfloat));
 
   /* build kernels */
   occa::properties kernelInfo = platform.props; //copy base properties
@@ -60,6 +60,10 @@ cg::cg(platform_t& _platform, dlong _N, dlong _Nhalo):
                                 "updateCG_1", kernelInfo);
   updateCGKernel2 = platform.buildKernel(HIPBONE_DIR "/libs/core/okl/linearSolverUpdateCG.okl",
                                 "updateCG_2", kernelInfo);
+
+  // separate kernels for 1. fused residual update with norm calculation and; 2. solution update
+  updateCGKernel_r = platform.buildKernel(HIPBONE_DIR "/libs/core/okl/linearSolverUpdateCG.okl",
+                                 "updateCG_r_atomic", kernelInfo);
 }
 
 int cg::Solve(solver_t& solver,
@@ -136,12 +140,17 @@ dfloat cg::UpdateCG(const dfloat alpha, occa::memory &o_x, occa::memory &o_r){
   int Nblocks = (N+CG_BLOCKSIZE-1)/CG_BLOCKSIZE;
   Nblocks = (Nblocks>CG_BLOCKSIZE) ? CG_BLOCKSIZE : Nblocks; //limit to CG_BLOCKSIZE entries
 
-  updateCGKernel1(N, Nblocks, o_p, o_Ap, alpha, o_x, o_r, o_tmprdotr);
-  updateCGKernel2(Nblocks, o_tmprdotr);
-
+  // TODO: replace this with a device memset rather than using a kernel
+  platform.linAlg.setKernel(1, 0.0, o_tmprdotr);
+  updateCGKernel_r(N, Nblocks, o_Ap, alpha, o_r, o_tmprdotr);
   o_tmprdotr.copyTo(tmprdotr, 1*sizeof(dfloat), 0, "async: true");
 
-  platform.device.finish();
+  occa::streamTag tag = platform.device.tagStream();
+
+  // x = alpha * p + 1.0 * x
+  platform.linAlg.axpy(N, alpha, o_p, 1.0, o_x);
+
+  platform.device.waitFor(tag);
 
   dfloat rdotr1 = 0.0;
   MPI_Allreduce(tmprdotr, &rdotr1, 1, MPI_DFLOAT, MPI_SUM, comm);
@@ -152,4 +161,5 @@ dfloat cg::UpdateCG(const dfloat alpha, occa::memory &o_x, occa::memory &o_r){
 cg::~cg() {
   updateCGKernel1.free();
   updateCGKernel2.free();
+  updateCGKernel_r.free();
 }

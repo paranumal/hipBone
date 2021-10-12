@@ -63,6 +63,7 @@ private:
 
   occa::kernel updateCGKernel1;
   occa::kernel updateCGKernel2;
+  occa::kernel updateCGKernel_r;
 
   dfloat UpdateCG(const dfloat alpha, occa::memory &o_x, occa::memory &o_r);
 
