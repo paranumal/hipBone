@@ -30,10 +30,10 @@ void hipBone_t::Run(){
 
   //setup linear solver
   dlong N = mesh.ogsMasked->Ngather;
-  dlong Nhalo = mesh.ogsMasked->NgatherHalo;
+  dlong Nhalo = mesh.gHalo->Nhalo;
   linearSolver_t *linearSolver = new cg(platform, N, Nhalo);
 
-  dlong NGlobal = mesh.ogsMasked->NgatherGlobal;
+  hlong NGlobal = mesh.ogsMasked->NgatherGlobal;
   dlong NLocal = mesh.Np*mesh.Nelements;
 
   //create occa buffers
@@ -65,10 +65,6 @@ void hipBone_t::Run(){
 
   int Np = mesh.Np, Nq = mesh.Nq;
 
-  hlong Nblocks = mesh.ogsMasked->localScatter.NrowBlocks+mesh.ogsMasked->haloScatter.NrowBlocks;
-  hlong NblocksGlobal;
-  MPI_Allreduce(&Nblocks, &NblocksGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
-
   hlong NunMasked = NLocal - mesh.Nmasked;
   hlong NunMaskedGlobal;
   MPI_Allreduce(&NunMasked, &NunMaskedGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
@@ -81,8 +77,7 @@ void hipBone_t::Run(){
                    +  Np*sizeof(dlong) // GlobalToLocal
                    +  Np*sizeof(dfloat) /*Aq*/ )*mesh.NelementsGlobal;
 
-  size_t NbytesGather =  (NblocksGlobal+1)*sizeof(dlong) //block starts
-                       + (NGlobal+1)*sizeof(dlong) //row starts
+  size_t NbytesGather =  (NGlobal+1)*sizeof(dlong) //row starts
                        + NunMaskedGlobal*sizeof(dlong) //local Ids
                        + NunMaskedGlobal*sizeof(dfloat) //AqL
                        + NGlobal*sizeof(dfloat);
@@ -101,7 +96,7 @@ void hipBone_t::Run(){
   size_t NflopsNekbone =   (15*Np  //CG flops
                           + 19*Np+12*Nq*Nq*Nq*Nq )*mesh.NelementsGlobal*Niter; //flops per CG iteration
 
-  if ((mesh.rank==0)){
+  if (mesh.rank==0){
     printf("hipBone: %d, " hlongFormat ", %4.4f, %d, %1.2e, %4.1f, %4.1f, %1.2e; N, DOFs, elapsed, iterations, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs*iterations/ranks*time \n",
            mesh.N,
            Ndofs,

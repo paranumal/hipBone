@@ -106,7 +106,7 @@ void mesh_t::PhysicalNodes(){
     }
   }
 
-  halo->Exchange(x, Np, ogs_dfloat);
-  halo->Exchange(y, Np, ogs_dfloat);
-  halo->Exchange(z, Np, ogs_dfloat);
+  halo->Exchange(x, Np, ogs::Dfloat);
+  halo->Exchange(y, Np, ogs::Dfloat);
+  halo->Exchange(z, Np, ogs::Dfloat);
 }

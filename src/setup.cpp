@@ -36,6 +36,9 @@ hipBone_t& hipBone_t::Setup(platform_t& platform, mesh_t& mesh){
   platform.linAlg.InitKernels({"set", "axpy", "innerProd", "norm2"},
                                 mesh.comm);
 
+  //Trigger JIT kernel builds
+  ogs::InitializeKernels(platform, ogs::Dfloat, ogs::Add);
+
   //tmp local storage buffer for Ax op
   hipBone->o_AqL = platform.malloc(mesh.Np*mesh.Nelements*sizeof(dfloat));
 
