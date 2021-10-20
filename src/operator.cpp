@@ -31,7 +31,6 @@ void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
   mesh.gHalo->ExchangeStart(o_q, 1, ogs::Dfloat);
 
   if(mesh.NlocalGatherElements){
-<<<<<<< HEAD
     operatorKernel.setRunDims(mesh.NlocalGatherElements, occa::dim(16, 16));
     operatorKernel(mesh.NlocalGatherElements,
                    mesh.o_localGatherElementList,
