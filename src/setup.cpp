@@ -45,15 +45,21 @@ hipBone_t& hipBone_t::Setup(platform_t& platform, mesh_t& mesh){
   // OCCA build stuff
   occa::properties kernelInfo = platform.props; //copy base occa properties
 
-  // Ax kernel
   hipBone->forcingKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneRhs.okl",
                                    "hipBoneRhs", kernelInfo);
 
-
-  kernelInfo["okl/enabled"] = false;
-
-  hipBone->operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx_mfma.cpp",
-                                   "hipBoneAx_mfma", kernelInfo);
+  // Ax kernels
+  // Use the non-MFMA operator kernel for all orders except 15 and use the MFMA
+  // kernels at only order 15
+  if (mesh.Nq == 16) {
+    kernelInfo["okl/enabled"] = false;
+    hipBone->operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx_mfma.cpp",
+                                     "hipBoneAx_mfma", kernelInfo);
+  }
+  else {
+    hipBone->operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx.okl",
+                                     "hipBoneAx", kernelInfo);
+  }
 
 
   return *hipBone;
