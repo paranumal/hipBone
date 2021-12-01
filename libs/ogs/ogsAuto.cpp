@@ -78,6 +78,9 @@ ogsExchange_t* ogsBase_t::AutoSetup(dlong Nshared,
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &size);
 
+  if (size==1) return new ogsPairwise_t(Nshared, sharedNodes,
+                                           _gatherHalo, comm, platform);
+
   ogsExchange_t* bestExchange;
   Method method;
   double bestTime;
