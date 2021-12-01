@@ -93,7 +93,6 @@ void platform_t::DeviceProperties(){
     Props["compiler_flags"] += " -ffp-contract=fast ";
     Props["compiler_flags"] += " -funsafe-math-optimizations ";
     Props["compiler_flags"] += " -ffast-math ";
-    Props["compiler_flags"] += "--gpu-max-threads-per-block=256";
     Props["defines/OCCA_USE_HIP"] = 1;
   }
 }
