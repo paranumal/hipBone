@@ -44,15 +44,13 @@ void mesh_t::ConnectNodes(){
   free(allLocalNodeCounts);
 
   // form continuous node numbering (local=>virtual gather)
-  int *baseRank = (int *) malloc((totalHaloPairs+Nelements)*Np*sizeof(int));
   globalIds = (hlong *) malloc((totalHaloPairs+Nelements)*Np*sizeof(hlong));
 
   // use local numbering
+  #pragma omp parallel for collapse(2)
   for(dlong e=0;e<Nelements;++e){
     for(int n=0;n<Np;++n){
       dlong id = e*Np+n;
-
-      baseRank[id] = rank;
       globalIds[id] = 1 + id + gatherNodeStart;
     }
   }
@@ -66,10 +64,10 @@ void mesh_t::ConnectNodes(){
     localChange = 0;
 
     // send halo data and recv into extension of buffer
-    halo->Exchange(baseRank, Np, ogs::Int32);
     halo->Exchange(globalIds, Np, ogs::Hlong);
 
     // compare trace nodes
+    #pragma omp parallel for collapse(2)
     for(dlong e=0;e<Nelements;++e){
       for(int n=0;n<Nfp*Nfaces;++n){
         dlong id  = e*Nfp*Nfaces + n;
@@ -78,19 +76,9 @@ void mesh_t::ConnectNodes(){
         hlong gidM = globalIds[idM];
         hlong gidP = globalIds[idP];
 
-        int baseRankM = baseRank[idM];
-        int baseRankP = baseRank[idP];
-
-        if(gidM<gidP || (gidP==gidM && baseRankM<baseRankP)){
+        if(gidP<gidM){
           ++localChange;
-          baseRank[idP]  = baseRank[idM];
-          globalIds[idP] = globalIds[idM];
-        }
-
-        if(gidP<gidM || (gidP==gidM && baseRankP<baseRankM)){
-          ++localChange;
-          baseRank[idM]  = baseRank[idP];
-          globalIds[idM] = globalIds[idP];
+          globalIds[idM] = gidP;
         }
       }
     }
@@ -98,6 +86,4 @@ void mesh_t::ConnectNodes(){
     // sum up changes
     MPI_Allreduce(&localChange, &gatherChange, 1, MPI_HLONG, MPI_SUM, comm);
   }
-
-  free(baseRank);
 }
