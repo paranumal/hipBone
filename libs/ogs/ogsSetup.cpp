@@ -29,6 +29,13 @@ SOFTWARE.
 #include "ogs/ogsOperator.hpp"
 #include "ogs/ogsExchange.hpp"
 
+#ifdef GLIBCXX_PARALLEL
+#include <parallel/algorithm>
+using __gnu_parallel::sort;
+#else
+using std::sort;
+#endif
+
 namespace ogs {
 
 void ogs_t::Setup(const dlong _N,
@@ -212,10 +219,10 @@ void ogsBase_t::FindSharedNodes(const dlong Nids,
   }
 
   // sort based on base ids
-  std::sort(recvNodes, recvNodes+recvN,
-            [](const parallelNode_t& a, const parallelNode_t& b) {
-              return abs(a.baseId) < abs(b.baseId);
-            });
+  sort(recvNodes, recvNodes+recvN,
+       [](const parallelNode_t& a, const parallelNode_t& b) {
+         return abs(a.baseId) < abs(b.baseId);
+       });
 
   // We now have a collection of nodes associated with some subset of all global Ids
   // Our list is sorted by baseId to group nodes with the same globalId together
@@ -323,13 +330,13 @@ void ogsBase_t::ConstructSharedNodes(const dlong Nids,
   MPI_Comm_size(comm, &size);
 
   // sort based on abs(baseId)
-  std::sort(nodes, nodes+Nids,
-            [](const parallelNode_t& a, const parallelNode_t& b) {
-              if(abs(a.baseId) < abs(b.baseId)) return true; //group by abs(baseId)
-              if(abs(a.baseId) > abs(b.baseId)) return false;
+  sort(nodes, nodes+Nids,
+       [](const parallelNode_t& a, const parallelNode_t& b) {
+         if(abs(a.baseId) < abs(b.baseId)) return true; //group by abs(baseId)
+         if(abs(a.baseId) > abs(b.baseId)) return false;
 
-              return a.baseId > b.baseId; //positive ids on a rank first
-            });
+         return a.baseId > b.baseId; //positive ids on a rank first
+       });
 
   //count how many unique global Ids we have on this rank
   // and flag baseId groups that have a positive baseId somewhere on this rank
@@ -434,10 +441,10 @@ void ogsBase_t::ConstructSharedNodes(const dlong Nids,
   int *recvOffsets = (int*) calloc(size+1, sizeof(int));
 
   // sort based on destination rank
-  std::sort(sendSharedNodes, sendSharedNodes+NhaloT,
-            [](const parallelNode_t& a, const parallelNode_t& b) {
-              return a.destRank < b.destRank;
-            });
+  sort(sendSharedNodes, sendSharedNodes+NhaloT,
+       [](const parallelNode_t& a, const parallelNode_t& b) {
+         return a.destRank < b.destRank;
+       });
 
   //count number of ids we're sending
   for (dlong n=0;n<NhaloT;n++) {
@@ -470,10 +477,10 @@ void ogsBase_t::ConstructSharedNodes(const dlong Nids,
   free(recvOffsets);
 
   // sort based on base ids
-  std::sort(recvSharedNodes, recvSharedNodes+recvN,
-            [](const parallelNode_t& a, const parallelNode_t& b) {
-              return abs(a.baseId) < abs(b.baseId);
-            });
+  sort(recvSharedNodes, recvSharedNodes+recvN,
+       [](const parallelNode_t& a, const parallelNode_t& b) {
+         return abs(a.baseId) < abs(b.baseId);
+       });
 
   //count number of shared nodes we will be sending
   int *sharedSendCounts = (int*) calloc(size, sizeof(int));
@@ -566,9 +573,9 @@ void ogsBase_t::ConstructSharedNodes(const dlong Nids,
 //Make local and halo gather operators using nodes list
 void ogsBase_t::LocalSignedSetup(const dlong Nids, parallelNode_t* nodes){
 
-int rank, size;
-MPI_Comm_rank(comm, &rank);
-MPI_Comm_size(comm, &size);
+  int rank, size;
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &size);
 
   gatherLocal = new ogsOperator_t(platform);
   gatherHalo  = new ogsOperator_t(platform);
