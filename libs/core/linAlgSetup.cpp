@@ -60,9 +60,6 @@ void linAlg_t::InitKernels(vector<string> kernels, MPI_Comm comm) {
                                         kernelInfo);
     } else if (name=="axpy") {
       occa::properties axpyKernelInfo = kernelInfo;
-      if (platform->device.mode()=="HIP") {
-        axpyKernelInfo["compiler_flags"] += " --gpu-max-threads-per-block=" + std::to_string(AXPY_BLOCKSIZE);
-      }
       if (axpyKernel.isInitialized()==false)
         axpyKernel = platform->buildKernel(HIPBONE_DIR "/libs/core/okl/"
                                         "linAlgAXPY.okl",
