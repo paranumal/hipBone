@@ -130,19 +130,24 @@ int cg::Solve(solver_t& solver,
 
 dfloat cg::UpdateCG(const dfloat alpha, occa::memory &o_x, occa::memory &o_r){
 
-  // x <= x + alpha*p
+  linAlg_t &linAlg = platform.linAlg;
+
   // r <= r - alpha*A*p
   // dot(r,r)
   int Nblocks = (N+CG_BLOCKSIZE-1)/CG_BLOCKSIZE;
   Nblocks = (Nblocks>CG_BLOCKSIZE) ? CG_BLOCKSIZE : Nblocks; //limit to CG_BLOCKSIZE entries
 
-  updateCGKernel1(N, Nblocks, o_p, o_Ap, alpha, o_x, o_r, o_tmprdotr);
+  updateCGKernel1(N, Nblocks, o_Ap, alpha, o_r, o_tmprdotr);
   updateCGKernel2(Nblocks, o_tmprdotr);
 
   o_tmprdotr.copyTo(tmprdotr, 1*sizeof(dfloat), 0, "async: true");
 
   platform.device.finish();
 
+  // x <= x + alpha*p
+  linAlg.axpy(N, alpha, o_p, 1.f, o_x);
+
+  /*Compute all reduce while axpy is running*/
   dfloat rdotr1 = 0.0;
   MPI_Allreduce(tmprdotr, &rdotr1, 1, MPI_DFLOAT, MPI_SUM, comm);
 
