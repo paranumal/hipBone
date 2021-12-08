@@ -30,8 +30,8 @@ void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
 
   mesh.gHalo->ExchangeStart(o_q, 1, ogs::Dfloat);
 
-  if(mesh.NlocalGatherElements){
-    operatorKernel(mesh.NlocalGatherElements,
+  if(mesh.NlocalGatherElements/2){
+    operatorKernel(mesh.NlocalGatherElements/2,
                    mesh.o_localGatherElementList,
                    mesh.o_GlobalToLocal,
                    mesh.o_ggeo, mesh.o_D,
@@ -50,6 +50,16 @@ void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
   }
 
   //gather result to Aq
-  mesh.ogsMasked->Gather(o_Aq, o_AqL, 1, ogs::Dfloat, ogs::Add, ogs::Trans);
+  mesh.ogsMasked->GatherStart(o_Aq, o_AqL, 1, ogs::Dfloat, ogs::Add, ogs::Trans);
+
+  if((mesh.NlocalGatherElements+1)/2){
+    operatorKernel((mesh.NlocalGatherElements+1)/2,
+                   mesh.o_localGatherElementList+(mesh.NlocalGatherElements/2)*sizeof(dlong),
+                   mesh.o_GlobalToLocal,
+                   mesh.o_ggeo, mesh.o_D,
+                   lambda, o_q, o_AqL);
+  }
+
+  mesh.ogsMasked->GatherFinish(o_Aq, o_AqL, 1, ogs::Dfloat, ogs::Add, ogs::Trans);
 }
 
