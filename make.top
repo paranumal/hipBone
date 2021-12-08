@@ -44,25 +44,26 @@ export HIPBONE_CC = mpicc
 export HIPBONE_CXX= mpic++
 export HIPBONE_LD = mpic++
 
-export HIPBONE_CFLAGS=-fopenmp -g -Wall -Wshadow -Wno-unused-function
-export HIPBONE_CXXFLAGS=-fopenmp -g -Wall -Wshadow -Wno-unused-function -std=c++11
-
+export HIPBONE_INCLUDES=-I${HIPBONE_INCLUDE_DIR} -I${OCCA_DIR}/include
 export HIPBONE_LIBS= ${HIPBONE_BLAS_LIB}  \
                      -Wl,-rpath,$(OCCA_DIR)/lib -L$(OCCA_DIR)/lib -locca
 
-export HIPBONE_DEFINES=
-
-export HIPBONE_INCLUDES=-I${HIPBONE_INCLUDE_DIR} -I${OCCA_DIR}/include
+ifneq (,${debug})
+  export HIPBONE_CFLAGS=-O0 -g -Wall -Wshadow -Wno-unused-function -Wno-unknown-pragmas
+  export HIPBONE_CXXFLAGS=-O0 -g -Wall -Wshadow -Wno-unused-function -Wno-unknown-pragmas -std=c++11
+  export HIPBONE_DEFINES=-DHIPBONE_DEBUG
+else
+  export HIPBONE_CFLAGS=-fopenmp -O3 -Wall -Wshadow -Wno-unused-function
+  export HIPBONE_CXXFLAGS=-fopenmp -O3 -Wall -Wshadow -Wno-unused-function -std=c++11
+  export HIPBONE_DEFINES=
+endif
 
 ifeq (GNU,${HIPBONE_ARCH})
-  CXXFLAGS+=-O2 -mavx2 -ftree-vectorize -march=native
-  #-funroll-all-loops
-  #HIPBONE_LIBS+=-L/opt/apps/gcc5_2/atlas/3.10.2/lib/ -llapack -latlas  -lf77blas -lcblas -lptcblas -lptf77blas -lsatlas  -lgfortran  -L../../../libxsmm/lib -lxsmm -ldl
+  HIPBONE_CFLAGS+= -mavx2 -ftree-vectorize -march=native -DGLIBCXX_PARALLEL
+  HIPBONE_CXXFLAGS+= -mavx2 -ftree-vectorize -march=native -DGLIBCXX_PARALLEL
 else ifeq (INTEL,${HIPBONE_ARCH})
-  CXXFLAGS+=-funroll-loops -xHost
-  HIPBONE_LIBS+=-L/opt/apps/intel15_3/mkl/11.2.3/lib/intel64  -lmkl_rt
-  #  -fopt-info-vec-missed  -fopt-info
-  #-fopt-info
+  HIPBONE_CFLAGS+=-funroll-loops -xHost
+  HIPBONE_CXXFLAGS+=-funroll-loops -xHost
 else
   $(error unknown arch for [HIPBONE_ARCH] specified)
 endif
