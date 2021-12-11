@@ -256,7 +256,7 @@ void ogsBase_t::FindSharedNodes(const dlong Nids,
 
       // When making a halo excahnge, check that we have a leading positive id
       if (kind==Halo && positiveCount!=1) {
-        stringstream ss;
+        std::stringstream ss;
         ss << "Found " << positiveCount << " positive Ids for baseId: "
            << abs(recvNodes[start].baseId)<< ".";
         HIPBONE_ABORT(ss.str());

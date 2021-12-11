@@ -28,8 +28,13 @@ SOFTWARE.
 #include "linAlg.hpp"
 #include "platform.hpp"
 
+namespace libp {
+
 constexpr int LINALG_BLOCKSIZE = 256;
 constexpr int AXPY_BLOCKSIZE = 1024;
+
+using std::string;
+using std::stringstream;
 
 linAlg_t::linAlg_t(): blocksize(LINALG_BLOCKSIZE) {};
 
@@ -48,7 +53,7 @@ void linAlg_t::Setup(platform_t *_platform) {
 }
 
 //initialize list of kernels
-void linAlg_t::InitKernels(vector<string> kernels, MPI_Comm comm) {
+void linAlg_t::InitKernels(std::vector<string> kernels, MPI_Comm comm) {
 
   for (size_t i=0;i<kernels.size();i++) {
     string name = kernels[i];
@@ -108,3 +113,5 @@ linAlg_t::~linAlg_t() {
   innerProdKernel1.free();
   innerProdKernel2.free();
 }
+
+} //namespace libp

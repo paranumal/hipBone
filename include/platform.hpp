@@ -37,6 +37,8 @@ SOFTWARE.
 #include "settings.hpp"
 #include "linAlg.hpp"
 
+namespace libp {
+
 void platformAddSettings(settings_t& settings);
 void platformReportSettings(settings_t& settings);
 
@@ -100,5 +102,7 @@ private:
   void DeviceProperties();
 
 };
+
+} //namespace libp
 
 #endif

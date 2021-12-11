@@ -26,6 +26,11 @@ SOFTWARE.
 
 #include "settings.hpp"
 
+namespace libp {
+
+using std::vector;
+using std::string;
+
 setting_t::setting_t(string shortkey_, string longkey_,
                      string name_, string val_,
                      string description_, vector<string> options_)
@@ -95,7 +100,7 @@ string setting_t::PrintUsage() const {
   return ss.str();
 }
 
-std::ostream& operator<<(ostream& os, const setting_t& setting) {
+std::ostream& operator<<(std::ostream& os, const setting_t& setting) {
   os << setting.toString();
   return os;
 }
@@ -245,3 +250,5 @@ settings_t::~settings_t() {
   for(auto it = settings.begin(); it != settings.end(); ++it)
     delete it->second;
 }
+
+} //namespace libp

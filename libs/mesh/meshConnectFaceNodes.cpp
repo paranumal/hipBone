@@ -159,7 +159,7 @@ void mesh_t::ConnectFaceNodes(){
           const dfloat dist = pow(xM-xP,2) + pow(yM-yP,2);
           if(dist>NODETOL){
             //This shouldn't happen
-            stringstream ss;
+            std::stringstream ss;
             ss << "Unable to match face node, face: " << fM
                << ", matching face: " << fP
                << ", rotation: " << rot

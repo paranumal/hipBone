@@ -31,6 +31,8 @@ SOFTWARE.
 #include "platform.hpp"
 #include "solver.hpp"
 
+namespace libp {
+
 //virtual base linear solver class
 class linearSolver_t {
 public:
@@ -74,5 +76,7 @@ public:
             occa::memory& o_x, occa::memory& o_rhs,
             const dfloat tol, const int MAXIT, const int verbose);
 };
+
+} //namespace libp
 
 #endif

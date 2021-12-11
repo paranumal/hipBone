@@ -27,6 +27,8 @@ SOFTWARE.
 #include "platform.hpp"
 // #include "omp.h"
 
+namespace libp {
+
 // OCCA build stuff
 void platform_t::DeviceConfig(){
 
@@ -87,7 +89,7 @@ void platform_t::DeviceConfig(){
       //check for over-subscribing devices
       int deviceCount = occa::getDeviceCount(mode);
       if (deviceCount>0 && localRank>=deviceCount) {
-        stringstream ss;
+        std::stringstream ss;
         ss << "Rank " << rank << " oversubscribing device " << device_id%deviceCount << " on node \"" << hostname<< "\"";
         HIPBONE_WARNING(ss.str());
         device_id = device_id%deviceCount;
@@ -129,3 +131,5 @@ void platform_t::DeviceConfig(){
   }
   occa::env::setOccaCacheDir(occaCacheDir);
 }
+
+} //namespace libp

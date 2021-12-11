@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "platform.hpp"
 
+namespace libp {
+
 //initialize occa::properties with common props
 void platform_t::DeviceProperties(){
 
@@ -93,3 +95,5 @@ void platform_t::DeviceProperties(){
     props["defines/OCCA_USE_HIP"] = 1;
   }
 }
+
+} //namespace libp

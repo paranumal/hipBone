@@ -27,6 +27,8 @@ SOFTWARE.
 #ifndef TYPES_HPP
 #define TYPES_HPP
 
+namespace libp {
+
 //float data type
 #if 0
 #define dfloat float
@@ -65,5 +67,7 @@ SOFTWARE.
 #define dlongFormat "%lld"
 #define dlongString "long long int"
 #endif
+
+} //namespace libp
 
 #endif

@@ -452,7 +452,7 @@ void ogsOperator_t::setupRowBlocks() {
 
     if (rowSizeN > ogs::gatherNodesPerBlock) {
       //this row is pathalogically big. We can't currently run this
-      stringstream ss;
+      std::stringstream ss;
       ss << "Multiplicity of global node id: " << i
          << " in ogsOperator_t::setupRowBlocks is too large.";
       HIPBONE_ABORT(ss.str())
@@ -462,7 +462,7 @@ void ogsOperator_t::setupRowBlocks() {
 
     if (rowSizeT > ogs::gatherNodesPerBlock) {
       //this row is pathalogically big. We can't currently run this
-      stringstream ss;
+      std::stringstream ss;
       ss << "Multiplicity of global node id: " << i
          << " in ogsOperator_t::setupRowBlocks is too large.";
       HIPBONE_ABORT(ss.str())

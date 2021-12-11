@@ -29,6 +29,8 @@ SOFTWARE.
 
 #include "platform.hpp"
 
+namespace libp {
+
 class solver_t {
 public:
   platform_t& platform;
@@ -42,12 +44,14 @@ public:
 
   virtual void Run()=0;
   virtual void Report(dfloat time=0.0, int tstep=0) {
-    HIPBONE_ABORT(string("Report not implemented in this solver"))
+    HIPBONE_ABORT(std::string("Report not implemented in this solver"))
   }
 
   virtual void Operator(occa::memory& o_q, occa::memory& o_Aq) {
-    HIPBONE_ABORT(string("Operator not implemented in this solver"))
+    HIPBONE_ABORT(std::string("Operator not implemented in this solver"))
   }
 };
+
+} //namespace libp
 
 #endif

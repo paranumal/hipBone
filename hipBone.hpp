@@ -35,6 +35,8 @@ SOFTWARE.
 
 #define DHIPBONE HIPBONE_DIR
 
+using namespace libp;
+
 class hipBoneSettings_t: public settings_t {
 public:
   hipBoneSettings_t(const int argc, char** argv, MPI_Comm& _comm);
@@ -42,7 +44,8 @@ public:
 };
 
 class hipBone_t: public solver_t {
-public:
+
+ public:
   mesh_t &mesh;
 
   dfloat lambda;

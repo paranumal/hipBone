@@ -35,12 +35,12 @@ SOFTWARE.
 #include <fstream>
 #include "core.hpp"
 
-using std::string;
-using std::vector;
-using std::ostream;
-using std::stringstream;
+namespace libp {
 
 class setting_t {
+  using string = std::string;
+  using stringstream = std::stringstream;
+
 public:
   string shortkey;
   string longkey;
@@ -49,7 +49,7 @@ public:
   string val;
 
   string description;
-  vector<string> options;
+  std::vector<string> options;
 
   int check;
 
@@ -57,7 +57,7 @@ public:
   setting_t() = default;
   setting_t(string shortkey_, string longkey_,
             string name_, string val_,
-            string description_="", vector<string> options_={});
+            string description_="", std::vector<string> options_={});
 
   ~setting_t() = default;
 
@@ -81,12 +81,15 @@ public:
   string PrintUsage() const;
 };
 
-ostream& operator<<(ostream& os, const setting_t& setting);
+std::ostream& operator<<(std::ostream& os, const setting_t& setting);
 
 class settings_t {
+  using string = std::string;
+  using stringstream = std::stringstream;
+
 private:
 
-  vector<string> insertOrder;
+  std::vector<string> insertOrder;
 
 public:
   MPI_Comm comm;
@@ -105,7 +108,7 @@ public:
   void newSetting(const string shortkey, const string longkey,
                   const string name, const string val,
                   const string description="",
-                  const vector<string> options={});
+                  const std::vector<string> options={});
 
   void changeSetting(const string name, const string newVal);
 
@@ -136,6 +139,6 @@ public:
   void PrintUsage();
 };
 
-
+} //namespace libp
 
 #endif

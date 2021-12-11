@@ -29,13 +29,14 @@ SOFTWARE.
 
 #include "core.hpp"
 
-using std::vector;
-using std::string;
+
+namespace libp {
 
 class platform_t;
 
 //launcher for basic linear algebra OCCA kernels
 class linAlg_t {
+
 public:
   platform_t *platform;
   occa::properties kernelInfo;
@@ -52,7 +53,7 @@ public:
   void Setup(platform_t *_platform);
 
   //initialize list of kernels
-  void InitKernels(vector<string> kernels, MPI_Comm comm);
+  void InitKernels(std::vector<std::string> kernels, MPI_Comm comm);
 
   ~linAlg_t();
 
@@ -81,5 +82,7 @@ public:
   occa::kernel innerProdKernel1;
   occa::kernel innerProdKernel2;
 };
+
+} //namespace libp
 
 #endif

@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "linearSolver.hpp"
 
+namespace libp {
+
 constexpr int CG_BLOCKSIZE = 512;
 
 cg::cg(platform_t& _platform, dlong _N, dlong _Nhalo):
@@ -158,3 +160,5 @@ cg::~cg() {
   updateCGKernel1.free();
   updateCGKernel2.free();
 }
+
+} //namespace libp
