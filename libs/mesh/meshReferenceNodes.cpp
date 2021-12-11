@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 void mesh_t::ReferenceNodes(){
 
   Nq = N+1;
@@ -54,3 +56,4 @@ void mesh_t::ReferenceNodes(){
   Dmatrix1D(N, Nq, gllz, D);
 }
 
+} //namespace libp

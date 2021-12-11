@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 // serial face-vertex to face-vertex connection
 void mesh_t::ConnectFaceVertices(){
 
@@ -66,3 +68,4 @@ void mesh_t::ConnectFaceVertices(){
   }
 }
 
+} //namespace libp

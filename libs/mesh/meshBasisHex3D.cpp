@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 // ------------------------------------------------------------------------
 // HEX 3D NODES
 // ------------------------------------------------------------------------
@@ -109,3 +111,4 @@ void mesh_t::VertexNodesHex3D(int _N, dfloat *_r, dfloat *_s, dfloat *_t, int *_
   }
 }
 
+} //namespace libp

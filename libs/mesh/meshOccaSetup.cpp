@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 void mesh_t::OccaSetup(){
 
   if(NinternalElements)
@@ -67,3 +69,5 @@ void mesh_t::OccaSetup(){
 
   o_ggeo = platform.malloc(Nelements*Np*Nggeo*sizeof(dfloat), ggeo);
 }
+
+} //namespace libp

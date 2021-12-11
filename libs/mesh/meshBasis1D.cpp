@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 // ------------------------------------------------------------------------
 // 1D NODES
 // ------------------------------------------------------------------------
@@ -274,3 +276,4 @@ void mesh_t::JacobiGQ(dfloat alpha, dfloat beta, int _N, dfloat *_x, dfloat *w){
   free(VR);
 }
 
+} //namespace libp

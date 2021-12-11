@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 void mesh_t::SetupBox(){
 
   //local grid physical sizes
@@ -158,3 +160,5 @@ void mesh_t::SetupBox(){
     }
   }
 }
+
+} //namespace libp

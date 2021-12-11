@@ -31,16 +31,11 @@ SOFTWARE.
 #include "settings.hpp"
 #include "ogs.hpp"
 
-/* offsets for second order geometric factors */
-#define GWJID 0
-#define G00ID 1
-#define G01ID 2
-#define G11ID 3
-#define G12ID 4
-#define G02ID 5
-#define G22ID 6
+namespace libp {
 
 class mesh_t {
+
+
 public:
   platform_t& platform;
   settings_t& settings;
@@ -190,10 +185,21 @@ protected:
   void NodesHex3D(int _N, dfloat *_r, dfloat *_s, dfloat *_t);
   void FaceNodesHex3D(int _N, dfloat *_r, dfloat *_s, dfloat *_t,  int *_faceNodes);
   void VertexNodesHex3D(int _N, dfloat *_r, dfloat *_s, dfloat *_t, int *_vertexNodes);
+
+  /* offsets for second order geometric factors */
+  static constexpr int GWJID=0;
+  static constexpr int G00ID=1;
+  static constexpr int G01ID=2;
+  static constexpr int G11ID=3;
+  static constexpr int G12ID=4;
+  static constexpr int G02ID=5;
+  static constexpr int G22ID=6;
 };
 
 void meshAddSettings(settings_t& settings);
 void meshReportSettings(settings_t& settings);
+
+} //namespace libp
 
 #endif
 

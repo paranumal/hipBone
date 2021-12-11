@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 void mesh_t::GatherScatterSetup() {
 
   dlong Ntotal = Nverts*(Nelements+totalHaloPairs);
@@ -202,3 +204,5 @@ void mesh_t::GatherScatterSetup() {
 
   free(newglobalIds);
 }
+
+} //namespace libp

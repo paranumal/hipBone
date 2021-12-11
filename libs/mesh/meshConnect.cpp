@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 // structure used to encode vertices that make
 // each face, the element/face indices, and
 // the neighbor element/face indices (if any)
@@ -309,3 +311,5 @@ void mesh_t::Connect(){
   NelementsGlobal = 0;
   MPI_Allreduce(&NelementsLocal, &NelementsGlobal, 1, MPI_HLONG, MPI_SUM, comm);
 }
+
+} //namespace libp

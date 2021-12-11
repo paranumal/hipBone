@@ -26,6 +26,7 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
 
 // uniquely label each node with a global index, used for gatherScatter
 void mesh_t::ConnectNodes(){
@@ -101,3 +102,5 @@ void mesh_t::ConnectNodes(){
 
   free(baseRank);
 }
+
+} //namespace libp

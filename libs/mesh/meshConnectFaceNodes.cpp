@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 // serial face-node to face-node connection
 void mesh_t::ConnectFaceNodes(){
 
@@ -234,3 +236,4 @@ void mesh_t::ConnectFaceNodes(){
   free(R);
 }
 
+} //namespace libp

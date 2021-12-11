@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 mesh_t& mesh_t::Setup(platform_t& _platform) {
   return *(new mesh_t(_platform));
 }
@@ -92,3 +94,5 @@ mesh_t::~mesh_t() {
   if (halo) halo->Free();
   if (ogsMasked) ogsMasked->Free();
 }
+
+} //namespace libp

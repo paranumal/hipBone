@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 void mesh_t::PhysicalNodes(){
 
   x = (dfloat*) calloc((Nelements+totalHaloPairs)*Np,sizeof(dfloat));
@@ -110,3 +112,5 @@ void mesh_t::PhysicalNodes(){
   halo->Exchange(y, Np, ogs::Dfloat);
   halo->Exchange(z, Np, ogs::Dfloat);
 }
+
+} //namespace libp

@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 // set up halo infomation for inter-processor MPI
 // exchange of elements or trace nodes
 void mesh_t::HaloSetup(){
@@ -114,3 +116,5 @@ void mesh_t::HaloSetup(){
   free(globalElementId);
   free(globalOffset);
 }
+
+} //namespace libp

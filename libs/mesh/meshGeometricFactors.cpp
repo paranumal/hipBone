@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 void mesh_t::GeometricFactors(){
 
   /* number of second order geometric factors */
@@ -70,3 +72,5 @@ void mesh_t::GeometricFactors(){
     }
   }
 }
+
+} //namespace libp
