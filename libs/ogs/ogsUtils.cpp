@@ -54,7 +54,7 @@ MPI_Datatype MPI_PARALLELNODE_T;
 void Init(platform_t& platform) {
 
   // Make the MPI_PARALLELNODE_T data type
-  parallelNode_t node;
+  parallelNode_t node{};
   MPI_Datatype dtype[6] = {MPI_DLONG, MPI_HLONG,
                            MPI_DLONG, MPI_INT,
                            MPI_INT, MPI_INT};
