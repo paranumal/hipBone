@@ -28,6 +28,8 @@ SOFTWARE.
 #include "ogs/ogsUtils.hpp"
 #include "ogs/ogsExchange.hpp"
 
+namespace libp {
+
 namespace ogs {
 
 void ogsCrystalRouter_t::Start(const int k,
@@ -732,3 +734,5 @@ ogsCrystalRouter_t::~ogsCrystalRouter_t() {
 }
 
 } //namespace ogs
+
+} //namespace libp

@@ -29,6 +29,8 @@ SOFTWARE.
 #include "ogs/ogsOperator.hpp"
 #include "ogs/ogsExchange.hpp"
 
+namespace libp {
+
 namespace ogs {
 
 void ogs_t::Setup(const dlong _N,
@@ -920,3 +922,5 @@ void halo_t::SetupFromGather(ogs_t& ogs) {
 }
 
 } //namespace ogs
+
+} //namespace libp

@@ -28,6 +28,8 @@ SOFTWARE.
 #include "ogs/ogsUtils.hpp"
 #include "ogs/ogsExchange.hpp"
 
+namespace libp {
+
 namespace ogs {
 
 void ogsPairwise_t::Start(const int k,
@@ -431,3 +433,5 @@ ogsPairwise_t::~ogsPairwise_t() {
 }
 
 } //namespace ogs
+
+} //namespace libp

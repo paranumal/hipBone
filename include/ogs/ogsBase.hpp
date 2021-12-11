@@ -29,6 +29,8 @@ SOFTWARE.
 
 #include "ogs.hpp"
 
+namespace libp {
+
 namespace ogs {
 
 //forward declarations
@@ -101,5 +103,7 @@ private:
 };
 
 } //namespace ogs
+
+} //namespace libp
 
 #endif

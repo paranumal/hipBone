@@ -29,6 +29,8 @@ SOFTWARE.
 
 #include "ogs.hpp"
 
+namespace libp {
+
 namespace ogs {
 
 extern const int blockSize;
@@ -83,5 +85,7 @@ void permute(const dlong N, T* A, Order P) {
 }
 
 } //namespace ogs
+
+} //namespace libp
 
 #endif

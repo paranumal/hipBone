@@ -28,6 +28,8 @@ SOFTWARE.
 #include "ogs/ogsUtils.hpp"
 #include "ogs/ogsExchange.hpp"
 
+namespace libp {
+
 namespace ogs {
 
 void ogsAllToAll_t::Start(const int k,
@@ -357,3 +359,5 @@ ogsAllToAll_t::~ogsAllToAll_t() {
 }
 
 } //namespace ogs
+
+} //namespace libp

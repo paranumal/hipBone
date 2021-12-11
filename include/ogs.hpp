@@ -174,6 +174,8 @@ SOFTWARE.
 #include "core.hpp"
 #include "platform.hpp"
 
+namespace libp {
+
 namespace ogs {
 
 /* type enum */
@@ -200,9 +202,13 @@ typedef enum { Auto, Pairwise, CrystalRouter, AllToAll} Method;
 /* kind enum */
 typedef enum { Unsigned, Signed, Halo} Kind;
 
-}
+} //namespace ogs
+
+} //namespace libp
 
 #include "ogs/ogsBase.hpp"
+
+namespace libp {
 
 namespace ogs {
 
@@ -343,5 +349,5 @@ public:
 };
 
 } //namespace ogs
-
+} //namespace libp
 #endif

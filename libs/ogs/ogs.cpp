@@ -29,6 +29,8 @@ SOFTWARE.
 #include "ogs/ogsOperator.hpp"
 #include "ogs/ogsExchange.hpp"
 
+namespace libp {
+
 namespace ogs {
 
 /********************************
@@ -303,3 +305,5 @@ void ogs_t::Scatter(void*  v,
 }
 
 } //namespace ogs
+
+} //namespace libp

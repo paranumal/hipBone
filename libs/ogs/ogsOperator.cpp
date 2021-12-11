@@ -29,6 +29,7 @@ SOFTWARE.
 #include "ogs/ogsUtils.hpp"
 #include "ogs/ogsOperator.hpp"
 
+namespace libp {
 
 namespace ogs {
 
@@ -590,3 +591,5 @@ void extract(const dlong N,
 }
 
 } //namespace ogs
+
+} //namespace libp

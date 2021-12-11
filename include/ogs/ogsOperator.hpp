@@ -29,6 +29,8 @@ SOFTWARE.
 
 #include "ogs.hpp"
 
+namespace libp {
+
 namespace ogs {
 
 // The Z operator class is essentially a sparse CSR matrix,
@@ -137,5 +139,7 @@ void extract(const dlong N,
              void *gatherq);
 
 } //namespace ogs
+
+} //namespace libp
 
 #endif

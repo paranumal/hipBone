@@ -28,6 +28,8 @@ SOFTWARE.
 #include "ogs.hpp"
 #include "ogs/ogsUtils.hpp"
 
+namespace libp {
+
 namespace ogs {
 
 //NC: Hard code these for now. Should be sufficient for GPU devices, but needs attention for CPU
@@ -181,3 +183,4 @@ MPI_Datatype MPI_Type(const Type type) {
 
 } //namespace ogs
 
+} //namespace libp

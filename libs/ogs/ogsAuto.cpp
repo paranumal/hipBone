@@ -29,6 +29,8 @@ SOFTWARE.
 #include "ogs/ogsOperator.hpp"
 #include "ogs/ogsExchange.hpp"
 
+namespace libp {
+
 namespace ogs {
 
 static void ExchangeTest(ogsExchange_t* exchange, double time[3], bool host=false) {
@@ -267,3 +269,5 @@ ogsExchange_t* ogsBase_t::AutoSetup(dlong Nshared,
 
 
 } //namespace ogs
+
+} //namespace libp

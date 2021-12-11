@@ -30,6 +30,8 @@ SOFTWARE.
 #include "ogs.hpp"
 #include "ogs/ogsOperator.hpp"
 
+namespace libp {
+
 namespace ogs {
 
 //virtual base class to perform MPI exchange of gatherScatter
@@ -243,5 +245,7 @@ public:
 };
 
 } //namespace ogs
+
+} //namespace libp
 
 #endif
