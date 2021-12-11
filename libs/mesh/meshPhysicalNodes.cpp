@@ -30,9 +30,9 @@ namespace libp {
 
 void mesh_t::PhysicalNodes(){
 
-  x = (dfloat*) calloc((Nelements+totalHaloPairs)*Np,sizeof(dfloat));
-  y = (dfloat*) calloc((Nelements+totalHaloPairs)*Np,sizeof(dfloat));
-  z = (dfloat*) calloc((Nelements+totalHaloPairs)*Np,sizeof(dfloat));
+  x.malloc((Nelements+totalHaloPairs)*Np);
+  y.malloc((Nelements+totalHaloPairs)*Np);
+  z.malloc((Nelements+totalHaloPairs)*Np);
 
   dlong cnt = 0;
   for(dlong e=0;e<Nelements;++e){ /* for each element */
@@ -108,9 +108,9 @@ void mesh_t::PhysicalNodes(){
     }
   }
 
-  halo->Exchange(x, Np, ogs::Dfloat);
-  halo->Exchange(y, Np, ogs::Dfloat);
-  halo->Exchange(z, Np, ogs::Dfloat);
+  halo->Exchange(x.ptr(), Np, ogs::Dfloat);
+  halo->Exchange(y.ptr(), Np, ogs::Dfloat);
+  halo->Exchange(z.ptr(), Np, ogs::Dfloat);
 }
 
 } //namespace libp

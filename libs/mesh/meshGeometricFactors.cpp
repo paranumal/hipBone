@@ -32,7 +32,7 @@ void mesh_t::GeometricFactors(){
 
   /* number of second order geometric factors */
   Nggeo = 7;
-  ggeo = (dfloat*) calloc(Nelements*Nggeo*Np, sizeof(dfloat));
+  ggeo.malloc(Nelements*Nggeo*Np);
 
   for(dlong e=0;e<Nelements;++e){ /* for each element */
 

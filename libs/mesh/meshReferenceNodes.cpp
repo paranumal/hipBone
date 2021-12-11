@@ -35,25 +35,25 @@ void mesh_t::ReferenceNodes(){
   Np = Nq*Nq*Nq;
 
   /* Nodal Data */
-  r = (dfloat *) malloc(Np*sizeof(dfloat));
-  s = (dfloat *) malloc(Np*sizeof(dfloat));
-  t = (dfloat *) malloc(Np*sizeof(dfloat));
-  NodesHex3D(N, r, s, t);
+  r.malloc(Np);
+  s.malloc(Np);
+  t.malloc(Np);
+  NodesHex3D(N, r.ptr(), s.ptr(), t.ptr());
 
-  faceNodes = (int *) malloc(Nfaces*Nfp*sizeof(int));
-  FaceNodesHex3D(N, r, s, t, faceNodes);
+  faceNodes.malloc(Nfaces*Nfp);
+  FaceNodesHex3D(N, r.ptr(), s.ptr(), t.ptr(), faceNodes.ptr());
 
-  vertexNodes = (int*) malloc(Nverts*sizeof(int));
-  VertexNodesHex3D(N, r, s, t, vertexNodes);
+  vertexNodes.malloc(Nverts);
+  VertexNodesHex3D(N, r.ptr(), s.ptr(), t.ptr(), vertexNodes.ptr());
 
   //GLL quadrature
-  gllz = (dfloat *) malloc(Nq*sizeof(dfloat));
-  gllw = (dfloat *) malloc(Nq*sizeof(dfloat));
-  JacobiGLL(N, gllz, gllw);
+  gllz.malloc(Nq);
+  gllw.malloc(Nq);
+  JacobiGLL(N, gllz.ptr(), gllw.ptr());
 
   // D matrix
-  D = (dfloat *) malloc(Nq*Nq*sizeof(dfloat));
-  Dmatrix1D(N, Nq, gllz, D);
+  D.malloc(Nq*Nq);
+  Dmatrix1D(N, Nq, gllz.ptr(), D.ptr());
 }
 
 } //namespace libp

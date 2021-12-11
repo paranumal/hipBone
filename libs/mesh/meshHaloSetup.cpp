@@ -32,11 +32,11 @@ namespace libp {
 // exchange of elements or trace nodes
 void mesh_t::HaloSetup(){
 
-  hlong *globalOffset = (hlong *) calloc(size+1,sizeof(hlong));
+  libp::memory<hlong> globalOffset(size+1, 0);
   hlong localNelements = (hlong) Nelements;
 
   //gather number of elements on each rank
-  MPI_Allgather(&localNelements, 1, MPI_HLONG, globalOffset+1, 1, MPI_HLONG, comm);
+  MPI_Allgather(&localNelements, 1, MPI_HLONG, globalOffset.ptr()+1, 1, MPI_HLONG, comm);
 
   for(int rr=0;rr<size;++rr)
     globalOffset[rr+1] = globalOffset[rr]+globalOffset[rr+1];
@@ -66,8 +66,8 @@ void mesh_t::HaloSetup(){
   NinternalElements = Nelements - NhaloElements;
 
   //record the halo and non-halo element ids
-  internalElementIds = (dlong*) malloc(NinternalElements*sizeof(dlong));
-  haloElementIds     = (dlong*) malloc(NhaloElements*sizeof(dlong));
+  internalElementIds.malloc(NinternalElements);
+  haloElementIds.malloc(NhaloElements);
 
   NhaloElements = 0, NinternalElements = 0;
   for(dlong e=0;e<Nelements;++e){
@@ -85,7 +85,7 @@ void mesh_t::HaloSetup(){
   }
 
   //make a list of global element ids taking part in the halo exchange
-  hlong *globalElementId = (hlong *) malloc((Nelements+totalHaloPairs)*sizeof(hlong));
+  libp::memory<hlong> globalElementId(Nelements+totalHaloPairs);
 
   //outgoing elements
   for(int e=0;e<Nelements;++e)
@@ -110,11 +110,8 @@ void mesh_t::HaloSetup(){
   //make a halo exchange op
   bool verbose = false;
   halo = new ogs::halo_t(platform);
-  halo->Setup(Nelements+totalHaloPairs, globalElementId, comm,
+  halo->Setup(Nelements+totalHaloPairs, globalElementId.ptr(), comm,
               ogs::Pairwise, verbose);
-
-  free(globalElementId);
-  free(globalOffset);
 }
 
 } //namespace libp

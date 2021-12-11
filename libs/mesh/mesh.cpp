@@ -51,10 +51,8 @@ mesh_t::mesh_t(platform_t& _platform):
   int _faceVertices[6][4] =
     {{0,1,2,3},{0,4,5,1},{1,5,6,2},{2,6,7,3},{0,3,7,4},{4,7,6,5}};
 
-  faceVertices =
-    (int*) malloc(NfaceVertices*Nfaces*sizeof(int));
-
-  memcpy(faceVertices, _faceVertices[0], NfaceVertices*Nfaces*sizeof(int));
+  faceVertices.malloc(NfaceVertices*Nfaces);
+  faceVertices.copyFrom(_faceVertices[0]);
 
   // reference element nodes and operators
   ReferenceNodes();
@@ -91,8 +89,9 @@ mesh_t::mesh_t(platform_t& _platform):
 
 
 mesh_t::~mesh_t() {
-  if (halo) halo->Free();
-  if (ogsMasked) ogsMasked->Free();
+  if (halo)      {halo->Free(); delete halo;}
+  if (ogsMasked) {ogsMasked->Free(); delete ogsMasked;}
+  if (gHalo)     {gHalo->Free(); delete gHalo;}
 }
 
 } //namespace libp

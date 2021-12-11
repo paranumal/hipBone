@@ -32,21 +32,21 @@ namespace libp {
 void mesh_t::ConnectNodes(){
 
   dlong localNodeCount = Np*Nelements;
-  dlong *allLocalNodeCounts = (dlong*) calloc(platform.size, sizeof(dlong));
+  libp::memory<dlong> allLocalNodeCounts(platform.size);
 
   MPI_Allgather(&localNodeCount,    1, MPI_DLONG,
-                allLocalNodeCounts, 1, MPI_DLONG,
+                allLocalNodeCounts.ptr(), 1, MPI_DLONG,
                 comm);
 
   hlong gatherNodeStart = 0;
   for(int rr=0;rr<rank;++rr)
     gatherNodeStart += allLocalNodeCounts[rr];
 
-  free(allLocalNodeCounts);
+  allLocalNodeCounts.free();
 
   // form continuous node numbering (local=>virtual gather)
-  int *baseRank = (int *) malloc((totalHaloPairs+Nelements)*Np*sizeof(int));
-  globalIds = (hlong *) malloc((totalHaloPairs+Nelements)*Np*sizeof(hlong));
+  libp::memory<int> baseRank((totalHaloPairs+Nelements)*Np);
+  globalIds.malloc((totalHaloPairs+Nelements)*Np);
 
   // use local numbering
   for(dlong e=0;e<Nelements;++e){
@@ -67,8 +67,8 @@ void mesh_t::ConnectNodes(){
     localChange = 0;
 
     // send halo data and recv into extension of buffer
-    halo->Exchange(baseRank, Np, ogs::Int32);
-    halo->Exchange(globalIds, Np, ogs::Hlong);
+    halo->Exchange(baseRank.ptr(), Np, ogs::Int32);
+    halo->Exchange(globalIds.ptr(), Np, ogs::Hlong);
 
     // compare trace nodes
     for(dlong e=0;e<Nelements;++e){
@@ -99,8 +99,6 @@ void mesh_t::ConnectNodes(){
     // sum up changes
     MPI_Allreduce(&localChange, &gatherChange, 1, MPI_HLONG, MPI_SUM, comm);
   }
-
-  free(baseRank);
 }
 
 } //namespace libp

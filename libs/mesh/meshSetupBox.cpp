@@ -103,12 +103,12 @@ void mesh_t::SetupBox(){
   Nelements = nx*ny*nz; //local
 
   // this stores the element to vertex mapping
-  EToV = (hlong*) calloc(Nelements*Nverts, sizeof(hlong));
+  EToV.malloc(Nelements*Nverts);
 
   // these store the element to vertex mappings in each dimension
-  EX = (dfloat*) calloc(Nelements*Nverts, sizeof(dfloat));
-  EY = (dfloat*) calloc(Nelements*Nverts, sizeof(dfloat));
-  EZ = (dfloat*) calloc(Nelements*Nverts, sizeof(dfloat));
+  EX.malloc(Nelements*Nverts);
+  EY.malloc(Nelements*Nverts);
+  EZ.malloc(Nelements*Nverts);
 
   dlong e = 0;
   dfloat dx = dimx/nx;
@@ -141,9 +141,9 @@ void mesh_t::SetupBox(){
         dfloat y0 = Y0 + dy*j;
         dfloat z0 = Z0 + dz*k;
 
-        dfloat *ex = EX+e*Nverts;
-        dfloat *ey = EY+e*Nverts;
-        dfloat *ez = EZ+e*Nverts;
+        dfloat *ex = EX.ptr()+e*Nverts;
+        dfloat *ey = EY.ptr()+e*Nverts;
+        dfloat *ez = EZ.ptr()+e*Nverts;
 
         ex[0] = x0;    ey[0] = y0;    ez[0] = z0;
         ex[1] = x0+dx; ey[1] = y0;    ez[1] = z0;

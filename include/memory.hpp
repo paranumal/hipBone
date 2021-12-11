@@ -57,9 +57,35 @@ namespace libp {
       lngth{lngth_},
       offset{0} {}
 
+    memory(const size_t lngth_,
+           const T val) :
+      shrdPtr(new T[lngth_]),
+      lngth{lngth_},
+      offset{0} {
+      for (size_t i=0;i<lngth;++i) {
+        shrdPtr[i] = val;
+      }
+    }
+
+
     memory(const memory<T> &m)=default;
     memory& operator = (const memory<T> &m)=default;
     ~memory()=default;
+
+    void malloc(const size_t lngth_) {
+      *this = libp::memory<T>(lngth_);
+    }
+
+    void calloc(const size_t lngth_) {
+      *this = libp::memory<T>(lngth_, T{0});
+    }
+
+    void realloc(const size_t lngth_) {
+      libp::memory<T> m(lngth_);
+      const ptrdiff_t cnt = std::min(lngth, lngth_);
+      m.copyFrom(*this, cnt);
+      *this = m;
+    }
 
     memory& swap(memory<T> &m) {
       std::swap(shrdPtr, m.shrdPtr);

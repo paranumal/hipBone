@@ -39,14 +39,14 @@ void mesh_t::ConnectFaceNodes(){
   dfloat EX0[Nverts], EY0[Nverts];
   dfloat EX1[Nverts], EY1[Nverts];
 
-  dfloat *x0 = (dfloat*) malloc(Nfp*sizeof(dfloat));
-  dfloat *y0 = (dfloat*) malloc(Nfp*sizeof(dfloat));
+  libp::memory<dfloat> x0(Nfp);
+  libp::memory<dfloat> y0(Nfp);
 
-  dfloat *x1 = (dfloat*) malloc(Nfp*sizeof(dfloat));
-  dfloat *y1 = (dfloat*) malloc(Nfp*sizeof(dfloat));
+  libp::memory<dfloat> x1(Nfp);
+  libp::memory<dfloat> y1(Nfp);
 
   /* Build the permutation array R */
-  int *R = (int*) malloc(Nfaces*Nfaces*Nverts*Nfp*sizeof(int));
+  libp::memory<int> R(Nfaces*Nfaces*Nverts*Nfp);
 
   for (int fM=0;fM<Nfaces;fM++) {
 
@@ -172,12 +172,12 @@ void mesh_t::ConnectFaceNodes(){
     }
   }
 
-  free(x0); free(y0);
-  free(x1); free(y1);
+  x0.free(); y0.free();
+  x1.free(); y1.free();
 
   /* volume indices of the interior and exterior face nodes for each element */
-  vmapM = (dlong*) calloc(Nfp*Nfaces*Nelements, sizeof(dlong));
-  vmapP = (dlong*) calloc(Nfp*Nfaces*Nelements, sizeof(dlong));
+  vmapM.malloc(Nfp*Nfaces*Nelements);
+  vmapP.malloc(Nfp*Nfaces*Nelements);
 
   /* assume elements already connected */
   for(dlong eM=0;eM<Nelements;++eM){
@@ -233,7 +233,6 @@ void mesh_t::ConnectFaceNodes(){
 
 //      printf("connecting (%d,%d) to (%d,%d) [ vmapM %d to vmapP %d ]\n",
 //             e,f,eP,fP, vmapM[id], vmapP[id]);
-  free(R);
 }
 
 } //namespace libp

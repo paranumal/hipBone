@@ -31,25 +31,25 @@ namespace libp {
 // ------------------------------------------------------------------------
 // 1D NODES
 // ------------------------------------------------------------------------
-void mesh_t::Nodes1D(int _N, dfloat *_r){
+void mesh_t::Nodes1D(int _N, dfloat _r[]){
   JacobiGLL(_N, _r); //Gauss-Legendre-Lobatto nodes
 }
 
 // ------------------------------------------------------------------------
 // ORTHONORMAL BASIS POLYNOMIALS
 // ------------------------------------------------------------------------
-void mesh_t::OrthonormalBasis1D(dfloat a, int i, dfloat *P){
-  *P = JacobiP(a,0,0,i); //Legendre Polynomials
+void mesh_t::OrthonormalBasis1D(dfloat a, int i, dfloat &P){
+  P = JacobiP(a,0,0,i); //Legendre Polynomials
 }
 
-void mesh_t::GradOrthonormalBasis1D(dfloat a, int i, dfloat *Pr){
-  *Pr = GradJacobiP(a,0,0,i);
+void mesh_t::GradOrthonormalBasis1D(dfloat a, int i, dfloat &Pr){
+  Pr = GradJacobiP(a,0,0,i);
 }
 
 // ------------------------------------------------------------------------
 // 1D VANDERMONDE MATRICES
 // ------------------------------------------------------------------------
-void mesh_t::Vandermonde1D(int _N, int Npoints, dfloat *_r, dfloat *V){
+void mesh_t::Vandermonde1D(int _N, int Npoints, dfloat _r[], dfloat V[]){
 
   int _Np = (_N+1);
 
@@ -57,13 +57,13 @@ void mesh_t::Vandermonde1D(int _N, int Npoints, dfloat *_r, dfloat *V){
     int sk = 0;
     for(int i=0; i<=_N; i++){
       int id = n*_Np+sk;
-      OrthonormalBasis1D(_r[n], i, V+id);
+      OrthonormalBasis1D(_r[n], i, V[id]);
       sk++;
     }
   }
 }
 
-void mesh_t::GradVandermonde1D(int _N, int Npoints, dfloat *_r, dfloat *Vr){
+void mesh_t::GradVandermonde1D(int _N, int Npoints, dfloat _r[], dfloat Vr[]){
 
   int _Np = (_N+1);
 
@@ -71,7 +71,7 @@ void mesh_t::GradVandermonde1D(int _N, int Npoints, dfloat *_r, dfloat *Vr){
     int sk = 0;
     for(int i=0; i<=_N; i++){
       int id = n*_Np+sk;
-      GradOrthonormalBasis1D(_r[n], i, Vr+id);
+      GradOrthonormalBasis1D(_r[n], i, Vr[id]);
       sk++;
     }
   }
@@ -80,7 +80,7 @@ void mesh_t::GradVandermonde1D(int _N, int Npoints, dfloat *_r, dfloat *Vr){
 // ------------------------------------------------------------------------
 // 1D OPERATOR MATRICES
 // ------------------------------------------------------------------------
-void mesh_t::MassMatrix1D(int _Np, dfloat *V, dfloat *_MM){
+void mesh_t::MassMatrix1D(int _Np, dfloat V[], dfloat _MM[]){
 
   // masMatrix = inv(V')*inv(V) = inv(V*V')
   for(int n=0;n<_Np;++n){
@@ -95,21 +95,18 @@ void mesh_t::MassMatrix1D(int _Np, dfloat *V, dfloat *_MM){
   matrixInverse(_Np, _MM);
 }
 
-void mesh_t::Dmatrix1D(int _N, int Npoints, dfloat *_r, dfloat *_Dr){
+void mesh_t::Dmatrix1D(int _N, int Npoints, dfloat _r[], dfloat _Dr[]){
 
   int _Np = _N+1;
 
-  dfloat *V  = (dfloat *) calloc(Npoints*_Np, sizeof(dfloat));
-  dfloat *Vr = (dfloat *) calloc(Npoints*_Np, sizeof(dfloat));
+  libp::memory<dfloat> V(Npoints*_Np);
+  libp::memory<dfloat> Vr(Npoints*_Np);
 
-  Vandermonde1D(_N, Npoints, _r, V);
-  GradVandermonde1D(_N, Npoints, _r, Vr);
+  Vandermonde1D(_N, Npoints, _r, V.ptr());
+  GradVandermonde1D(_N, Npoints, _r, Vr.ptr());
 
   //D = Vr/V
-  matrixRightSolve(_Np, _Np, Vr, _Np, _Np, V, _Dr);
-
-  free(V);
-  free(Vr);
+  matrixRightSolve(_Np, _Np, Vr.ptr(), _Np, _Np, V.ptr(), _Dr);
 }
 
 // ------------------------------------------------------------------------
@@ -125,19 +122,19 @@ dfloat mesh_t::JacobiP(dfloat a, dfloat alpha, dfloat beta, int _N){
 
   dfloat ax = a;
 
-  dfloat *P = (dfloat *) calloc((_N+1), sizeof(dfloat));
+  libp::memory<dfloat> P(_N+1);
 
   // Zero order
   dfloat gamma0 = pow(2,(alpha+beta+1))/(alpha+beta+1)*mygamma(1+alpha)*mygamma(1+beta)/mygamma(1+alpha+beta);
   dfloat p0     = 1.0/sqrt(gamma0);
 
-  if (_N==0){ free(P); return p0;}
+  if (_N==0){ return p0;}
   P[0] = p0;
 
   // first order
   dfloat gamma1 = (alpha+1)*(beta+1)/(alpha+beta+3)*gamma0;
   dfloat p1     = ((alpha+beta+2)*ax/2 + (alpha-beta)/2)/sqrt(gamma1);
-  if (_N==1){free(P); return p1;}
+  if (_N==1){ return p1;}
 
   P[1] = p1;
 
@@ -153,7 +150,6 @@ dfloat mesh_t::JacobiP(dfloat a, dfloat alpha, dfloat beta, int _N){
   }
 
   dfloat pN = P[_N];
-  free(P);
   return pN;
 }
 
@@ -170,24 +166,23 @@ dfloat mesh_t::GradJacobiP(dfloat a, dfloat alpha, dfloat beta, int _N){
 // ------------------------------------------------------------------------
 // 1D GAUSS-LEGENDRE-LOBATTO QUADRATURE
 // ------------------------------------------------------------------------
-void mesh_t::JacobiGLL(int _N, dfloat *_x, dfloat *w){
+void mesh_t::JacobiGLL(int _N, dfloat _x[], dfloat w[]){
 
   _x[0] = -1.;
   _x[_N] =  1.;
 
   if(_N>1){
-    dfloat *wtmp = (dfloat*) calloc(_N-1, sizeof(dfloat));
-    JacobiGQ(1,1, _N-2, _x+1, wtmp);
-    free(wtmp);
+    libp::memory<dfloat> wtmp(_N-1);
+    JacobiGQ(1,1, _N-2, _x+1, wtmp.ptr());
   }
 
-  if (w!=NULL) {
+  if (w!=nullptr) {
     int _Np = _N+1;
-    dfloat *_MM = (dfloat*) malloc(_Np*_Np*sizeof(dfloat));
-    dfloat  *V = (dfloat*) malloc(_Np*_Np*sizeof(dfloat));
+    libp::memory<dfloat> _MM(_Np*_Np);
+    libp::memory<dfloat> V(_Np*_Np);
 
-    Vandermonde1D(_N, _N+1, _x, V);
-    MassMatrix1D(_N+1, V, _MM);
+    Vandermonde1D(_N, _N+1, _x, V.ptr());
+    MassMatrix1D(_N+1, V.ptr(), _MM.ptr());
 
     // use weights from mass lumping
     for(int n=0;n<=_N;++n){
@@ -203,7 +198,7 @@ void mesh_t::JacobiGLL(int _N, dfloat *_x, dfloat *w){
 // ------------------------------------------------------------------------
 // 1D GAUSS QUADRATURE
 // ------------------------------------------------------------------------
-void mesh_t::JacobiGQ(dfloat alpha, dfloat beta, int _N, dfloat *_x, dfloat *w){
+void mesh_t::JacobiGQ(dfloat alpha, dfloat beta, int _N, dfloat _x[], dfloat w[]){
 
   // function NGQ = JacobiGQ(alpha,beta,_N, _x, w)
   // Purpose: Compute the _N'th order Gauss quadrature points, _x,
@@ -215,8 +210,8 @@ void mesh_t::JacobiGQ(dfloat alpha, dfloat beta, int _N, dfloat *_x, dfloat *w){
   }
 
   // Form symmetric matrix from recurrence.
-  dfloat *J = (dfloat*) calloc((_N+1)*(_N+1), sizeof(dfloat));
-  dfloat *h1 = (dfloat*) calloc(_N+1, sizeof(dfloat));
+  libp::memory<dfloat> J((_N+1)*(_N+1), 0);
+  libp::memory<dfloat> h1(_N+1);
 
   for(int n=0;n<=_N;++n){
     h1[n] = 2*n+alpha+beta;
@@ -245,12 +240,12 @@ void mesh_t::JacobiGQ(dfloat alpha, dfloat beta, int _N, dfloat *_x, dfloat *w){
   // Compute quadrature by eigenvalue solve
 
   //  [V,D] = eig(J);
-  dfloat *WR = (dfloat*) calloc(_N+1, sizeof(dfloat));
-  dfloat *WI = (dfloat*) calloc(_N+1, sizeof(dfloat));
-  dfloat *VR = (dfloat*) calloc((_N+1)*(_N+1), sizeof(dfloat));
+  libp::memory<dfloat> WR(_N+1);
+  libp::memory<dfloat> WI(_N+1);
+  libp::memory<dfloat> VR((_N+1)*(_N+1));
 
   // _x = diag(D);
-  matrixEigenVectors(_N+1, J, VR, _x, WI);
+  matrixEigenVectors(_N+1, J.ptr(), VR.ptr(), _x, WI.ptr());
 
   //w = (V(1,:)').^2*2^(alpha+beta+1)/(alpha+beta+1)*gamma(alpha+1)*.gamma(beta+1)/gamma(alpha+beta+1);
   for(int n=0;n<=_N;++n){
@@ -270,10 +265,6 @@ void mesh_t::JacobiGQ(dfloat alpha, dfloat beta, int _N, dfloat *_x, dfloat *w){
       }
     }
   }
-
-  free(WR);
-  free(WI);
-  free(VR);
 }
 
 } //namespace libp
