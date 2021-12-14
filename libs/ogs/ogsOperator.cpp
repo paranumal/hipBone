@@ -67,12 +67,12 @@ void ogsOperator_t::Gather(T* gv,
   dlong *rowStarts, *colIds;
   if (trans==NoTrans) {
     Nrows = NrowsN;
-    rowStarts = rowStartsN;
-    colIds = colIdsN;
+    rowStarts = rowStartsN.ptr();
+    colIds = colIdsN.ptr();
   } else {
     Nrows = NrowsT;
-    rowStarts = rowStartsT;
-    colIds = colIdsT;
+    rowStarts = rowStartsT.ptr();
+    colIds = colIdsT.ptr();
   }
 
   for(dlong n=0;n<Nrows;++n){
@@ -221,12 +221,12 @@ void ogsOperator_t::Scatter(T* v,
   dlong *rowStarts, *colIds;
   if (trans==Trans) {
     Nrows = NrowsN;
-    rowStarts = rowStartsN;
-    colIds = colIdsN;
+    rowStarts = rowStartsN.ptr();
+    colIds = colIdsN.ptr();
   } else {
     Nrows = NrowsT;
-    rowStarts = rowStartsT;
-    colIds = colIdsT;
+    rowStarts = rowStartsT.ptr();
+    colIds = colIdsT.ptr();
   }
 
   for(dlong n=0;n<Nrows;++n){
@@ -306,22 +306,22 @@ void ogsOperator_t::GatherScatter(T* v,
 
   if (trans==Trans) {
     Nrows = NrowsN;
-    gRowStarts = rowStartsT;
-    gColIds    = colIdsT;
-    sRowStarts = rowStartsN;
-    sColIds    = colIdsN;
+    gRowStarts = rowStartsT.ptr();
+    gColIds    = colIdsT.ptr();
+    sRowStarts = rowStartsN.ptr();
+    sColIds    = colIdsN.ptr();
   } else if (trans==Sym) {
     Nrows = NrowsT;
-    gRowStarts = rowStartsT;
-    gColIds    = colIdsT;
-    sRowStarts = rowStartsT;
-    sColIds    = colIdsT;
+    gRowStarts = rowStartsT.ptr();
+    gColIds    = colIdsT.ptr();
+    sRowStarts = rowStartsT.ptr();
+    sColIds    = colIdsT.ptr();
   } else {
     Nrows = NrowsT;
-    gRowStarts = rowStartsN;
-    gColIds    = colIdsN;
-    sRowStarts = rowStartsT;
-    sColIds    = colIdsT;
+    gRowStarts = rowStartsN.ptr();
+    gColIds    = colIdsN.ptr();
+    sRowStarts = rowStartsT.ptr();
+    sColIds    = colIdsT.ptr();
   }
 
   for(dlong n=0;n<Nrows;++n){
@@ -450,7 +450,7 @@ void ogsOperator_t::setupRowBlocks() {
   for (dlong i=0;i<NrowsT;i++) {
     const dlong rowSizeN  = rowStartsN[i+1]-rowStartsN[i];
 
-    if (rowSizeN > ogs::gatherNodesPerBlock) {
+    if (rowSizeN > gatherNodesPerBlock) {
       //this row is pathalogically big. We can't currently run this
       std::stringstream ss;
       ss << "Multiplicity of global node id: " << i
@@ -460,7 +460,7 @@ void ogsOperator_t::setupRowBlocks() {
 
     const dlong rowSizeT  = rowStartsT[i+1]-rowStartsT[i];
 
-    if (rowSizeT > ogs::gatherNodesPerBlock) {
+    if (rowSizeT > gatherNodesPerBlock) {
       //this row is pathalogically big. We can't currently run this
       std::stringstream ss;
       ss << "Multiplicity of global node id: " << i
@@ -468,14 +468,14 @@ void ogsOperator_t::setupRowBlocks() {
       HIPBONE_ABORT(ss.str())
     }
 
-    if (blockSumN+rowSizeN > ogs::gatherNodesPerBlock) { //adding this row will exceed the nnz per block
+    if (blockSumN+rowSizeN > gatherNodesPerBlock) { //adding this row will exceed the nnz per block
       NrowBlocksN++; //count the previous block
       blockSumN=rowSizeN; //start a new row block
     } else {
       blockSumN+=rowSizeN; //add this row to the block
     }
 
-    if (blockSumT+rowSizeT > ogs::gatherNodesPerBlock) { //adding this row will exceed the nnz per block
+    if (blockSumT+rowSizeT > gatherNodesPerBlock) { //adding this row will exceed the nnz per block
       NrowBlocksT++; //count the previous block
       blockSumT=rowSizeT; //start a new row block
     } else {
@@ -483,8 +483,8 @@ void ogsOperator_t::setupRowBlocks() {
     }
   }
 
-  blockRowStartsN  = (dlong*) calloc(NrowBlocksN+1,sizeof(dlong));
-  blockRowStartsT  = (dlong*) calloc(NrowBlocksT+1,sizeof(dlong));
+  blockRowStartsN.calloc(NrowBlocksN+1);
+  blockRowStartsT.calloc(NrowBlocksT+1);
 
   blockSumN=0, blockSumT=0;
   NrowBlocksN=0, NrowBlocksT=0;
@@ -495,13 +495,13 @@ void ogsOperator_t::setupRowBlocks() {
     const dlong rowSizeN  = rowStartsN[i+1]-rowStartsN[i];
     const dlong rowSizeT  = rowStartsT[i+1]-rowStartsT[i];
 
-    if (blockSumN+rowSizeN > ogs::gatherNodesPerBlock) { //adding this row will exceed the nnz per block
+    if (blockSumN+rowSizeN > gatherNodesPerBlock) { //adding this row will exceed the nnz per block
       blockRowStartsN[NrowBlocksN++] = i; //mark the previous block
       blockSumN=rowSizeN; //start a new row block
     } else {
       blockSumN+=rowSizeN; //add this row to the block
     }
-    if (blockSumT+rowSizeT > ogs::gatherNodesPerBlock) { //adding this row will exceed the nnz per block
+    if (blockSumT+rowSizeT > gatherNodesPerBlock) { //adding this row will exceed the nnz per block
       blockRowStartsT[NrowBlocksT++] = i; //mark the previous block
       blockSumT=rowSizeT; //start a new row block
     } else {
@@ -511,32 +511,25 @@ void ogsOperator_t::setupRowBlocks() {
   blockRowStartsN[NrowBlocksN] = NrowsT;
   blockRowStartsT[NrowBlocksT] = NrowsT;
 
-  o_blockRowStartsN = platform.malloc((NrowBlocksN+1)*sizeof(dlong), blockRowStartsN);
-  o_blockRowStartsT = platform.malloc((NrowBlocksT+1)*sizeof(dlong), blockRowStartsT);
+  o_blockRowStartsN = platform.malloc((NrowBlocksN+1)*sizeof(dlong), blockRowStartsN.ptr());
+  o_blockRowStartsT = platform.malloc((NrowBlocksT+1)*sizeof(dlong), blockRowStartsT.ptr());
 }
 
 void ogsOperator_t::Free() {
-  if(rowStartsT) {free(rowStartsT); rowStartsT=nullptr;}
-  if(colIdsT) {free(colIdsT); colIdsT=nullptr;}
+  rowStartsT.free();
+  colIdsT.free();
+  rowStartsN.free();
+  colIdsN.free();
 
-  if(o_rowStartsT.size()) o_rowStartsT.free();
-  if(o_colIdsT.size()) o_colIdsT.free();
+  o_rowStartsT.free();
+  o_colIdsT.free();
+  o_rowStartsN.free();
+  o_colIdsN.free();
 
-  if (kind==Signed) {
-    if(rowStartsN) {free(rowStartsN); rowStartsN=nullptr;}
-    if(colIdsN) {free(colIdsN); colIdsN=nullptr;}
-
-    if(o_rowStartsN.size()) o_rowStartsN.free();
-    if(o_colIdsN.size()) o_colIdsN.free();
-  } else {
-    rowStartsN=nullptr;
-    colIdsN=nullptr;
-  }
-
-  if(blockRowStartsT) {free(blockRowStartsT); blockRowStartsT=nullptr;}
-  if(blockRowStartsN) {free(blockRowStartsN); blockRowStartsN=nullptr;}
-  if(o_blockRowStartsN.size()) o_blockRowStartsN.free();
-  if(o_blockRowStartsT.size()) o_blockRowStartsT.free();
+  blockRowStartsT.free();
+  blockRowStartsN.free();
+  o_blockRowStartsN.free();
+  o_blockRowStartsT.free();
 
   nnzN=0;
   nnzT=0;

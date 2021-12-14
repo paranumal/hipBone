@@ -26,33 +26,17 @@ SOFTWARE.
 
 #include <limits>
 #include "ogs.hpp"
+#include "ogs/ogsOperator.hpp"
+#include "ogs/ogsExchange.hpp"
 #include "ogs/ogsUtils.hpp"
 
 namespace libp {
 
 namespace ogs {
 
-//NC: Hard code these for now. Should be sufficient for GPU devices, but needs attention for CPU
-const int blockSize = 256;
-const int gatherNodesPerBlock = 1024; //should be a multiple of blockSize for good unrolling
-
-int Nrefs = 0;
-
-occa::stream dataStream;
-
-//4 types - Float, Double, Int32, Int64
-//4 ops - Add, Mul, Max, Min
-occa::kernel gatherScatterKernel[4][4];
-occa::kernel gatherKernel[4][4];
-occa::kernel scatterKernel[4];
-occa::kernel setKernel[4];
-occa::kernel extractKernel[4];
-
 MPI_Datatype MPI_PARALLELNODE_T;
 
-
-void Init(platform_t& platform) {
-
+void InitMPIType() {
   // Make the MPI_PARALLELNODE_T data type
   parallelNode_t node{};
   MPI_Datatype dtype[6] = {MPI_DLONG, MPI_HLONG,
@@ -74,19 +58,29 @@ void Init(platform_t& platform) {
   displ[5] = addr[5] - addr[0];
   MPI_Type_create_struct (6, blength, displ, dtype, &MPI_PARALLELNODE_T);
   MPI_Type_commit (&MPI_PARALLELNODE_T);
-
-  dataStream = platform.device.createStream();
 }
+
+void DestroyMPIType() {
+  MPI_Type_free(&MPI_PARALLELNODE_T);
+}
+
+occa::kernel ogsOperator_t::gatherScatterKernel[4][4];
+occa::kernel ogsOperator_t::gatherKernel[4][4];
+occa::kernel ogsOperator_t::scatterKernel[4];
+
+occa::kernel ogsExchange_t::extractKernel[4];
+occa::stream ogsExchange_t::dataStream;
+
 
 void InitializeKernels(platform_t& platform, const Type type, const Op op) {
 
   //check if the gather kernel is initialized
-  if (!gatherKernel[type][op].isInitialized()) {
+  if (!ogsOperator_t::gatherKernel[type][op].isInitialized()) {
 
-    occa::properties kernelInfo = platform.props;
+    occa::properties kernelInfo = platform.props();
 
-    kernelInfo["defines/p_blockSize"] = blockSize;
-    kernelInfo["defines/p_gatherNodesPerBlock"] = gatherNodesPerBlock;
+    kernelInfo["defines/p_blockSize"] = ogsOperator_t::blockSize;
+    kernelInfo["defines/p_gatherNodesPerBlock"] = ogsOperator_t::gatherNodesPerBlock;
 
     switch (type) {
       case Float:  kernelInfo["defines/T"] =  "float"; break;
@@ -137,28 +131,24 @@ void InitializeKernels(platform_t& platform, const Type type, const Op op) {
       case Max: kernelInfo["defines/OGS_OP(a,b)"] = "if(b>a) a=b"; break;
     }
 
-    gatherScatterKernel[type][op] = platform.buildKernel(OGS_DIR "/okl/ogsKernels.okl",
+    ogsOperator_t::gatherScatterKernel[type][op] = platform.buildKernel(OGS_DIR "/okl/ogsKernels.okl",
                                                          "gatherScatter",
                                                          kernelInfo);
 
 
-    gatherKernel[type][op] = platform.buildKernel(OGS_DIR "/okl/ogsKernels.okl",
+    ogsOperator_t::gatherKernel[type][op] = platform.buildKernel(OGS_DIR "/okl/ogsKernels.okl",
                                                 "gather",
                                                 kernelInfo);
 
-    if (!scatterKernel[type].isInitialized()) {
-      scatterKernel[type] = platform.buildKernel(OGS_DIR "/okl/ogsKernels.okl",
+    if (!ogsOperator_t::scatterKernel[type].isInitialized()) {
+      ogsOperator_t::scatterKernel[type] = platform.buildKernel(OGS_DIR "/okl/ogsKernels.okl",
                                                  "scatter",
                                                  kernelInfo);
 
-      extractKernel[type] = platform.buildKernel(OGS_DIR "/okl/ogsKernels.okl",
+      ogsExchange_t::extractKernel[type] = platform.buildKernel(OGS_DIR "/okl/ogsKernels.okl",
                                                 "extract", kernelInfo);\
     }
   }
-}
-
-void FreeKernels() {
-
 }
 
 size_t Sizeof(const Type type) {
