@@ -46,7 +46,7 @@ public:
 class hipBone_t: public solver_t {
 
  public:
-  mesh_t &mesh;
+  mesh_t mesh;
 
   dfloat lambda;
 
@@ -55,14 +55,13 @@ class hipBone_t: public solver_t {
   occa::kernel operatorKernel;
   occa::kernel forcingKernel;
 
-  hipBone_t() = delete;
-  hipBone_t(platform_t& _platform, mesh_t &_mesh):
-    solver_t(_platform), mesh(_mesh) {}
-
-  ~hipBone_t();
+  hipBone_t() = default;
+  hipBone_t(platform_t& _platform, mesh_t &_mesh) {
+    Setup(_platform, _mesh);
+  }
 
   //setup
-  static hipBone_t& Setup(platform_t& _platform, mesh_t& mesh);
+  void Setup(platform_t& _platform, mesh_t& _mesh);
 
   void Run();
 

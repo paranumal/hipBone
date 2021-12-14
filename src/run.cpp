@@ -29,11 +29,11 @@ SOFTWARE.
 void hipBone_t::Run(){
 
   //setup linear solver
-  dlong N = mesh.ogsMasked->Ngather;
-  dlong Nhalo = mesh.gHalo->Nhalo;
+  dlong N = mesh.ogsMasked.Ngather;
+  dlong Nhalo = mesh.gHalo.Nhalo;
   linearSolver_t *linearSolver = new cg(platform, N, Nhalo);
 
-  hlong NGlobal = mesh.ogsMasked->NgatherGlobal;
+  hlong NGlobal = mesh.ogsMasked.NgatherGlobal;
   dlong NLocal = mesh.Np*mesh.Nelements;
 
   //create occa buffers
@@ -42,13 +42,13 @@ void hipBone_t::Run(){
   occa::memory o_x = platform.malloc(Nall*sizeof(dfloat));
 
   //set x =0
-  platform.linAlg.set(Nall, 0.0, o_x);
+  platform.linAlg().set(Nall, 0.0, o_x);
 
   //NekBone-like RHS
   forcingKernel(N, o_r);
 
   int maxIter = 100;
-  int verbose = settings.compareSetting("VERBOSE", "TRUE") ? 1 : 0;
+  int verbose = platform.settings().compareSetting("VERBOSE", "TRUE") ? 1 : 0;
 
   platform.device.finish();
   MPI_Barrier(mesh.comm);

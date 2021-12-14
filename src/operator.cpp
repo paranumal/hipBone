@@ -28,7 +28,7 @@
 
 void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
 
-  mesh.gHalo->ExchangeStart(o_q, 1, ogs::Dfloat);
+  mesh.gHalo.ExchangeStart(o_q, 1, ogs::Dfloat);
 
   if(mesh.NlocalGatherElements/2){
     operatorKernel(mesh.NlocalGatherElements/2,
@@ -39,7 +39,7 @@ void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
   }
 
   // finalize halo exchange
-  mesh.gHalo->ExchangeFinish(o_q, 1, ogs::Dfloat);
+  mesh.gHalo.ExchangeFinish(o_q, 1, ogs::Dfloat);
 
   if(mesh.NglobalGatherElements) {
     operatorKernel(mesh.NglobalGatherElements,
@@ -50,7 +50,7 @@ void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
   }
 
   //gather result to Aq
-  mesh.ogsMasked->GatherStart(o_Aq, o_AqL, 1, ogs::Dfloat, ogs::Add, ogs::Trans);
+  mesh.ogsMasked.GatherStart(o_Aq, o_AqL, 1, ogs::Dfloat, ogs::Add, ogs::Trans);
 
   if((mesh.NlocalGatherElements+1)/2){
     operatorKernel((mesh.NlocalGatherElements+1)/2,
@@ -60,6 +60,6 @@ void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
                    lambda, o_q, o_AqL);
   }
 
-  mesh.ogsMasked->GatherFinish(o_Aq, o_AqL, 1, ogs::Dfloat, ogs::Add, ogs::Trans);
+  mesh.ogsMasked.GatherFinish(o_Aq, o_AqL, 1, ogs::Dfloat, ogs::Add, ogs::Trans);
 }
 
