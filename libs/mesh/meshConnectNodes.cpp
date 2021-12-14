@@ -67,8 +67,8 @@ void mesh_t::ConnectNodes(){
     localChange = 0;
 
     // send halo data and recv into extension of buffer
-    halo->Exchange(baseRank.ptr(), Np, ogs::Int32);
-    halo->Exchange(globalIds.ptr(), Np, ogs::Hlong);
+    halo.Exchange(baseRank.ptr(), Np, ogs::Int32);
+    halo.Exchange(globalIds.ptr(), Np, ogs::Hlong);
 
     // compare trace nodes
     for(dlong e=0;e<Nelements;++e){

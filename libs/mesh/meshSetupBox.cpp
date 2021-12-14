@@ -30,6 +30,8 @@ namespace libp {
 
 void mesh_t::SetupBox(){
 
+  settings_t& settings = platform.settings();
+
   //local grid physical sizes
   //Hard code to 2x2x2
   dfloat DIMX=2.0, DIMY=2.0, DIMZ=2.0;

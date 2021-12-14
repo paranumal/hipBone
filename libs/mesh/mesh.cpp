@@ -28,19 +28,15 @@ SOFTWARE.
 
 namespace libp {
 
-mesh_t& mesh_t::Setup(platform_t& _platform) {
-  return *(new mesh_t(_platform));
-}
+void mesh_t::Setup(platform_t& _platform) {
 
-mesh_t::mesh_t(platform_t& _platform):
-  platform(_platform),
-  settings(platform.settings) {
+  platform = _platform;
 
   comm = platform.comm;
   MPI_Comm_rank(platform.comm, &rank);
   MPI_Comm_size(platform.comm, &size);
 
-  platform.settings.getSetting("POLYNOMIAL DEGREE", N);
+  platform.settings().getSetting("POLYNOMIAL DEGREE", N);
 
   dim = 3;
   Nverts = 8; // number of vertices per element
@@ -85,13 +81,6 @@ mesh_t::mesh_t(platform_t& _platform):
   GeometricFactors();
 
   OccaSetup();
-}
-
-
-mesh_t::~mesh_t() {
-  if (halo)      {halo->Free(); delete halo;}
-  if (ogsMasked) {ogsMasked->Free(); delete ogsMasked;}
-  if (gHalo)     {gHalo->Free(); delete gHalo;}
 }
 
 } //namespace libp

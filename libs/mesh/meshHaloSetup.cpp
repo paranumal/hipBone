@@ -109,9 +109,9 @@ void mesh_t::HaloSetup(){
 
   //make a halo exchange op
   bool verbose = false;
-  halo = new ogs::halo_t(platform);
-  halo->Setup(Nelements+totalHaloPairs, globalElementId.ptr(), comm,
-              ogs::Pairwise, verbose);
+  halo.Setup(Nelements+totalHaloPairs,
+             globalElementId.ptr(), comm,
+             ogs::Pairwise, verbose, platform);
 }
 
 } //namespace libp
