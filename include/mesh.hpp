@@ -36,8 +36,7 @@ namespace libp {
 class mesh_t {
 
 public:
-  platform_t& platform;
-  settings_t& settings;
+  platform_t platform;
 
   MPI_Comm comm;
   int rank, size;
@@ -61,7 +60,7 @@ public:
   libp::memory<dlong> VmapP;  // list of vertices that are paired with face vertices
 
   // MPI halo exchange info
-  ogs::halo_t *halo;            // halo exchange pointer
+  ogs::halo_t halo;            // halo exchange pointer
   dlong NinternalElements; // number of elements that can update without halo exchange
   dlong NhaloElements;     // number of elements that cannot update without halo exchange
   dlong  totalHaloPairs;   // number of elements to be received in halo exchange
@@ -71,8 +70,8 @@ public:
   occa::memory o_haloElementIds;      // list of elements to be sent in halo exchange
 
   // CG gather-scatter info
-  ogs::ogs_t *ogsMasked;
-  ogs::halo_t *gHalo;
+  ogs::ogs_t ogsMasked;
+  ogs::halo_t gHalo;
   libp::memory<hlong> globalIds, maskedGlobalIds, maskedGlobalNumbering;
   dlong Nmasked;
 
@@ -122,11 +121,13 @@ public:
   occa::memory o_D; // tensor product differentiation matrix (for Hexes)
   occa::memory o_ggeo; // second order geometric factors
 
-  mesh_t(platform_t& _platform);
+  mesh_t()=default;
+  mesh_t(platform_t& _platform) {
+    Setup(_platform);
+  }
+  ~mesh_t()=default;
 
-  ~mesh_t();
-
-  static mesh_t& Setup(platform_t& _platform);
+  void Setup(platform_t& _platform);
 
   // box mesh
   void SetupBox();

@@ -36,15 +36,14 @@ namespace libp {
 //virtual base linear solver class
 class linearSolver_t {
 public:
-  platform_t& platform;
-  settings_t& settings;
+  platform_t platform;
   MPI_Comm comm;
 
   dlong N;
   dlong Nhalo;
 
   linearSolver_t(platform_t& _platform, dlong _N, dlong _Nhalo):
-    platform(_platform), settings(platform.settings), comm(platform.comm),
+    platform(_platform), comm(platform.comm),
     N(_N), Nhalo(_Nhalo) {}
 
   virtual int Solve(solver_t& solver,

@@ -94,16 +94,14 @@ private:
 public:
   MPI_Comm comm;
 
-  std::map<string, setting_t*> settings;
+  std::map<string, setting_t> settings;
 
   settings_t() = delete;
   settings_t(MPI_Comm _comm);
 
-  ~settings_t();
-
   //copy
-  settings_t(const settings_t& other);
-  settings_t& operator=(const settings_t& other);
+  settings_t(const settings_t& other)=default;
+  settings_t& operator=(const settings_t& other)=default;
 
   void newSetting(const string shortkey, const string longkey,
                   const string name, const string val,
@@ -119,8 +117,8 @@ public:
   void getSetting(const string name, T& value) const {
     auto search = settings.find(name);
     if (search != settings.end()) {
-      setting_t* val = search->second;
-      value = val->getVal<T>();
+      const setting_t& val = search->second;
+      value = val.getVal<T>();
     } else {
       stringstream ss;
       ss << "Unable to find setting: [" << name << "]";

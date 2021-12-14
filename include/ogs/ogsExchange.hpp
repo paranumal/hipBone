@@ -37,14 +37,17 @@ namespace ogs {
 //virtual base class to perform MPI exchange of gatherScatter
 class ogsExchange_t {
 public:
-  platform_t &platform;
+  platform_t platform;
   MPI_Comm comm;
   int rank, size;
 
   dlong Nhalo, NhaloP;
 
-  void *haloBuf=nullptr;
+  char* haloBuf;
   occa::memory o_haloBuf, h_haloBuf;
+
+  static occa::stream dataStream;
+  static occa::kernel extractKernel[4];
 
 #ifdef GPU_AWARE_MPI
   bool gpu_aware=true;
@@ -57,8 +60,11 @@ public:
     comm(_comm) {
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
+
+    if (!dataStream.isInitialized())
+      dataStream = platform.device.createStream();
   }
-  virtual ~ogsExchange_t(){};
+  virtual ~ogsExchange_t() {}
 
   virtual void Start(const int k,
                      const Type type,
@@ -72,6 +78,8 @@ public:
                       const bool host=false)=0;
 
   virtual void AllocBuffer(size_t Nbytes)=0;
+
+  friend void InitializeKernels(platform_t& platform, const Type type, const Op op);
 };
 
 //MPI communcation via single MPI_Alltoallv call
@@ -79,37 +87,35 @@ class ogsAllToAll_t: public ogsExchange_t {
 private:
 
   dlong NsendN=0, NsendT=0;
-  dlong *sendIdsN=nullptr, *sendIdsT=nullptr;
+  libp::memory<dlong> sendIdsN, sendIdsT;
   occa::memory o_sendIdsN, o_sendIdsT;
 
-  ogsOperator_t *postmpi=nullptr;
+  ogsOperator_t postmpi;
 
-  void *sendBuf=nullptr;
+  char* sendBuf;
   occa::memory o_sendBuf;
   occa::memory h_sendBuf;
 
-  int *mpiSendCountsN =nullptr;
-  int *mpiSendCountsT =nullptr;
-  int *mpiRecvCountsN =nullptr;
-  int *mpiRecvCountsT =nullptr;
-  int *mpiSendOffsetsN=nullptr;
-  int *mpiSendOffsetsT=nullptr;
-  int *mpiRecvOffsetsN=nullptr;
-  int *mpiRecvOffsetsT=nullptr;
+  libp::memory<int> mpiSendCountsN;
+  libp::memory<int> mpiSendCountsT;
+  libp::memory<int> mpiRecvCountsN;
+  libp::memory<int> mpiRecvCountsT;
+  libp::memory<int> mpiSendOffsetsN;
+  libp::memory<int> mpiSendOffsetsT;
+  libp::memory<int> mpiRecvOffsetsN;
+  libp::memory<int> mpiRecvOffsetsT;
 
-  int *sendCounts =nullptr;
-  int *recvCounts =nullptr;
-  int *sendOffsets=nullptr;
-  int *recvOffsets=nullptr;
+  libp::memory<int> sendCounts;
+  libp::memory<int> recvCounts;
+  libp::memory<int> sendOffsets;
+  libp::memory<int> recvOffsets;
 
 public:
   ogsAllToAll_t(dlong Nshared,
-               parallelNode_t* sharedNodes,
-               ogsOperator_t *gatherHalo,
+               parallelNode_t sharedNodes[],
+               ogsOperator_t &gatherHalo,
                MPI_Comm _comm,
                platform_t &_platform);
-
-  virtual ~ogsAllToAll_t();
 
   virtual void Start(const int k,
                      const Type type,
@@ -131,40 +137,38 @@ class ogsPairwise_t: public ogsExchange_t {
 private:
 
   dlong NsendN=0, NsendT=0;
-  dlong *sendIdsN=nullptr, *sendIdsT=nullptr;
+  libp::memory<dlong> sendIdsN, sendIdsT;
   occa::memory o_sendIdsN, o_sendIdsT;
 
-  ogsOperator_t *postmpi=nullptr;
+  ogsOperator_t postmpi;
 
-  void *sendBuf=nullptr;
+  char* sendBuf;
   occa::memory o_sendBuf;
   occa::memory h_sendBuf;
 
   int NranksSendN=0, NranksRecvN=0;
   int NranksSendT=0, NranksRecvT=0;
-  int *sendRanksN =nullptr;
-  int *sendRanksT =nullptr;
-  int *recvRanksN =nullptr;
-  int *recvRanksT =nullptr;
-  int *sendCountsN =nullptr;
-  int *sendCountsT =nullptr;
-  int *recvCountsN =nullptr;
-  int *recvCountsT =nullptr;
-  int *sendOffsetsN=nullptr;
-  int *sendOffsetsT=nullptr;
-  int *recvOffsetsN=nullptr;
-  int *recvOffsetsT=nullptr;
-  MPI_Request* requests;
-  MPI_Status* statuses;
+  libp::memory<int> sendRanksN;
+  libp::memory<int> sendRanksT;
+  libp::memory<int> recvRanksN;
+  libp::memory<int> recvRanksT;
+  libp::memory<int> sendCountsN;
+  libp::memory<int> sendCountsT;
+  libp::memory<int> recvCountsN;
+  libp::memory<int> recvCountsT;
+  libp::memory<int> sendOffsetsN;
+  libp::memory<int> sendOffsetsT;
+  libp::memory<int> recvOffsetsN;
+  libp::memory<int> recvOffsetsT;
+  libp::memory<MPI_Request> requests;
+  libp::memory<MPI_Status> statuses;
 
 public:
   ogsPairwise_t(dlong Nshared,
-               parallelNode_t* sharedNodes,
-               ogsOperator_t *gatherHalo,
+               parallelNode_t sharedNodes[],
+               ogsOperator_t &gatherHalo,
                MPI_Comm _comm,
                platform_t &_platform);
-
-  virtual ~ogsPairwise_t();
 
   virtual void Start(const int k,
                      const Type type,
@@ -191,15 +195,10 @@ private:
     int Nsend, Nrecv0, Nrecv1;
     dlong recvOffset;
 
-    dlong *sendIds=nullptr;
+    libp::memory<dlong> sendIds;
     occa::memory o_sendIds;
 
-    ogsOperator_t *gather=nullptr;
-
-    ~crLevel() {
-      if(sendIds) {free(sendIds); sendIds=nullptr;}
-      if(gather) {delete gather; gather=nullptr;}
-    }
+    ogsOperator_t gather;
   };
 
   int buf_id=0;
@@ -211,24 +210,22 @@ private:
   MPI_Status status[3];
 
   int Nlevels=0;
-  crLevel* levelsN=nullptr;
-  crLevel* levelsT=nullptr;
+  libp::memory<crLevel> levelsN;
+  libp::memory<crLevel> levelsT;
 
   int NsendMax=0, NrecvMax=0;
-  void *sendBuf=nullptr;
-  void *recvBuf=nullptr;
+  char* sendBuf;
+  char* recvBuf;
   occa::memory o_sendBuf;
   occa::memory h_sendBuf;
   occa::memory o_recvBuf;
 
 public:
   ogsCrystalRouter_t(dlong Nshared,
-                   parallelNode_t* sharedNodes,
-                   ogsOperator_t *gatherHalo,
+                   parallelNode_t sharedNodes[],
+                   ogsOperator_t &gatherHalo,
                    MPI_Comm _comm,
                    platform_t &_platform);
-
-  virtual ~ogsCrystalRouter_t();
 
   virtual void Start(const int k,
                      const Type type,

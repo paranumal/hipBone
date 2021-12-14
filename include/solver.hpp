@@ -33,19 +33,16 @@ namespace libp {
 
 class solver_t {
 public:
-  platform_t& platform;
-  settings_t& settings;
+  platform_t platform;
 
-  solver_t() = delete;
-
+  solver_t()=default;
   solver_t(platform_t& _platform):
-    platform(_platform), settings(platform.settings) {};
+    platform(_platform) {}
   virtual ~solver_t(){}
 
+  settings_t& settings() { return platform.settings(); }
+
   virtual void Run()=0;
-  virtual void Report(dfloat time=0.0, int tstep=0) {
-    HIPBONE_ABORT(std::string("Report not implemented in this solver"))
-  }
 
   virtual void Operator(occa::memory& o_q, occa::memory& o_Aq) {
     HIPBONE_ABORT(std::string("Operator not implemented in this solver"))

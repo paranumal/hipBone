@@ -33,21 +33,10 @@ namespace libp {
 
 namespace ogs {
 
-extern const int blockSize;
-extern const int gatherNodesPerBlock;
-
-extern int Nrefs;
-
-extern occa::stream dataStream;
-
 extern MPI_Datatype MPI_PARALLELNODE_T;
 
-//4 types - Float, Double, Int32, Int64
-//4 ops - Add, Mul, Max, Min
-extern occa::kernel gatherScatterKernel[4][4];
-extern occa::kernel gatherKernel[4][4];
-extern occa::kernel scatterKernel[4];
-extern occa::kernel extractKernel[4];
+void InitMPIType();
+void DestroyMPIType();
 
 struct parallelNode_t{
 
@@ -61,9 +50,6 @@ struct parallelNode_t{
   int destRank; //destination rank
 
 };
-
-void Init(platform_t& platform);
-void FreeKernels();
 
 size_t Sizeof(const Type type);
 MPI_Datatype MPI_Type(const Type type);

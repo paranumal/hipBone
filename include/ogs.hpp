@@ -218,8 +218,8 @@ void InitializeKernels(platform_t& platform, const Type type, const Op op);
 // OCCA Gather Scatter
 class ogs_t : public ogsBase_t {
 public:
-  ogs_t(platform_t& _platform):
-   ogsBase_t(_platform) {}
+  ogs_t()=default;
+  ~ogs_t()=default;
 
   void Setup(const dlong _N,
              hlong *ids,
@@ -227,7 +227,8 @@ public:
              const Kind _kind,
              const Method method,
              const bool _unique,
-             const bool verbose);
+             const bool verbose,
+             platform_t& _platform);
 
   void SetupGlobalToLocalMapping(dlong *GlobalToLocal);
 
@@ -317,8 +318,8 @@ public:
 // OCCA Halo
 class halo_t : public ogsBase_t {
 public:
-  halo_t(platform_t& _platform):
-   ogsBase_t(_platform) {}
+  halo_t()=default;
+  ~halo_t()=default;
 
   bool gathered_halo=false;
   dlong Nhalo=0;
@@ -327,7 +328,8 @@ public:
              hlong *ids,
              MPI_Comm _comm,
              const Method method,
-             const bool verbose);
+             const bool verbose,
+             platform_t& _platform);
 
   void SetupFromGather(ogs_t& ogs);
 

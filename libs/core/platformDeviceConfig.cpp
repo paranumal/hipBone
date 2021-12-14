@@ -35,22 +35,24 @@ void platform_t::DeviceConfig(){
   int plat=0;
   int device_id=0;
 
-  if(settings.compareSetting("THREAD MODEL", "OpenCL"))
-    settings.getSetting("PLATFORM NUMBER", plat);
+  settings_t& Settings = settings();
 
-  // read thread model/device/platform from settings
+  if(Settings.compareSetting("THREAD MODEL", "OpenCL"))
+    Settings.getSetting("PLATFORM NUMBER", plat);
+
+  // read thread model/device/platform from Settings
   std::string mode;
 
-  if(settings.compareSetting("THREAD MODEL", "CUDA")){
+  if(Settings.compareSetting("THREAD MODEL", "CUDA")){
     mode = "{mode: 'CUDA'}";
   }
-  else if(settings.compareSetting("THREAD MODEL", "HIP")){
+  else if(Settings.compareSetting("THREAD MODEL", "HIP")){
     mode = "{mode: 'HIP'}";
   }
-  else if(settings.compareSetting("THREAD MODEL", "OpenCL")){
+  else if(Settings.compareSetting("THREAD MODEL", "OpenCL")){
     mode = "{mode: 'OpenCL', platform_id : " + std::to_string(plat) +"}";
   }
-  else if(settings.compareSetting("THREAD MODEL", "OpenMP")){
+  else if(Settings.compareSetting("THREAD MODEL", "OpenMP")){
     mode = "{mode: 'OpenMP'}";
   }
   else{
@@ -58,12 +60,12 @@ void platform_t::DeviceConfig(){
   }
 
   //add a device_id number for some modes
-  if (  settings.compareSetting("THREAD MODEL", "CUDA")
-      ||settings.compareSetting("THREAD MODEL", "HIP")
-      ||settings.compareSetting("THREAD MODEL", "OpenCL")) {
+  if (  Settings.compareSetting("THREAD MODEL", "CUDA")
+      ||Settings.compareSetting("THREAD MODEL", "HIP")
+      ||Settings.compareSetting("THREAD MODEL", "OpenCL")) {
     //for testing a single device, run with 1 rank and specify DEVICE NUMBER
     if (size==1) {
-      settings.getSetting("DEVICE NUMBER",device_id);
+      Settings.getSetting("DEVICE NUMBER",device_id);
     } else {
       //find out how many ranks and devices are on this system
       char* hostnames = (char *) ::malloc(size*sizeof(char)*MPI_MAX_PROCESSOR_NAME);
@@ -109,7 +111,7 @@ void platform_t::DeviceConfig(){
   // Nthreads = mymax(1,Nthreads/2);
   // omp_set_num_threads(Nthreads);
 
-  // if (settings.compareSetting("VERBOSE","TRUE"))
+  // if (Settings.compareSetting("VERBOSE","TRUE"))
   //   printf("Rank %d: Ncores = %d, Nthreads = %d, device_id = %d \n", rank, Ncores, Nthreads, device_id);
 
   device.setup(mode);

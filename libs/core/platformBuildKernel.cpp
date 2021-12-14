@@ -31,6 +31,8 @@ namespace libp {
 occa::kernel platform_t::buildKernel(std::string fileName, std::string kernelName,
                                      occa::properties& kernelInfo){
 
+  assertInitialized();
+
   occa::kernel kernel;
 
   //build on root first

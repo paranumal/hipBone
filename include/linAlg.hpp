@@ -48,9 +48,7 @@ public:
   occa::memory h_scratch;
   occa::memory o_scratch;
 
-  linAlg_t();
-
-  void Setup(platform_t *_platform);
+  linAlg_t(platform_t *_platform);
 
   //initialize list of kernels
   void InitKernels(std::vector<std::string> kernels, MPI_Comm comm);

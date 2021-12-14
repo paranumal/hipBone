@@ -36,12 +36,10 @@ constexpr int AXPY_BLOCKSIZE = 1024;
 using std::string;
 using std::stringstream;
 
-linAlg_t::linAlg_t(): blocksize(LINALG_BLOCKSIZE) {};
-
-void linAlg_t::Setup(platform_t *_platform) {
+linAlg_t::linAlg_t(platform_t *_platform): blocksize(LINALG_BLOCKSIZE) {
 
   platform = _platform;
-  kernelInfo = platform->props;
+  kernelInfo = platform->props();
 
   //add defines
   kernelInfo["defines/" "p_blockSize"] = (int)LINALG_BLOCKSIZE;

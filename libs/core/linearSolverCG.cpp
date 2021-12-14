@@ -48,7 +48,7 @@ cg::cg(platform_t& _platform, dlong _N, dlong _Nhalo):
   o_tmprdotr = platform.malloc(CG_BLOCKSIZE*sizeof(dfloat));
 
   /* build kernels */
-  occa::properties kernelInfo = platform.props; //copy base properties
+  occa::properties kernelInfo = platform.props(); //copy base properties
 
   //add defines
   kernelInfo["defines/" "p_blockSize"] = (int)CG_BLOCKSIZE;
@@ -69,7 +69,7 @@ int cg::Solve(solver_t& solver,
                const dfloat tol, const int MAXIT, const int verbose) {
 
   int rank = platform.rank;
-  linAlg_t &linAlg = platform.linAlg;
+  linAlg_t &linAlg = platform.linAlg();
 
   // register scalars
   dfloat rdotr1 = 0.0;
@@ -132,7 +132,7 @@ int cg::Solve(solver_t& solver,
 
 dfloat cg::UpdateCG(const dfloat alpha, occa::memory &o_x, occa::memory &o_r){
 
-  linAlg_t &linAlg = platform.linAlg;
+  linAlg_t &linAlg = platform.linAlg();
 
   // r <= r - alpha*A*p
   // dot(r,r)
