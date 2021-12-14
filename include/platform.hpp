@@ -119,6 +119,28 @@ public:
     return device.malloc(bytes, prop);
   }
 
+  template <typename T>
+  occa::memory malloc(const size_t count,
+                      const occa::properties &prop = occa::properties()) {
+    assertInitialized();
+    return device.malloc(count*sizeof(T), prop);
+  }
+
+  template <typename T>
+  occa::memory malloc(const size_t count,
+                      const libp::memory<T> &src,
+                      const occa::properties &prop) {
+    assertInitialized();
+    return device.malloc(count*sizeof(T), src.ptr(), prop);
+  }
+
+  template <typename T>
+  occa::memory malloc(const libp::memory<T> &src,
+                      const occa::properties &prop = occa::properties()) {
+    assertInitialized();
+    return device.malloc(src.length()*sizeof(T), src.ptr(), prop);
+  }
+
   void *hostMalloc(const size_t bytes,
                    const void *src,
                    occa::memory &h_mem){

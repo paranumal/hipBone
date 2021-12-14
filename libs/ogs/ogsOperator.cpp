@@ -511,8 +511,8 @@ void ogsOperator_t::setupRowBlocks() {
   blockRowStartsN[NrowBlocksN] = NrowsT;
   blockRowStartsT[NrowBlocksT] = NrowsT;
 
-  o_blockRowStartsN = platform.malloc((NrowBlocksN+1)*sizeof(dlong), blockRowStartsN.ptr());
-  o_blockRowStartsT = platform.malloc((NrowBlocksT+1)*sizeof(dlong), blockRowStartsT.ptr());
+  o_blockRowStartsN = platform.malloc(blockRowStartsN);
+  o_blockRowStartsT = platform.malloc(blockRowStartsT);
 }
 
 void ogsOperator_t::Free() {

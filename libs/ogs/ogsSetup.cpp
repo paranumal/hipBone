@@ -668,15 +668,15 @@ MPI_Comm_size(comm, &size);
   haloGatherNCounts.free();
   haloGatherTCounts.free();
 
-  gatherLocal->o_rowStartsN = platform.malloc((gatherLocal->NrowsT+1)*sizeof(dlong), gatherLocal->rowStartsN.ptr());
-  gatherLocal->o_rowStartsT = platform.malloc((gatherLocal->NrowsT+1)*sizeof(dlong), gatherLocal->rowStartsT.ptr());
-  gatherLocal->o_colIdsN = platform.malloc((gatherLocal->nnzN)*sizeof(dlong), gatherLocal->colIdsN.ptr());
-  gatherLocal->o_colIdsT = platform.malloc((gatherLocal->nnzT)*sizeof(dlong), gatherLocal->colIdsT.ptr());
+  gatherLocal->o_rowStartsN = platform.malloc(gatherLocal->rowStartsN);
+  gatherLocal->o_rowStartsT = platform.malloc(gatherLocal->rowStartsT);
+  gatherLocal->o_colIdsN = platform.malloc(gatherLocal->colIdsN);
+  gatherLocal->o_colIdsT = platform.malloc(gatherLocal->colIdsT);
 
-  gatherHalo->o_rowStartsN = platform.malloc((gatherHalo->NrowsT+1)*sizeof(dlong), gatherHalo->rowStartsN.ptr());
-  gatherHalo->o_rowStartsT = platform.malloc((gatherHalo->NrowsT+1)*sizeof(dlong), gatherHalo->rowStartsT.ptr());
-  gatherHalo->o_colIdsN = platform.malloc((gatherHalo->nnzN)*sizeof(dlong), gatherHalo->colIdsN.ptr());
-  gatherHalo->o_colIdsT = platform.malloc((gatherHalo->nnzT)*sizeof(dlong), gatherHalo->colIdsT.ptr());
+  gatherHalo->o_rowStartsN = platform.malloc(gatherHalo->rowStartsN);
+  gatherHalo->o_rowStartsT = platform.malloc(gatherHalo->rowStartsT);
+  gatherHalo->o_colIdsN = platform.malloc(gatherHalo->colIdsN);
+  gatherHalo->o_colIdsT = platform.malloc(gatherHalo->colIdsT);
 
   //divide the list of colIds into roughly equal sized blocks so that each
   // threadblock loads approximately an equal amount of data
@@ -761,14 +761,14 @@ void ogsBase_t::LocalUnsignedSetup(const dlong Nids, libp::memory<parallelNode_t
   localGatherTCounts.free();
   haloGatherTCounts.free();
 
-  gatherLocal->o_rowStartsT = platform.malloc((gatherLocal->NrowsT+1)*sizeof(dlong), gatherLocal->rowStartsT.ptr());
+  gatherLocal->o_rowStartsT = platform.malloc(gatherLocal->rowStartsT);
   gatherLocal->o_rowStartsN = gatherLocal->o_rowStartsT;
-  gatherLocal->o_colIdsT = platform.malloc((gatherLocal->nnzT)*sizeof(dlong), gatherLocal->colIdsT.ptr());
+  gatherLocal->o_colIdsT = platform.malloc(gatherLocal->colIdsT);
   gatherLocal->o_colIdsN = gatherLocal->o_colIdsT;
 
-  gatherHalo->o_rowStartsT = platform.malloc((gatherHalo->NrowsT+1)*sizeof(dlong), gatherHalo->rowStartsT.ptr());
+  gatherHalo->o_rowStartsT = platform.malloc(gatherHalo->rowStartsT);
   gatherHalo->o_rowStartsN = gatherHalo->o_rowStartsT;
-  gatherHalo->o_colIdsT = platform.malloc((gatherHalo->nnzT)*sizeof(dlong), gatherHalo->colIdsT.ptr());
+  gatherHalo->o_colIdsT = platform.malloc(gatherHalo->colIdsT);
   gatherHalo->o_colIdsN = gatherHalo->o_colIdsT;
 
   //divide the list of colIds into roughly equal sized blocks so that each
@@ -838,10 +838,10 @@ void ogsBase_t::LocalHaloSetup(const dlong Nids, libp::memory<parallelNode_t> &n
   haloGatherNCounts.free();
   haloGatherTCounts.free();
 
-  gatherHalo->o_rowStartsN = platform.malloc((gatherHalo->NrowsT+1)*sizeof(dlong), gatherHalo->rowStartsN.ptr());
-  gatherHalo->o_rowStartsT = platform.malloc((gatherHalo->NrowsT+1)*sizeof(dlong), gatherHalo->rowStartsT.ptr());
-  gatherHalo->o_colIdsN = platform.malloc((gatherHalo->nnzN)*sizeof(dlong), gatherHalo->colIdsN.ptr());
-  gatherHalo->o_colIdsT = platform.malloc((gatherHalo->nnzT)*sizeof(dlong), gatherHalo->colIdsT.ptr());
+  gatherHalo->o_rowStartsN = platform.malloc(gatherHalo->rowStartsN);
+  gatherHalo->o_rowStartsT = platform.malloc(gatherHalo->rowStartsT);
+  gatherHalo->o_colIdsN = platform.malloc(gatherHalo->colIdsN);
+  gatherHalo->o_colIdsT = platform.malloc(gatherHalo->colIdsT);
 
   //divide the list of colIds into roughly equal sized blocks so that each
   // threadblock loads approximately an equal amount of data

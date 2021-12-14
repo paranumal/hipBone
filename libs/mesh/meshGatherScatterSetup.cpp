@@ -160,7 +160,7 @@ void mesh_t::GatherScatterSetup() {
   GlobalToLocal.malloc(Nelements*Np);
   ogsMasked.SetupGlobalToLocalMapping(GlobalToLocal.ptr());
 
-  o_GlobalToLocal = platform.malloc(Nelements*Np*sizeof(dlong), GlobalToLocal.ptr());
+  o_GlobalToLocal = platform.malloc(GlobalToLocal);
 
   /* use the masked gs handle to define a global ordering */
   hlong Ngather = ogsMasked.Ngather;     // number of degrees of freedom on this rank (after gathering)

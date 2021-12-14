@@ -354,10 +354,8 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
       }
       sendNodes[n].newId = -1; //wipe the newId before sending
     }
-    levelsT[Nlevels].o_sendIds = platform.malloc(NentriesSendT*sizeof(dlong),
-                                                levelsT[Nlevels].sendIds.ptr());
-    levelsN[Nlevels].o_sendIds = platform.malloc(NentriesSendN*sizeof(dlong),
-                                                levelsN[Nlevels].sendIds.ptr());
+    levelsT[Nlevels].o_sendIds = platform.malloc(levelsT[Nlevels].sendIds);
+    levelsN[Nlevels].o_sendIds = platform.malloc(levelsN[Nlevels].sendIds);
 
     //share the entry count with our partner
     MPI_Isend(&NentriesSendT, 1, MPI_INT, partner, rank, comm, request+0);
@@ -636,13 +634,13 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     gatherT.rowStartsT[0] = 0;
     gatherN.rowStartsT[0] = 0;
 
-    gatherT.o_rowStartsT = platform.malloc((gatherT.NrowsT+1)*sizeof(dlong), gatherT.rowStartsT.ptr());
+    gatherT.o_rowStartsT = platform.malloc(gatherT.rowStartsT);
     gatherT.o_rowStartsN = gatherT.o_rowStartsT;
-    gatherN.o_rowStartsT = platform.malloc((gatherN.NrowsT+1)*sizeof(dlong), gatherN.rowStartsT.ptr());
+    gatherN.o_rowStartsT = platform.malloc(gatherN.rowStartsT);
     gatherN.o_rowStartsN = gatherN.o_rowStartsT;
-    gatherT.o_colIdsT = platform.malloc((gatherT.nnzT)*sizeof(dlong), gatherT.colIdsT.ptr());
+    gatherT.o_colIdsT = platform.malloc(gatherT.colIdsT);
     gatherT.o_colIdsN = gatherT.o_colIdsT;
-    gatherN.o_colIdsT = platform.malloc((gatherN.nnzT)*sizeof(dlong), gatherN.colIdsT.ptr());
+    gatherN.o_colIdsT = platform.malloc(gatherN.colIdsT);
     gatherN.o_colIdsN = gatherN.o_colIdsT;
 
     gatherN.setupRowBlocks();

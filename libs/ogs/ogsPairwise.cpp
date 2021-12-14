@@ -228,8 +228,8 @@ ogsPairwise_t::ogsPairwise_t(dlong Nshared,
     }
     sendIdsT[NsendT++] = id;
   }
-  o_sendIdsT = platform.malloc(NsendT*sizeof(dlong), sendIdsT.ptr());
-  o_sendIdsN = platform.malloc(NsendN*sizeof(dlong), sendIdsN.ptr());
+  o_sendIdsT = platform.malloc(sendIdsT);
+  o_sendIdsN = platform.malloc(sendIdsN);
 
   //send the node lists so we know what we'll receive
   dlong Nrecv = mpiRecvOffsetsT[size];
@@ -305,10 +305,10 @@ ogsPairwise_t::ogsPairwise_t(dlong Nshared,
     haloGatherTCounts[id]++;
   }
 
-  postmpi.o_rowStartsN = platform.malloc((postmpi.NrowsT+1)*sizeof(dlong), postmpi.rowStartsN.ptr());
-  postmpi.o_rowStartsT = platform.malloc((postmpi.NrowsT+1)*sizeof(dlong), postmpi.rowStartsT.ptr());
-  postmpi.o_colIdsN = platform.malloc((postmpi.nnzN)*sizeof(dlong), postmpi.colIdsN.ptr());
-  postmpi.o_colIdsT = platform.malloc((postmpi.nnzT)*sizeof(dlong), postmpi.colIdsT.ptr());
+  postmpi.o_rowStartsN = platform.malloc(postmpi.rowStartsN);
+  postmpi.o_rowStartsT = platform.malloc(postmpi.rowStartsT);
+  postmpi.o_colIdsN = platform.malloc(postmpi.colIdsN);
+  postmpi.o_colIdsT = platform.malloc(postmpi.colIdsT);
 
   //free up space
   recvNodes.free();
