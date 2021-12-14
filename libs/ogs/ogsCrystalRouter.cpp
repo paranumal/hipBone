@@ -191,7 +191,7 @@ void ogsCrystalRouter_t::Finish(const int k,
  */
 
 ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
-                                       parallelNode_t sharedNodes[],
+                                       libp::memory<parallelNode_t> &sharedNodes,
                                        ogsOperator_t& gatherHalo,
                                        MPI_Comm _comm,
                                        platform_t &_platform):
@@ -229,7 +229,7 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
   np_offset=0;
 
   dlong N = Nshared + Nhalo;
-  parallelNode_t* nodes = new parallelNode_t[N];
+  libp::memory<parallelNode_t> nodes(N);
 
   //setup is easier if we include copies of the nodes we own
   // in the list of shared nodes
@@ -250,7 +250,7 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
   }
   for(dlong n=Nhalo;n<N;++n) nodes[n] = sharedNodes[n-Nhalo];
 
-  std::sort(nodes, nodes+N,
+  std::sort(nodes.ptr(), nodes.ptr()+N,
             [](const parallelNode_t& a, const parallelNode_t& b) {
               return a.newId < b.newId; //group by newId (which also groups by abs(baseId))
             });
@@ -308,8 +308,8 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     else       Nhi+=Nrecv;
 
     //split node list in two
-    parallelNode_t *loNodes = new parallelNode_t[Nlo];
-    parallelNode_t *hiNodes = new parallelNode_t[Nhi];
+    libp::memory<parallelNode_t> loNodes(Nlo);
+    libp::memory<parallelNode_t> hiNodes(Nhi);
 
     Nlo=0, Nhi=0;
     for (dlong n=0;n<N;n++) {
@@ -320,14 +320,14 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     }
 
     //free up space
-    delete[] nodes;
+    nodes.free();
 
     //point to the buffer we keep after the comms
     nodes = is_lo ? loNodes : hiNodes;
     N     = is_lo ? Nlo+Nrecv : Nhi+Nrecv;
 
     const int offset = is_lo ? Nlo : Nhi;
-    parallelNode_t *sendNodes = is_lo ? hiNodes : loNodes;
+    libp::memory<parallelNode_t> sendNodes = is_lo ? hiNodes : loNodes;
 
     //count how many entries from the halo buffer we're sending
     int NentriesSendN=0;
@@ -394,20 +394,20 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
 
 
     //send half the list to our partner
-    MPI_Isend(sendNodes, Nsend,
+    MPI_Isend(sendNodes.ptr(), Nsend,
               MPI_PARALLELNODE_T, partner, rank, comm, request+0);
 
     //recv new nodes from our partner(s)
     if (Nmsg>0)
-      MPI_Irecv(nodes+offset,        Nrecv0,
+      MPI_Irecv(nodes.ptr()+offset,        Nrecv0,
                 MPI_PARALLELNODE_T, partner, partner, comm, request+1);
     if (Nmsg==2)
-      MPI_Irecv(nodes+offset+Nrecv0, Nrecv1,
+      MPI_Irecv(nodes.ptr()+offset+Nrecv0, Nrecv1,
                 MPI_PARALLELNODE_T, r_half-1, r_half-1, comm, request+2);
 
     MPI_Waitall(Nmsg+1, request, status);
 
-    delete[] sendNodes;
+    sendNodes.free();
 
     //We now have a list of nodes who's destinations are in our half
     // of the hypercube
@@ -418,7 +418,7 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     for (dlong n=0;n<N;n++) nodes[n].localId = n;
 
     //sort the new node list by baseId to find matches
-    std::sort(nodes, nodes+N,
+    std::sort(nodes.ptr(), nodes.ptr()+N,
             [](const parallelNode_t& a, const parallelNode_t& b) {
               if(abs(a.baseId) < abs(b.baseId)) return true; //group by abs(baseId)
               if(abs(a.baseId) > abs(b.baseId)) return false;
@@ -454,7 +454,7 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
 
 
     //make an index map to save the original extended halo ids
-    dlong *indexMap = new dlong[NhaloExtT];
+    libp::memory<dlong> indexMap(NhaloExtT);
 
     //fill newIds of new entries if possible, or give them an index
     NhaloExtT = Nhalo + NhaloExtN;
@@ -603,7 +603,7 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
       }
     }
 
-    delete[] indexMap;
+    indexMap.free();
 
     dlong NentriesRecvN=levelsN[Nlevels].recvOffset;
     dlong NentriesRecvT=levelsT[Nlevels].recvOffset;
@@ -652,7 +652,7 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     levelsN[Nlevels].gather = gatherN;
 
     //sort the new node list by newId
-    std::sort(nodes, nodes+N,
+    std::sort(nodes.ptr(), nodes.ptr()+N,
             [](const parallelNode_t& a, const parallelNode_t& b) {
               return a.newId < b.newId; //group by newId (which also groups by abs(baseId))
             });
@@ -685,7 +685,7 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     }
     Nlevels++;
   }
-  if (size>1) delete[] nodes;
+  if (size>1) nodes.free();
 
   NsendMax=0, NrecvMax=0;
   for (int k=0;k<Nlevels;k++) {

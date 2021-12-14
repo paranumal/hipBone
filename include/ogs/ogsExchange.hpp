@@ -112,7 +112,7 @@ private:
 
 public:
   ogsAllToAll_t(dlong Nshared,
-               parallelNode_t sharedNodes[],
+               libp::memory<parallelNode_t> &sharedNodes,
                ogsOperator_t &gatherHalo,
                MPI_Comm _comm,
                platform_t &_platform);
@@ -165,7 +165,7 @@ private:
 
 public:
   ogsPairwise_t(dlong Nshared,
-               parallelNode_t sharedNodes[],
+               libp::memory<parallelNode_t> &sharedNodes,
                ogsOperator_t &gatherHalo,
                MPI_Comm _comm,
                platform_t &_platform);
@@ -222,7 +222,7 @@ private:
 
 public:
   ogsCrystalRouter_t(dlong Nshared,
-                   parallelNode_t sharedNodes[],
+                   libp::memory<parallelNode_t> &sharedNodes,
                    ogsOperator_t &gatherHalo,
                    MPI_Comm _comm,
                    platform_t &_platform);

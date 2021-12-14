@@ -153,7 +153,7 @@ void ogsAllToAll_t::Finish(const int k,
 }
 
 ogsAllToAll_t::ogsAllToAll_t(dlong Nshared,
-                             parallelNode_t sharedNodes[],
+                             libp::memory<parallelNode_t> &sharedNodes,
                              ogsOperator_t& gatherHalo,
                              MPI_Comm _comm,
                              platform_t &_platform):
@@ -163,7 +163,7 @@ ogsAllToAll_t::ogsAllToAll_t(dlong Nshared,
   NhaloP = gatherHalo.NrowsN;
 
   // sort the list by rank to the order where they will be sent by MPI_Allgatherv
-  std::sort(sharedNodes, sharedNodes+Nshared,
+  std::sort(sharedNodes.ptr(), sharedNodes.ptr()+Nshared,
             [](const parallelNode_t& a, const parallelNode_t& b) {
               if(a.rank < b.rank) return true; //group by rank
               if(a.rank > b.rank) return false;
@@ -227,11 +227,11 @@ ogsAllToAll_t::ogsAllToAll_t(dlong Nshared,
 
   //send the node lists so we know what we'll receive
   dlong Nrecv = mpiRecvOffsetsT[size];
-  parallelNode_t* recvNodes = new parallelNode_t[Nrecv];
+  libp::memory<parallelNode_t> recvNodes(Nrecv);
 
   //Send list of nodes to each rank
-  MPI_Alltoallv(sharedNodes, mpiSendCountsT.ptr(), mpiSendOffsetsT.ptr(), MPI_PARALLELNODE_T,
-                  recvNodes, mpiRecvCountsT.ptr(), mpiRecvOffsetsT.ptr(), MPI_PARALLELNODE_T,
+  MPI_Alltoallv(sharedNodes.ptr(), mpiSendCountsT.ptr(), mpiSendOffsetsT.ptr(), MPI_PARALLELNODE_T,
+                  recvNodes.ptr(), mpiRecvCountsT.ptr(), mpiRecvOffsetsT.ptr(), MPI_PARALLELNODE_T,
                 comm);
   MPI_Barrier(comm);
 
@@ -245,8 +245,8 @@ ogsAllToAll_t::ogsAllToAll_t(dlong Nshared,
   postmpi.rowStartsT.malloc(Nhalo+1);
 
   //make array of counters
-  dlong* haloGatherTCounts = new dlong[Nhalo];
-  dlong* haloGatherNCounts = new dlong[Nhalo];
+  libp::memory<dlong> haloGatherTCounts(Nhalo);
+  libp::memory<dlong> haloGatherNCounts(Nhalo);
 
   //count the data that will already be in haloBuf
   for (dlong n=0;n<Nhalo;n++) {
@@ -307,9 +307,9 @@ ogsAllToAll_t::ogsAllToAll_t(dlong Nshared,
   postmpi.o_colIdsT = platform.malloc((postmpi.nnzT)*sizeof(dlong), postmpi.colIdsT.ptr());
 
   //free up space
-  delete[] recvNodes;
-  delete[] haloGatherNCounts;
-  delete[] haloGatherTCounts;
+  recvNodes.free();
+  haloGatherNCounts.free();
+  haloGatherTCounts.free();
 
   postmpi.setupRowBlocks();
 

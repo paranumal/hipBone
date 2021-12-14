@@ -84,20 +84,20 @@ protected:
 
 private:
   void FindSharedNodes(const dlong Nids,
-                       parallelNode_t nodes[],
+                       libp::memory<parallelNode_t> &nodes,
                        const int verbose);
 
   void ConstructSharedNodes(const dlong Nids,
-                           parallelNode_t nodes[],
+                           libp::memory<parallelNode_t> &nodes,
                            dlong &Nshared,
-                           parallelNode_t* &sharedNodes);
+                           libp::memory<parallelNode_t> &sharedNodes);
 
-  void LocalSignedSetup(const dlong Nids, parallelNode_t nodes[]);
-  void LocalUnsignedSetup(const dlong Nids, parallelNode_t nodes[]);
-  void LocalHaloSetup(const dlong Nids, parallelNode_t nodes[]);
+  void LocalSignedSetup(const dlong Nids, libp::memory<parallelNode_t> &nodes);
+  void LocalUnsignedSetup(const dlong Nids, libp::memory<parallelNode_t> &nodes);
+  void LocalHaloSetup(const dlong Nids, libp::memory<parallelNode_t> &nodes);
 
   ogsExchange_t* AutoSetup(dlong Nshared,
-                           parallelNode_t sharedNodes[],
+                           libp::memory<parallelNode_t> &sharedNodes,
                            ogsOperator_t& gatherHalo,
                            MPI_Comm _comm,
                            platform_t &_platform,

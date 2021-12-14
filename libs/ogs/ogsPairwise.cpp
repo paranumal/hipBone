@@ -159,7 +159,7 @@ void ogsPairwise_t::Finish(const int k,
 }
 
 ogsPairwise_t::ogsPairwise_t(dlong Nshared,
-                             parallelNode_t sharedNodes[],
+                             libp::memory<parallelNode_t> &sharedNodes,
                              ogsOperator_t& gatherHalo,
                              MPI_Comm _comm,
                              platform_t &_platform):
@@ -169,7 +169,7 @@ ogsPairwise_t::ogsPairwise_t(dlong Nshared,
   NhaloP = gatherHalo.NrowsN;
 
   // sort the list by rank to the order where they will be sent by MPI_Allgatherv
-  std::sort(sharedNodes, sharedNodes+Nshared,
+  std::sort(sharedNodes.ptr(), sharedNodes.ptr()+Nshared,
             [](const parallelNode_t& a, const parallelNode_t& b) {
               if(a.rank < b.rank) return true; //group by rank
               if(a.rank > b.rank) return false;
@@ -178,19 +178,14 @@ ogsPairwise_t::ogsPairwise_t(dlong Nshared,
             });
 
   //make mpi allgatherv counts and offsets
-  int *mpiSendCountsT = new int[size];
-  int *mpiSendCountsN = new int[size];
-  int *mpiRecvCountsT = new int[size];
-  int *mpiRecvCountsN = new int[size];
-  int *mpiSendOffsetsT = new int[size+1];
-  int *mpiSendOffsetsN = new int[size+1];
-  int *mpiRecvOffsetsT = new int[size+1];
-  int *mpiRecvOffsetsN = new int[size+1];
-
-  for (int r=0;r<size;++r) {
-    mpiSendCountsN[r] = 0;
-    mpiSendCountsT[r] = 0;
-  }
+  libp::memory<int> mpiSendCountsT(size,0);
+  libp::memory<int> mpiSendCountsN(size,0);
+  libp::memory<int> mpiRecvCountsT(size);
+  libp::memory<int> mpiRecvCountsN(size);
+  libp::memory<int> mpiSendOffsetsT(size+1);
+  libp::memory<int> mpiSendOffsetsN(size+1);
+  libp::memory<int> mpiRecvOffsetsT(size+1);
+  libp::memory<int> mpiRecvOffsetsN(size+1);
 
   for (dlong n=0;n<Nshared;n++) { //loop through nodes we need to send
     const int r = sharedNodes[n].rank;
@@ -199,10 +194,10 @@ ogsPairwise_t::ogsPairwise_t(dlong Nshared,
   }
 
   //shared counts
-  MPI_Alltoall(mpiSendCountsT, 1, MPI_INT,
-               mpiRecvCountsT, 1, MPI_INT, comm);
-  MPI_Alltoall(mpiSendCountsN, 1, MPI_INT,
-               mpiRecvCountsN, 1, MPI_INT, comm);
+  MPI_Alltoall(mpiSendCountsT.ptr(), 1, MPI_INT,
+               mpiRecvCountsT.ptr(), 1, MPI_INT, comm);
+  MPI_Alltoall(mpiSendCountsN.ptr(), 1, MPI_INT,
+               mpiRecvCountsN.ptr(), 1, MPI_INT, comm);
 
   //cumulative sum
   mpiSendOffsetsN[0] = 0;
@@ -238,11 +233,11 @@ ogsPairwise_t::ogsPairwise_t(dlong Nshared,
 
   //send the node lists so we know what we'll receive
   dlong Nrecv = mpiRecvOffsetsT[size];
-  parallelNode_t* recvNodes = new parallelNode_t[Nrecv];
+  libp::memory<parallelNode_t> recvNodes(Nrecv);
 
   //Send list of nodes to each rank
-  MPI_Alltoallv(sharedNodes, mpiSendCountsT, mpiSendOffsetsT, MPI_PARALLELNODE_T,
-                  recvNodes, mpiRecvCountsT, mpiRecvOffsetsT, MPI_PARALLELNODE_T,
+  MPI_Alltoallv(sharedNodes.ptr(), mpiSendCountsT.ptr(), mpiSendOffsetsT.ptr(), MPI_PARALLELNODE_T,
+                  recvNodes.ptr(), mpiRecvCountsT.ptr(), mpiRecvOffsetsT.ptr(), MPI_PARALLELNODE_T,
                 comm);
   MPI_Barrier(comm);
 
@@ -256,8 +251,8 @@ ogsPairwise_t::ogsPairwise_t(dlong Nshared,
   postmpi.rowStartsT.calloc(Nhalo+1);
 
   //make array of counters
-  dlong *haloGatherTCounts = new dlong[Nhalo];
-  dlong *haloGatherNCounts = new dlong[Nhalo];
+  libp::memory<dlong> haloGatherTCounts(Nhalo);
+  libp::memory<dlong> haloGatherNCounts(Nhalo);
 
   //count the data that will already be in haloBuf
   for (dlong n=0;n<Nhalo;n++) {
@@ -316,9 +311,9 @@ ogsPairwise_t::ogsPairwise_t(dlong Nshared,
   postmpi.o_colIdsT = platform.malloc((postmpi.nnzT)*sizeof(dlong), postmpi.colIdsT.ptr());
 
   //free up space
-  delete[] recvNodes;
-  delete[] haloGatherNCounts;
-  delete[] haloGatherTCounts;
+  recvNodes.free();
+  haloGatherNCounts.free();
+  haloGatherTCounts.free();
 
   postmpi.setupRowBlocks();
 
@@ -385,15 +380,6 @@ ogsPairwise_t::ogsPairwise_t(dlong Nshared,
 
   requests.malloc(NranksSendT+NranksRecvT);
   statuses.malloc(NranksSendT+NranksRecvT);
-
-  delete[] mpiSendCountsN;
-  delete[] mpiSendCountsT;
-  delete[] mpiRecvCountsN;
-  delete[] mpiRecvCountsT;
-  delete[] mpiSendOffsetsN;
-  delete[] mpiSendOffsetsT;
-  delete[] mpiRecvOffsetsN;
-  delete[] mpiRecvOffsetsT;
 
   //make scratch space
   AllocBuffer(Sizeof(Dfloat));

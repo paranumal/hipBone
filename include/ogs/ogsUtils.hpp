@@ -57,7 +57,7 @@ MPI_Datatype MPI_Type(const Type type);
 //permute an array A, according to the ordering returned by P
 // i.e. for all n, A[P(n)] <- A[n]
 template<typename T, class Order>
-void permute(const dlong N, T* A, Order P) {
+void permute(const dlong N, libp::memory<T> A, Order P) {
 
   for(dlong n=0;n<N;++n) {
     //get what index A[n] should move to
