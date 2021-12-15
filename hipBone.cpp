@@ -40,14 +40,29 @@ int main(int argc, char **argv){
   // set up platform
   platform_t platform(settings);
 
-  // set up mesh
-  mesh_t mesh(platform);
+  for (int p=1;p<16;++p) {
+    platform.settings().changeSetting("POLYNOMIAL DEGREE", std::to_string(p));
 
-  // set up hb solver
-  hipBone_t hb(platform, mesh);
+    //sweep through lots of tests
+    std::vector<int> NN_low {  2,  2,  2,  2,  2,  2,  2,  2,   2,  2,  2,  2,  2,  2,  2};
+    std::vector<int> NN_high{122,102, 82, 62, 54, 38, 28, 28,  28, 28, 26, 24, 22, 21, 20};
+    std::vector<int> NN_step{  8,  4,  4,  4,  4,  2,  2,  2,   2,  2,  2,  2,  2,  2,  2};
 
-  // run
-  hb.Run();
+    for (int N = NN_low[p-1];N<=NN_high[p-1];N+=NN_step[p-1]) {
+      platform.settings().changeSetting("BOX NX", std::to_string(N));
+      platform.settings().changeSetting("BOX NY", std::to_string(N));
+      platform.settings().changeSetting("BOX NZ", std::to_string(N));
+
+      // set up mesh
+      mesh_t mesh(platform);
+
+      // set up hb solver
+      hipBone_t hb(platform, mesh);
+
+      // run
+      hb.Run();
+    }
+  }
 
   // close down MPI
   MPI_Finalize();
