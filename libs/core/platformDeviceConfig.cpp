@@ -124,20 +124,35 @@ void platform_t::DeviceConfig(){
 
   // int Ncores = omp_get_num_procs();
   int NcoresPerNode = Ncores*Nsockets;
-  int Nthreads = NcoresPerNode/localSize;
-  if (Nthreads==0) {
+  int Nthreads=0;
+
+#if !defined(LIBP_DEBUG)
+  /*Check OMP_NUM_THREADS env variable*/
+  std::string ompNumThreads;
+  char * ompEnvVar = std::getenv("OMP_NUM_THREADS");
+  if (ompEnvVar == nullptr) { // Environment variable is not set
+    Nthreads = std::max(NcoresPerNode/localSize, 1); //Evenly divide number of cores
+  } else {
+    ompNumThreads = ompEnvVar;
+    // Environmet variable is set, but could be empty string
+    if (ompNumThreads.size() == 0) {
+      // Environment variable is set but equal to empty string
+      Nthreads = std::max(NcoresPerNode/localSize, 1); //Evenly divide number of cores;
+    } else {
+      Nthreads = std::stoi(ompNumThreads);
+    }
+  }
+  if (Nthreads*localSize>NcoresPerNode) {
     stringstream ss;
     ss << "Rank " << rank << " oversubscribing CPU on node \"" << hostname<< "\"";
     HIPBONE_WARNING(ss.str());
-    Nthreads = 1;
   }
-#if !defined(LIBP_DEBUG)
   omp_set_num_threads(Nthreads);
   // omp_set_num_threads(1);
 
   // if (settings.compareSetting("VERBOSE","TRUE"))
-    // printf("Rank %d: Nsockets = %d, NcoresPerSocket = %d, Nthreads = %d, device_id = %d \n",
-    //        rank, Nsockets, Ncores, Nthreads, device_id);
+  //   printf("Rank %d: Nsockets = %d, NcoresPerSocket = %d, Nthreads = %d, device_id = %d \n",
+  //          rank, Nsockets, Ncores, Nthreads, device_id);
 #endif
 
   device.setup(mode);
