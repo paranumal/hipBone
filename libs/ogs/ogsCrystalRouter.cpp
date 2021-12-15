@@ -28,6 +28,13 @@ SOFTWARE.
 #include "ogs/ogsUtils.hpp"
 #include "ogs/ogsExchange.hpp"
 
+#ifdef GLIBCXX_PARALLEL
+#include <parallel/algorithm>
+using __gnu_parallel::sort;
+#else
+using std::sort;
+#endif
+
 namespace libp {
 
 namespace ogs {
@@ -250,10 +257,10 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
   }
   for(dlong n=Nhalo;n<N;++n) nodes[n] = sharedNodes[n-Nhalo];
 
-  std::sort(nodes.ptr(), nodes.ptr()+N,
-            [](const parallelNode_t& a, const parallelNode_t& b) {
-              return a.newId < b.newId; //group by newId (which also groups by abs(baseId))
-            });
+  sort(nodes.ptr(), nodes.ptr()+N,
+       [](const parallelNode_t& a, const parallelNode_t& b) {
+         return a.newId < b.newId; //group by newId (which also groups by abs(baseId))
+       });
 
   dlong haloBuf_size = Nhalo;
 
@@ -416,13 +423,13 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     for (dlong n=0;n<N;n++) nodes[n].localId = n;
 
     //sort the new node list by baseId to find matches
-    std::sort(nodes.ptr(), nodes.ptr()+N,
-            [](const parallelNode_t& a, const parallelNode_t& b) {
-              if(abs(a.baseId) < abs(b.baseId)) return true; //group by abs(baseId)
-              if(abs(a.baseId) > abs(b.baseId)) return false;
+    sort(nodes.ptr(), nodes.ptr()+N,
+       [](const parallelNode_t& a, const parallelNode_t& b) {
+         if(abs(a.baseId) < abs(b.baseId)) return true; //group by abs(baseId)
+         if(abs(a.baseId) > abs(b.baseId)) return false;
 
-              return a.newId > b.newId; //positive newIds first
-            });
+         return a.newId > b.newId; //positive newIds first
+       });
 
     //find how many positive ids there will be in the extended halo
     dlong start = 0;
@@ -650,10 +657,10 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     levelsN[Nlevels].gather = gatherN;
 
     //sort the new node list by newId
-    std::sort(nodes.ptr(), nodes.ptr()+N,
-            [](const parallelNode_t& a, const parallelNode_t& b) {
-              return a.newId < b.newId; //group by newId (which also groups by abs(baseId))
-            });
+    sort(nodes.ptr(), nodes.ptr()+N,
+       [](const parallelNode_t& a, const parallelNode_t& b) {
+         return a.newId < b.newId; //group by newId (which also groups by abs(baseId))
+       });
 
     //propagate the sign of recvieved nodes
     start = 0;

@@ -180,6 +180,7 @@ void mesh_t::ConnectFaceNodes(){
   vmapP.malloc(Nfp*Nfaces*Nelements);
 
   /* assume elements already connected */
+  #pragma omp parallel for collapse(2)
   for(dlong eM=0;eM<Nelements;++eM){
     for(int fM=0;fM<Nfaces;++fM){
       dlong eP = EToE[eM*Nfaces+fM];

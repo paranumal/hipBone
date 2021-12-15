@@ -28,6 +28,13 @@ SOFTWARE.
 #include "ogs/ogsUtils.hpp"
 #include "ogs/ogsExchange.hpp"
 
+#ifdef GLIBCXX_PARALLEL
+#include <parallel/algorithm>
+using __gnu_parallel::sort;
+#else
+using std::sort;
+#endif
+
 namespace libp {
 
 namespace ogs {
@@ -169,13 +176,13 @@ ogsPairwise_t::ogsPairwise_t(dlong Nshared,
   NhaloP = gatherHalo.NrowsN;
 
   // sort the list by rank to the order where they will be sent by MPI_Allgatherv
-  std::sort(sharedNodes.ptr(), sharedNodes.ptr()+Nshared,
-            [](const parallelNode_t& a, const parallelNode_t& b) {
-              if(a.rank < b.rank) return true; //group by rank
-              if(a.rank > b.rank) return false;
+  sort(sharedNodes.ptr(), sharedNodes.ptr()+Nshared,
+       [](const parallelNode_t& a, const parallelNode_t& b) {
+         if(a.rank < b.rank) return true; //group by rank
+         if(a.rank > b.rank) return false;
 
-              return a.newId < b.newId; //then order by the localId relative to this rank
-            });
+         return a.newId < b.newId; //then order by the localId relative to this rank
+       });
 
   //make mpi allgatherv counts and offsets
   libp::memory<int> mpiSendCountsT(size,0);
