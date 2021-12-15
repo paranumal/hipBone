@@ -79,10 +79,11 @@ void mesh_t::SetupBox(){
   dfloat dimy = DIMY/size_y;
   dfloat dimz = DIMZ/size_z;
 
-  //rank coordinates
-  int rank_z = rank / (size_x*size_y);
-  int rank_y = (rank - rank_z*size_x*size_y) / size_x;
-  int rank_x = rank % size_x;
+  //determine (x,y,z) rank coordinates for this processes
+  int rank_x=-1, rank_y=-1, rank_z=-1;
+  RankDecomp(size_x, size_y, size_z,
+             rank_x, rank_y, rank_z,
+             rank);
 
   //bottom corner of physical domain
   dfloat X0 = -DIMX/2.0 + rank_x*dimx;

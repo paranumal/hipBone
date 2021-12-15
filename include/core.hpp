@@ -50,6 +50,10 @@ void matrixEigenValues(int N, float *A, float *WR, float *WI);
 void matrixInverse(int N, double *A);
 void matrixInverse(int N, float *A);
 
+void RankDecomp(int  size_x, int  size_y, int  size_z,
+                int &rank_x, int &rank_y, int &rank_z,
+                const int rank);
+
 } //namespace libp
 
 #endif
