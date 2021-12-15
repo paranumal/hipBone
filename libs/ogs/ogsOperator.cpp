@@ -74,6 +74,7 @@ void ogsOperator_t::Gather(T* gv,
     colIds = colIdsT;
   }
 
+  #pragma omp parallel for
   for(dlong n=0;n<Nrows;++n){
     const dlong start = rowStarts[n];
     const dlong end   = rowStarts[n+1];
@@ -228,6 +229,7 @@ void ogsOperator_t::Scatter(T* v,
     colIds = colIdsT;
   }
 
+  #pragma omp parallel for
   for(dlong n=0;n<Nrows;++n){
     const dlong start = rowStarts[n];
     const dlong end   = rowStarts[n+1];
@@ -323,6 +325,7 @@ void ogsOperator_t::GatherScatter(T* v,
     sColIds    = colIdsT;
   }
 
+  #pragma omp parallel for
   for(dlong n=0;n<Nrows;++n){
     const dlong gstart = gRowStarts[n];
     const dlong gend   = gRowStarts[n+1];

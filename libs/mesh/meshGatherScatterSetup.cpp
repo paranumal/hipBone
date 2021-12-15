@@ -51,6 +51,7 @@ void mesh_t::GatherScatterSetup() {
     halo->Exchange(maxRank, Nverts, ogs::Int32);
 
     // compare trace vertices
+    #pragma omp parallel for collapse(2)
     for(dlong e=0;e<Nelements;++e){
       for(int n=0;n<Nfaces*NfaceVertices;++n){
         dlong id  = e*Nfaces*NfaceVertices + n;
@@ -170,9 +171,11 @@ void mesh_t::GatherScatterSetup() {
   Ntotal = Np*Nelements;
   weight  = (dfloat*) calloc(Ntotal, sizeof(dfloat));
   weightG = (dfloat*) calloc(ogsMasked->Ngather, sizeof(dfloat));
+  #pragma omp parallel for
   for(dlong n=0;n<Ntotal;++n) weight[n] = 1.0;
 
   ogsMasked->Gather(weightG, weight, 1, ogs::Dfloat, ogs::Add, ogs::Trans);
+  #pragma omp parallel for
   for(dlong n=0;n<ogsMasked->Ngather;++n)
     if (weightG[n]) weightG[n] = 1./weightG[n];
 
@@ -191,13 +194,17 @@ void mesh_t::GatherScatterSetup() {
     globalStarts[rr+1] = globalStarts[rr] + globalStarts[rr+1];
 
   //use the offsets to set a consecutive global numbering
+  #pragma omp parallel for
   for (dlong n =0;n<ogsMasked->Ngather;n++) {
     newglobalIds[n] = n + globalStarts[rank];
   }
 
   //scatter this numbering to the original nodes
   maskedGlobalNumbering = (hlong *) calloc(Ntotal,sizeof(hlong));
+
+  #pragma omp parallel for
   for (dlong n=0;n<Ntotal;n++) maskedGlobalNumbering[n] = -1;
+
   ogsMasked->Scatter(maskedGlobalNumbering, newglobalIds, 1, ogs::Hlong, ogs::Add, ogs::NoTrans);
 
   free(newglobalIds);
