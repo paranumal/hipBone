@@ -37,6 +37,7 @@ class mesh_t {
 
 public:
   platform_t platform;
+  occa::properties props;
 
   MPI_Comm comm;
   int rank, size;
