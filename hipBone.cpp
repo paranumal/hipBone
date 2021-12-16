@@ -46,7 +46,7 @@ int main(int argc, char **argv){
     //sweep through lots of tests
     std::vector<int> NN_low {  2,  2,  2,  2,  5,  4,  5,  4,  3,  3,  2,  2,  3,  3,  2};
     std::vector<int> NN_high{122,110, 98, 82, 68, 58, 50, 44, 39, 36, 32, 29, 27, 25, 24};
-    std::vector<int> NN_step{ 10   9,  8,  8,  7,  6,  5,  4,  4,  3,  3,  3,  3,  2,  2};
+    std::vector<int> NN_step{ 10,  9,  8,  8,  7,  6,  5,  4,  4,  3,  3,  3,  3,  2,  2};
 
     for (int N = NN_low[p-1];N<=NN_high[p-1];N+=NN_step[p-1]) {
       platform.settings().changeSetting("BOX NX", std::to_string(N));
