@@ -97,7 +97,7 @@ void hipBone_t::Run(){
                           + 19*Np+12*Nq*Nq*Nq*Nq )*mesh.NelementsGlobal*Niter; //flops per CG iteration
 
   if (mesh.rank==0){
-    printf("hipBone: %d, " hlongFormat ", %4.4f, %d, %1.2e, %4.1f, %4.1f, %1.2e; N, DOFs, elapsed, iterations, time per DOF, avg BW (GB/s), avg GFLOPs, DOFs*iterations/ranks*time \n",
+    printf("hipBone: %d, " hlongFormat ", %4.4f, %d, %1.2e, %4.1f, %4.1f, %4.1f, %1.2e; N, DOFs, elapsed, iterations, time per DOF, avg BW (GB/s), avg GFLOPs, Nekbone FOM (GFLOPs), DOFs*iterations/ranks*time \n",
            mesh.N,
            Ndofs,
            elapsedTime,
@@ -105,9 +105,8 @@ void hipBone_t::Run(){
            elapsedTime/(Ndofs),
            Nbytes/(1.0e9 * elapsedTime),
            Nflops/(1.0e9 * elapsedTime),
+           NflopsNekbone/(1.0e9 * elapsedTime),
            Ndofs*((dfloat)Niter/(mesh.size*elapsedTime)));
-
-    printf("hipBone: NekBone FOM = %4.1f GFLOPs. \n", NflopsNekbone/(1.0e9 * elapsedTime));
   }
 
   o_r.free(); o_x.free();
