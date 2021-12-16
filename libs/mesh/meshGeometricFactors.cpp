@@ -34,6 +34,7 @@ void mesh_t::GeometricFactors(){
   Nggeo = 7;
   ggeo.malloc(Nelements*Nggeo*Np);
 
+  #pragma omp parallel for
   for(dlong e=0;e<Nelements;++e){ /* for each element */
 
     dfloat xr = 0, xs = 0, xt = 0;

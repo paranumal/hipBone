@@ -62,6 +62,7 @@ namespace libp {
       shrdPtr(new T[lngth_]),
       lngth{lngth_},
       offset{0} {
+      #pragma omp parallel for
       for (size_t i=0;i<lngth;++i) {
         shrdPtr[i] = val;
       }

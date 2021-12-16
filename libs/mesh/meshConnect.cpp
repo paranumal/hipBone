@@ -26,6 +26,13 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+#ifdef GLIBCXX_PARALLEL
+#include <parallel/algorithm>
+using __gnu_parallel::sort;
+#else
+using std::sort;
+#endif
+
 namespace libp {
 
 // structure used to encode vertices that make
@@ -54,38 +61,39 @@ void mesh_t::Connect(){
   /* build list of faces */
   libp::memory<face_t> faces(Nelements*Nfaces);
 
-  dlong cnt = 0;
+  #pragma omp parallel for collapse(2)
   for(dlong e=0;e<Nelements;++e){
     for(int f=0;f<Nfaces;++f){
 
+      const dlong id = f + e*Nfaces;
+
       for(int n=0;n<NfaceVertices;++n){
         dlong vid = e*Nverts + faceVertices[f*NfaceVertices+n];
-        faces[cnt].v[n] = EToV[vid];
+        faces[id].v[n] = EToV[vid];
       }
 
-      std::sort(faces[cnt].v, faces[cnt].v+NfaceVertices,
+      std::sort(faces[id].v, faces[id].v+NfaceVertices,
                 std::less<hlong>());
 
-      faces[cnt].element = e;
-      faces[cnt].face = f;
+      faces[id].element = e;
+      faces[id].face = f;
 
-      faces[cnt].elementN= -1;
-      faces[cnt].faceN = -1;
-
-      ++cnt;
+      faces[id].elementN= -1;
+      faces[id].faceN = -1;
     }
   }
 
   /* sort faces by their vertex number pairs */
-  std::sort(faces.ptr(), faces.ptr()+Nelements*Nfaces,
-            [&](const face_t& a, const face_t& b) {
-              return std::lexicographical_compare(a.v, a.v+NfaceVertices,
-                                                  b.v, b.v+NfaceVertices);
-            });
+  sort(faces.ptr(), faces.ptr()+Nelements*Nfaces,
+       [&](const face_t& a, const face_t& b) {
+         return std::lexicographical_compare(a.v, a.v+NfaceVertices,
+                                             b.v, b.v+NfaceVertices);
+       });
 
   /* scan through sorted face lists looking for adjacent
      faces that have the same vertex ids */
-  for(cnt=0;cnt<Nelements*Nfaces-1;++cnt){
+  #pragma omp parallel for
+  for(dlong cnt=0;cnt<Nelements*Nfaces-1;++cnt){
     if(std::equal(faces[cnt].v, faces[cnt].v+NfaceVertices,
                   faces[cnt+1].v)){
       // match
@@ -98,21 +106,22 @@ void mesh_t::Connect(){
   }
 
   /* resort faces back to the original element/face ordering */
-  std::sort(faces.ptr(), faces.ptr()+Nelements*Nfaces,
-            [](const face_t& a, const face_t& b) {
-              if(a.element < b.element) return true;
-              if(a.element > b.element) return false;
+  sort(faces.ptr(), faces.ptr()+Nelements*Nfaces,
+       [](const face_t& a, const face_t& b) {
+         if(a.element < b.element) return true;
+         if(a.element > b.element) return false;
 
-              return (a.face < b.face);
-            });
+         return (a.face < b.face);
+       });
 
   /* extract the element to element and element to face connectivity */
-  cnt = 0;
+  #pragma omp parallel for collapse(2)
   for(dlong e=0;e<Nelements;++e){
     for(int f=0;f<Nfaces;++f){
-      EToE[cnt] = faces[cnt].elementN;
-      EToF[cnt] = faces[cnt].faceN;
-      ++cnt;
+      const dlong id = f + e*Nfaces;
+
+      EToE[id] = faces[id].elementN;
+      EToF[id] = faces[id].faceN;
     }
   }
   faces.free();
@@ -245,13 +254,14 @@ void mesh_t::Connect(){
                 comm);
 
   // local sort allNrecv received faces
-  std::sort(recvFaces.ptr(), recvFaces.ptr()+allNrecv,
-            [&](const face_t& a, const face_t& b) {
-              return std::lexicographical_compare(a.v, a.v+NfaceVertices,
-                                                  b.v, b.v+NfaceVertices);
-            });
+  sort(recvFaces.ptr(), recvFaces.ptr()+allNrecv,
+      [&](const face_t& a, const face_t& b) {
+        return std::lexicographical_compare(a.v, a.v+NfaceVertices,
+                                            b.v, b.v+NfaceVertices);
+      });
 
   // find matches
+  #pragma omp parallel for
   for(int n=0;n<allNrecv-1;++n){
     // since vertices are ordered we just look for pairs
     if(std::equal(recvFaces[n].v, recvFaces[n].v+NfaceVertices,
@@ -267,16 +277,16 @@ void mesh_t::Connect(){
   }
 
   // sort back to original ordering
-  std::sort(recvFaces.ptr(), recvFaces.ptr()+allNrecv,
-            [](const face_t& a, const face_t& b) {
-              if(a.rank < b.rank) return true;
-              if(a.rank > b.rank) return false;
+  sort(recvFaces.ptr(), recvFaces.ptr()+allNrecv,
+      [](const face_t& a, const face_t& b) {
+        if(a.rank < b.rank) return true;
+        if(a.rank > b.rank) return false;
 
-              if(a.element < b.element) return true;
-              if(a.element > b.element) return false;
+        if(a.element < b.element) return true;
+        if(a.element > b.element) return false;
 
-              return (a.face < b.face);
-            });
+        return (a.face < b.face);
+      });
 
   // send faces back from whence they came
   MPI_Alltoallv(recvFaces.ptr(), Nrecv.ptr(), recvOffsets.ptr(), MPI_FACE_T,
@@ -284,9 +294,11 @@ void mesh_t::Connect(){
                 comm);
 
   // extract connectivity info
+  #pragma omp parallel for
   for(dlong n=0;n<Nelements*Nfaces;++n)
     EToP[n] = -1;
 
+  #pragma omp parallel for
   for(int n=0;n<allNsend;++n){
     dlong e = sendFaces[n].element;
     dlong eN = sendFaces[n].elementN;

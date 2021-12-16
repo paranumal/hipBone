@@ -113,13 +113,16 @@ void mesh_t::SetupBox(){
   EY.malloc(Nelements*Nverts);
   EZ.malloc(Nelements*Nverts);
 
-  dlong e = 0;
-  dfloat dx = dimx/nx;
-  dfloat dy = dimy/ny;
-  dfloat dz = dimz/nz;
+  const dfloat dx = dimx/nx;
+  const dfloat dy = dimy/ny;
+  const dfloat dz = dimz/nz;
+
+  #pragma omp parallel for collapse(3)
   for(int k=0;k<nz;++k){
     for(int j=0;j<ny;++j){
       for(int i=0;i<nx;++i){
+
+        const dlong e = i + j*nx + k*nx*ny;
 
         // The reason the % is here is for the periodic case.  Literally ignore
         // it
@@ -157,8 +160,6 @@ void mesh_t::SetupBox(){
         ex[5] = x0+dx; ey[5] = y0;    ez[5] = z0+dz;
         ex[6] = x0+dx; ey[6] = y0+dy; ez[6] = z0+dz;
         ex[7] = x0;    ey[7] = y0+dy; ez[7] = z0+dz;
-
-        e++;
       }
     }
   }
