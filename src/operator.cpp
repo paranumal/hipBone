@@ -50,7 +50,7 @@ void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
   }
 
   //gather result to Aq
-  mesh.ogsMasked.GatherStart(o_Aq, o_AqL, 1, ogs::Dfloat, ogs::Add, ogs::Trans);
+  // mesh.ogsMasked.GatherStart(o_Aq, o_AqL, 1, ogs::Dfloat, ogs::Add, ogs::Trans);
 
   if((mesh.NlocalGatherElements+1)/2){
     operatorKernel((mesh.NlocalGatherElements+1)/2,
@@ -60,6 +60,6 @@ void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
                    lambda, o_q, o_AqL);
   }
 
-  mesh.ogsMasked.GatherFinish(o_Aq, o_AqL, 1, ogs::Dfloat, ogs::Add, ogs::Trans);
+  // mesh.ogsMasked.GatherFinish(o_Aq, o_AqL, 1, ogs::Dfloat, ogs::Add, ogs::Trans);
 }
 

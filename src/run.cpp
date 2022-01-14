@@ -31,7 +31,7 @@ void hipBone_t::Run(){
   //setup linear solver
   dlong N = mesh.ogsMasked.Ngather;
   dlong Nhalo = mesh.gHalo.Nhalo;
-  linearSolver_t *linearSolver = new cg(platform, N, Nhalo);
+  // linearSolver_t *linearSolver = new cg(platform, N, Nhalo);
 
   hlong NGlobal = mesh.ogsMasked.NgatherGlobal;
   dlong NLocal = mesh.Np*mesh.Nelements;
@@ -42,7 +42,7 @@ void hipBone_t::Run(){
   occa::memory o_x = platform.malloc(Nall*sizeof(dfloat));
 
   //set x =0
-  platform.linAlg().set(Nall, 0.0, o_x);
+  // platform.linAlg().set(Nall, 0.0, o_x);
 
   //NekBone-like RHS
   forcingKernel(N, o_r);
@@ -56,7 +56,12 @@ void hipBone_t::Run(){
 
   //call the solver
   dfloat tol = 0.0;
-  int Niter = linearSolver->Solve(*this, o_x, o_r, tol, maxIter, verbose);
+  // int Niter = linearSolver->Solve(*this, o_x, o_r, tol, maxIter, verbose);
+
+  int Niter=50;
+  for (int i=0;i<Niter;++i) {
+    Operator(o_r, o_x);
+  }
 
   platform.device.finish();
   MPI_Barrier(mesh.comm);
@@ -82,33 +87,32 @@ void hipBone_t::Run(){
                        + NunMaskedGlobal*sizeof(dfloat) //AqL
                        + NGlobal*sizeof(dfloat);
 
-  size_t Nbytes = ( 4*Ndofs*sizeof(dfloat) + NbytesAx + NbytesGather) //first iteration
-                + (11*Ndofs*sizeof(dfloat) + NbytesAx + NbytesGather)*Niter; //bytes per CG iteration
+  // size_t Nbytes = ( 4*Ndofs*sizeof(dfloat) + NbytesAx + NbytesGather) //first iteration
+  //               + (11*Ndofs*sizeof(dfloat) + NbytesAx + NbytesGather)*Niter; //bytes per CG iteration
+  size_t Nbytes = (NbytesAx)*Niter; //bytes per CG iteration
 
   size_t NflopsAx=( 12*Nq*Nq*Nq*Nq
                    +18*Nq*Nq*Nq)*mesh.NelementsGlobal;
 
   size_t NflopsGather = NunMaskedGlobal;
 
-  size_t Nflops =   ( 5*Ndofs + NflopsAx + NflopsGather) //first iteration
-                  + (11*Ndofs + NflopsAx + NflopsGather)*Niter; //flops per CG iteration
+  // size_t Nflops =   ( 5*Ndofs + NflopsAx + NflopsGather) //first iteration
+  //                 + (11*Ndofs + NflopsAx + NflopsGather)*Niter; //flops per CG iteration
+  size_t Nflops =   (NflopsAx)*Niter; //flops per CG iteration
 
   size_t NflopsNekbone =   (15*Np  //CG flops
                           + 19*Np+12*Nq*Nq*Nq*Nq )*mesh.NelementsGlobal*Niter; //flops per CG iteration
 
   if (mesh.rank==0){
-    printf("hipBone: %d, " hlongFormat ", %4.4f, %d, %1.2e, %4.1f, %4.1f, %4.1f, %1.2e; N, DOFs, elapsed, iterations, time per DOF, avg BW (GB/s), avg GFLOPs, Nekbone FOM (GFLOPs), DOFs*iterations/ranks*time \n",
+    printf("hipBone: %d, " hlongFormat ", %4.4f, %1.2e, %4.1f, %4.1f; N, DOFs, elapsed, time per DOF, BW (GB/s), GFLOPs \n",
            mesh.N,
            Ndofs,
            elapsedTime,
-           Niter,
            elapsedTime/(Ndofs),
            Nbytes/(1.0e9 * elapsedTime),
-           Nflops/(1.0e9 * elapsedTime),
-           NflopsNekbone/(1.0e9 * elapsedTime),
-           Ndofs*((dfloat)Niter/(mesh.size*elapsedTime)));
+           Nflops/(1.0e9 * elapsedTime));
   }
 
   o_r.free(); o_x.free();
-  delete linearSolver;
+  // delete linearSolver;
 }
