@@ -27,6 +27,8 @@ SOFTWARE.
 #include "platform.hpp"
 #include <omp.h>
 
+namespace libp {
+
 // OCCA build stuff
 void platform_t::DeviceConfig(){
 
@@ -52,22 +54,24 @@ void platform_t::DeviceConfig(){
   int plat=0;
   int device_id=0;
 
-  if(settings.compareSetting("THREAD MODEL", "OpenCL"))
-    settings.getSetting("PLATFORM NUMBER", plat);
+  settings_t& Settings = settings();
 
-  // read thread model/device/platform from settings
+  if(Settings.compareSetting("THREAD MODEL", "OpenCL"))
+    Settings.getSetting("PLATFORM NUMBER", plat);
+
+  // read thread model/device/platform from Settings
   std::string mode;
 
-  if(settings.compareSetting("THREAD MODEL", "CUDA")){
+  if(Settings.compareSetting("THREAD MODEL", "CUDA")){
     mode = "{mode: 'CUDA'}";
   }
-  else if(settings.compareSetting("THREAD MODEL", "HIP")){
+  else if(Settings.compareSetting("THREAD MODEL", "HIP")){
     mode = "{mode: 'HIP'}";
   }
-  else if(settings.compareSetting("THREAD MODEL", "OpenCL")){
+  else if(Settings.compareSetting("THREAD MODEL", "OpenCL")){
     mode = "{mode: 'OpenCL', platform_id : " + std::to_string(plat) +"}";
   }
-  else if(settings.compareSetting("THREAD MODEL", "OpenMP")){
+  else if(Settings.compareSetting("THREAD MODEL", "OpenMP")){
     mode = "{mode: 'OpenMP'}";
   }
   else{
@@ -75,12 +79,12 @@ void platform_t::DeviceConfig(){
   }
 
   //add a device_id number for some modes
-  if (  settings.compareSetting("THREAD MODEL", "CUDA")
-      ||settings.compareSetting("THREAD MODEL", "HIP")
-      ||settings.compareSetting("THREAD MODEL", "OpenCL")) {
+  if (  Settings.compareSetting("THREAD MODEL", "CUDA")
+      ||Settings.compareSetting("THREAD MODEL", "HIP")
+      ||Settings.compareSetting("THREAD MODEL", "OpenCL")) {
     //for testing a single device, run with 1 rank and specify DEVICE NUMBER
     if (size==1) {
-      settings.getSetting("DEVICE NUMBER",device_id);
+      Settings.getSetting("DEVICE NUMBER",device_id);
     } else {
 
       device_id = localRank;
@@ -88,7 +92,7 @@ void platform_t::DeviceConfig(){
       //check for over-subscribing devices
       int deviceCount = occa::getDeviceCount(mode);
       if (deviceCount>0 && localRank>=deviceCount) {
-        stringstream ss;
+        std::stringstream ss;
         ss << "Rank " << rank << " oversubscribing device " << device_id%deviceCount << " on node \"" << hostname<< "\"";
         HIPBONE_WARNING(ss.str());
         device_id = device_id%deviceCount;
@@ -143,7 +147,7 @@ void platform_t::DeviceConfig(){
     }
   }
   if (Nthreads*localSize>NcoresPerNode) {
-    stringstream ss;
+    std::stringstream ss;
     ss << "Rank " << rank << " oversubscribing CPU on node \"" << hostname<< "\"";
     HIPBONE_WARNING(ss.str());
   }
@@ -177,3 +181,5 @@ void platform_t::DeviceConfig(){
   MPI_Barrier(MPI_COMM_WORLD);
   free(hostnames);
 }
+
+} //namespace libp

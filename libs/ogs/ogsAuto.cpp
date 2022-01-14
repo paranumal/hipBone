@@ -29,6 +29,8 @@ SOFTWARE.
 #include "ogs/ogsOperator.hpp"
 #include "ogs/ogsExchange.hpp"
 
+namespace libp {
+
 namespace ogs {
 
 static void ExchangeTest(ogsExchange_t* exchange, double time[3], bool host=false) {
@@ -68,8 +70,8 @@ static void ExchangeTest(ogsExchange_t* exchange, double time[3], bool host=fals
 }
 
 ogsExchange_t* ogsBase_t::AutoSetup(dlong Nshared,
-                                    parallelNode_t* sharedNodes,
-                                    ogsOperator_t *_gatherHalo,
+                                    libp::memory<parallelNode_t> &sharedNodes,
+                                    ogsOperator_t& _gatherHalo,
                                     MPI_Comm _comm,
                                     platform_t &_platform,
                                     const int verbose) {
@@ -270,3 +272,5 @@ ogsExchange_t* ogsBase_t::AutoSetup(dlong Nshared,
 
 
 } //namespace ogs
+
+} //namespace libp

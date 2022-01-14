@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "core.hpp"
 
+namespace libp {
+
 // A function to find largest prime factor
 static int maxPrimeFactor(int n) {
   int p = -1;
@@ -110,3 +112,5 @@ void RankDecomp(int  size_x, int  size_y, int  size_z,
     rank_x = crank_x + (rank/csize)*(size_x/p);
   }
 }
+
+} //namespace libp

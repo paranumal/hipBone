@@ -33,6 +33,8 @@ using __gnu_parallel::sort;
 using std::sort;
 #endif
 
+namespace libp {
+
 // structure used to encode vertices that make
 // each face, the element/face indices, and
 // the neighbor element/face indices (if any)
@@ -48,16 +50,16 @@ typedef struct {
 // mesh is the local partition
 void mesh_t::Connect(){
 
-  EToE = (dlong*) malloc(Nelements*Nfaces*sizeof(dlong));
-  EToF = (int*)   malloc(Nelements*Nfaces*sizeof(int));
-  EToP = (int*)   malloc(Nelements*Nfaces*sizeof(int));
+  EToE.malloc(Nelements*Nfaces);
+  EToF.malloc(Nelements*Nfaces);
+  EToP.malloc(Nelements*Nfaces);
 
   /**********************
    * Local Connectivity
    **********************/
 
   /* build list of faces */
-  face_t *faces = (face_t*) calloc(Nelements*Nfaces, sizeof(face_t));
+  libp::memory<face_t> faces(Nelements*Nfaces);
 
   #pragma omp parallel for collapse(2)
   for(dlong e=0;e<Nelements;++e){
@@ -82,7 +84,7 @@ void mesh_t::Connect(){
   }
 
   /* sort faces by their vertex number pairs */
-  sort(faces, faces+Nelements*Nfaces,
+  sort(faces.ptr(), faces.ptr()+Nelements*Nfaces,
        [&](const face_t& a, const face_t& b) {
          return std::lexicographical_compare(a.v, a.v+NfaceVertices,
                                              b.v, b.v+NfaceVertices);
@@ -104,7 +106,7 @@ void mesh_t::Connect(){
   }
 
   /* resort faces back to the original element/face ordering */
-  sort(faces, faces+Nelements*Nfaces,
+  sort(faces.ptr(), faces.ptr()+Nelements*Nfaces,
        [](const face_t& a, const face_t& b) {
          if(a.element < b.element) return true;
          if(a.element > b.element) return false;
@@ -122,7 +124,7 @@ void mesh_t::Connect(){
       EToF[id] = faces[id].faceN;
     }
   }
-  free(faces);
+  faces.free();
 
 
   /*****************************
@@ -131,10 +133,10 @@ void mesh_t::Connect(){
 
   // count # of elements to send to each rank based on
   // minimum {vertex id % size}
-  int *Nsend = (int*) calloc(size, sizeof(int));
-  int *Nrecv = (int*) calloc(size, sizeof(int));
-  int *sendOffsets = (int*) calloc(size, sizeof(int));
-  int *recvOffsets = (int*) calloc(size, sizeof(int));
+  libp::memory<int> Nsend(size, 0);
+  libp::memory<int> Nrecv(size, 0);
+  libp::memory<int> sendOffsets(size, 0);
+  libp::memory<int> recvOffsets(size, 0);
 
   // WARNING: In some corner cases, the number of faces to send may overrun int storage
   int allNsend = 0;
@@ -166,7 +168,7 @@ void mesh_t::Connect(){
     Nsend[rr] = 0;
 
   // buffer for outgoing data
-  face_t *sendFaces = (face_t*) calloc(allNsend, sizeof(face_t));
+  libp::memory<face_t> sendFaces(allNsend);
 
   // Make the MPI_FACE_T data type
   MPI_Datatype MPI_FACE_T;
@@ -230,8 +232,8 @@ void mesh_t::Connect(){
   }
 
   // exchange byte counts
-  MPI_Alltoall(Nsend, 1, MPI_INT,
-               Nrecv, 1, MPI_INT,
+  MPI_Alltoall(Nsend.ptr(), 1, MPI_INT,
+               Nrecv.ptr(), 1, MPI_INT,
                comm);
 
   // count incoming faces
@@ -244,15 +246,15 @@ void mesh_t::Connect(){
     recvOffsets[rr] = recvOffsets[rr-1] + Nrecv[rr-1]; // byte offsets
 
   // buffer for incoming face data
-  face_t *recvFaces = (face_t*) calloc(allNrecv, sizeof(face_t));
+  libp::memory<face_t> recvFaces(allNrecv);
 
   // exchange parallel faces
-  MPI_Alltoallv(sendFaces, Nsend, sendOffsets, MPI_FACE_T,
-                recvFaces, Nrecv, recvOffsets, MPI_FACE_T,
+  MPI_Alltoallv(sendFaces.ptr(), Nsend.ptr(), sendOffsets.ptr(), MPI_FACE_T,
+                recvFaces.ptr(), Nrecv.ptr(), recvOffsets.ptr(), MPI_FACE_T,
                 comm);
 
   // local sort allNrecv received faces
-  sort(recvFaces, recvFaces+allNrecv,
+  sort(recvFaces.ptr(), recvFaces.ptr()+allNrecv,
       [&](const face_t& a, const face_t& b) {
         return std::lexicographical_compare(a.v, a.v+NfaceVertices,
                                             b.v, b.v+NfaceVertices);
@@ -275,7 +277,7 @@ void mesh_t::Connect(){
   }
 
   // sort back to original ordering
-  sort(recvFaces, recvFaces+allNrecv,
+  sort(recvFaces.ptr(), recvFaces.ptr()+allNrecv,
       [](const face_t& a, const face_t& b) {
         if(a.rank < b.rank) return true;
         if(a.rank > b.rank) return false;
@@ -287,8 +289,8 @@ void mesh_t::Connect(){
       });
 
   // send faces back from whence they came
-  MPI_Alltoallv(recvFaces, Nrecv, recvOffsets, MPI_FACE_T,
-                sendFaces, Nsend, sendOffsets, MPI_FACE_T,
+  MPI_Alltoallv(recvFaces.ptr(), Nrecv.ptr(), recvOffsets.ptr(), MPI_FACE_T,
+                sendFaces.ptr(), Nsend.ptr(), sendOffsets.ptr(), MPI_FACE_T,
                 comm);
 
   // extract connectivity info
@@ -313,11 +315,11 @@ void mesh_t::Connect(){
 
   MPI_Barrier(comm);
   MPI_Type_free(&MPI_FACE_T);
-  free(sendFaces);
-  free(recvFaces);
 
   //record the number of elements in the whole mesh
   hlong NelementsLocal = (hlong) Nelements;
   NelementsGlobal = 0;
   MPI_Allreduce(&NelementsLocal, &NelementsGlobal, 1, MPI_HLONG, MPI_SUM, comm);
 }
+
+} //namespace libp

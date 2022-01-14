@@ -26,14 +26,16 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 // ------------------------------------------------------------------------
 // HEX 3D NODES
 // ------------------------------------------------------------------------
-void mesh_t::NodesHex3D(int _N, dfloat *_r, dfloat *_s, dfloat *_t){
+void mesh_t::NodesHex3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[]){
   int _Nq = _N+1;
 
-  dfloat *r1D = (dfloat*) malloc(_Nq*sizeof(dfloat));
-  JacobiGLL(_N, r1D); //Gauss-Legendre-Lobatto nodes
+  libp::memory<dfloat> r1D(_Nq);
+  JacobiGLL(_N, r1D.ptr()); //Gauss-Legendre-Lobatto nodes
 
   //Tensor product
   for (int k=0;k<_Nq;k++) {
@@ -45,11 +47,9 @@ void mesh_t::NodesHex3D(int _N, dfloat *_r, dfloat *_s, dfloat *_t){
       }
     }
   }
-
-  free(r1D);
 }
 
-void mesh_t::FaceNodesHex3D(int _N, dfloat *_r, dfloat *_s, dfloat *_t, int *_faceNodes){
+void mesh_t::FaceNodesHex3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[], int _faceNodes[]){
   int _Nq = _N+1;
   int _Nfp = _Nq*_Nq;
   int _Np = _Nq*_Nq*_Nq;
@@ -79,7 +79,7 @@ void mesh_t::FaceNodesHex3D(int _N, dfloat *_r, dfloat *_s, dfloat *_t, int *_fa
   }
 }
 
-void mesh_t::VertexNodesHex3D(int _N, dfloat *_r, dfloat *_s, dfloat *_t, int *_vertexNodes){
+void mesh_t::VertexNodesHex3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[], int _vertexNodes[]){
   int _Nq = _N+1;
   int _Np = _Nq*_Nq*_Nq;
 
@@ -109,3 +109,4 @@ void mesh_t::VertexNodesHex3D(int _N, dfloat *_r, dfloat *_s, dfloat *_t, int *_
   }
 }
 
+} //namespace libp

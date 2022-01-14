@@ -26,7 +26,11 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 void mesh_t::SetupBox(){
+
+  settings_t& settings = platform.settings();
 
   //local grid physical sizes
   //Hard code to 2x2x2
@@ -57,7 +61,7 @@ void mesh_t::SetupBox(){
     // size is total number of ranks and populated by the mpi communicator
     size_x = std::cbrt(size); //number of ranks in each dimension
     if (size_x*size_x*size_x != size)
-      HIPBONE_ABORT(string("3D BOX mesh requires a cubic number of MPI ranks since px,py,pz have not been provided."))
+      HIPBONE_ABORT(std::string("3D BOX mesh requires a cubic number of MPI ranks since px,py,pz have not been provided."))
 
     size_y = size_x;
     size_z = size_x;
@@ -67,7 +71,7 @@ void mesh_t::SetupBox(){
     // User provided only *some* of px, py, pz, so check if they multiply to
     // the right thing.
 
-    HIPBONE_ABORT(string("3D BOX mesh requires the user specifies all of px, py, pz, or none of px, py, pz.  If all are provided, their product must equal the total number of MPI ranks"))
+    HIPBONE_ABORT(std::string("3D BOX mesh requires the user specifies all of px, py, pz, or none of px, py, pz.  If all are provided, their product must equal the total number of MPI ranks"))
   }
 
   //local grid physical sizes
@@ -102,12 +106,12 @@ void mesh_t::SetupBox(){
   Nelements = nx*ny*nz; //local
 
   // this stores the element to vertex mapping
-  EToV = (hlong*) calloc(Nelements*Nverts, sizeof(hlong));
+  EToV.malloc(Nelements*Nverts);
 
   // these store the element to vertex mappings in each dimension
-  EX = (dfloat*) calloc(Nelements*Nverts, sizeof(dfloat));
-  EY = (dfloat*) calloc(Nelements*Nverts, sizeof(dfloat));
-  EZ = (dfloat*) calloc(Nelements*Nverts, sizeof(dfloat));
+  EX.malloc(Nelements*Nverts);
+  EY.malloc(Nelements*Nverts);
+  EZ.malloc(Nelements*Nverts);
 
   const dfloat dx = dimx/nx;
   const dfloat dy = dimy/ny;
@@ -143,9 +147,9 @@ void mesh_t::SetupBox(){
         dfloat y0 = Y0 + dy*j;
         dfloat z0 = Z0 + dz*k;
 
-        dfloat *ex = EX+e*Nverts;
-        dfloat *ey = EY+e*Nverts;
-        dfloat *ez = EZ+e*Nverts;
+        dfloat *ex = EX.ptr()+e*Nverts;
+        dfloat *ey = EY.ptr()+e*Nverts;
+        dfloat *ez = EZ.ptr()+e*Nverts;
 
         ex[0] = x0;    ey[0] = y0;    ez[0] = z0;
         ex[1] = x0+dx; ey[1] = y0;    ez[1] = z0;
@@ -160,3 +164,5 @@ void mesh_t::SetupBox(){
     }
   }
 }
+
+} //namespace libp

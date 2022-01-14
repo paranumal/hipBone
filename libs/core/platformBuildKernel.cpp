@@ -26,8 +26,12 @@ SOFTWARE.
 
 #include "platform.hpp"
 
+namespace libp {
+
 occa::kernel platform_t::buildKernel(std::string fileName, std::string kernelName,
                                      occa::properties& kernelInfo){
+
+  assertInitialized();
 
   occa::kernel kernel;
 
@@ -45,3 +49,5 @@ occa::kernel platform_t::buildKernel(std::string fileName, std::string kernelNam
 
   return kernel;
 }
+
+} //namespace libp

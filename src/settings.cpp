@@ -31,7 +31,7 @@ hipBoneSettings_t::hipBoneSettings_t(const int argc, char** argv, MPI_Comm &_com
   settings_t(_comm) {
 
   platformAddSettings(*this);
-  meshAddSettings(*this);
+  libp::meshAddSettings(*this);
 
   newSetting("-v", "--verbose",
              "VERBOSE",
@@ -50,6 +50,6 @@ void hipBoneSettings_t::report() {
   if (rank==0) {
     std::cout << "Settings:\n\n";
     platformReportSettings(*this);
-    meshReportSettings(*this);
+    libp::meshReportSettings(*this);
   }
 }

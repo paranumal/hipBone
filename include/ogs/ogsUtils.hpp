@@ -29,23 +29,14 @@ SOFTWARE.
 
 #include "ogs.hpp"
 
+namespace libp {
+
 namespace ogs {
-
-extern const int blockSize;
-extern const int gatherNodesPerBlock;
-
-extern int Nrefs;
-
-extern occa::stream dataStream;
 
 extern MPI_Datatype MPI_PARALLELNODE_T;
 
-//4 types - Float, Double, Int32, Int64
-//4 ops - Add, Mul, Max, Min
-extern occa::kernel gatherScatterKernel[4][4];
-extern occa::kernel gatherKernel[4][4];
-extern occa::kernel scatterKernel[4];
-extern occa::kernel extractKernel[4];
+void InitMPIType();
+void DestroyMPIType();
 
 struct parallelNode_t{
 
@@ -60,16 +51,13 @@ struct parallelNode_t{
 
 };
 
-void Init(platform_t& platform);
-void FreeKernels();
-
 size_t Sizeof(const Type type);
 MPI_Datatype MPI_Type(const Type type);
 
 //permute an array A, according to the ordering returned by P
 // i.e. for all n, A[P(n)] <- A[n]
 template<typename T, class Order>
-void permute(const dlong N, T* A, Order P) {
+void permute(const dlong N, libp::memory<T> A, Order P) {
 
   for(dlong n=0;n<N;++n) {
     //get what index A[n] should move to
@@ -83,5 +71,7 @@ void permute(const dlong N, T* A, Order P) {
 }
 
 } //namespace ogs
+
+} //namespace libp
 
 #endif

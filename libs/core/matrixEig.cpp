@@ -33,6 +33,8 @@ extern "C" {
               double *VL, int *LDVL, double *VR, int *LDVR, double *WORK, int *LWORK, int *INFO );
 }
 
+namespace libp {
+
 // compute right eigenvectors
 void matrixEigenVectors(int N, double *A, double *VR, double *WR, double *WI){
 
@@ -176,3 +178,5 @@ void matrixEigenValues(int N, float *A, float *WR, float *WI){
 
   free(WORK);
 }
+
+} //namespace libp

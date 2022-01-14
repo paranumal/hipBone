@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 void meshAddSettings(settings_t& settings) {
 
   settings.newSetting("-nx", "--dimx",
@@ -70,3 +72,5 @@ void meshReportSettings(settings_t& settings) {
 
   settings.reportSetting("POLYNOMIAL DEGREE");
 }
+
+} //namespace libp

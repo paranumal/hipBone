@@ -24,36 +24,12 @@ SOFTWARE.
 
 */
 
-#include "mesh.hpp"
+#include "core.hpp"
 
 namespace libp {
-
-void mesh_t::ReferenceNodes(){
-
-  Nq = N+1;
-  Nfp = Nq*Nq;
-  Np = Nq*Nq*Nq;
-
-  /* Nodal Data */
-  r.malloc(Np);
-  s.malloc(Np);
-  t.malloc(Np);
-  NodesHex3D(N, r.ptr(), s.ptr(), t.ptr());
-
-  faceNodes.malloc(Nfaces*Nfp);
-  FaceNodesHex3D(N, r.ptr(), s.ptr(), t.ptr(), faceNodes.ptr());
-
-  vertexNodes.malloc(Nverts);
-  VertexNodesHex3D(N, r.ptr(), s.ptr(), t.ptr(), vertexNodes.ptr());
-
-  //GLL quadrature
-  gllz.malloc(Nq);
-  gllw.malloc(Nq);
-  JacobiGLL(N, gllz.ptr(), gllw.ptr());
-
-  // D matrix
-  D.malloc(Nq*Nq);
-  Dmatrix1D(N, Nq, gllz.ptr(), D.ptr());
-}
-
+  /*explicit instantiation of common specializations*/
+  template class memory<int>;
+  template class memory<long long int>;
+  template class memory<float>;
+  template class memory<double>;
 } //namespace libp

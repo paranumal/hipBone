@@ -26,19 +26,17 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
-mesh_t& mesh_t::Setup(platform_t& _platform) {
-  return *(new mesh_t(_platform));
-}
+namespace libp {
 
-mesh_t::mesh_t(platform_t& _platform):
-  platform(_platform),
-  settings(platform.settings) {
+void mesh_t::Setup(platform_t& _platform) {
+
+  platform = _platform;
 
   comm = platform.comm;
   MPI_Comm_rank(platform.comm, &rank);
   MPI_Comm_size(platform.comm, &size);
 
-  platform.settings.getSetting("POLYNOMIAL DEGREE", N);
+  platform.settings().getSetting("POLYNOMIAL DEGREE", N);
 
   dim = 3;
   Nverts = 8; // number of vertices per element
@@ -49,10 +47,8 @@ mesh_t::mesh_t(platform_t& _platform):
   int _faceVertices[6][4] =
     {{0,1,2,3},{0,4,5,1},{1,5,6,2},{2,6,7,3},{0,3,7,4},{4,7,6,5}};
 
-  faceVertices =
-    (int*) malloc(NfaceVertices*Nfaces*sizeof(int));
-
-  memcpy(faceVertices, _faceVertices[0], NfaceVertices*Nfaces*sizeof(int));
+  faceVertices.malloc(NfaceVertices*Nfaces);
+  faceVertices.copyFrom(_faceVertices[0]);
 
   // reference element nodes and operators
   ReferenceNodes();
@@ -87,8 +83,4 @@ mesh_t::mesh_t(platform_t& _platform):
   OccaSetup();
 }
 
-
-mesh_t::~mesh_t() {
-  if (halo) halo->Free();
-  if (ogsMasked) ogsMasked->Free();
-}
+} //namespace libp

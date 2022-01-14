@@ -26,25 +26,26 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
 
 // uniquely label each node with a global index, used for gatherScatter
 void mesh_t::ConnectNodes(){
 
   dlong localNodeCount = Np*Nelements;
-  dlong *allLocalNodeCounts = (dlong*) calloc(platform.size, sizeof(dlong));
+  libp::memory<dlong> allLocalNodeCounts(platform.size);
 
   MPI_Allgather(&localNodeCount,    1, MPI_DLONG,
-                allLocalNodeCounts, 1, MPI_DLONG,
+                allLocalNodeCounts.ptr(), 1, MPI_DLONG,
                 comm);
 
   hlong gatherNodeStart = 0;
   for(int rr=0;rr<rank;++rr)
     gatherNodeStart += allLocalNodeCounts[rr];
 
-  free(allLocalNodeCounts);
+  allLocalNodeCounts.free();
 
   // form continuous node numbering (local=>virtual gather)
-  globalIds = (hlong *) malloc((totalHaloPairs+Nelements)*Np*sizeof(hlong));
+  globalIds.malloc((totalHaloPairs+Nelements)*Np);
 
   // use local numbering
   #pragma omp parallel for collapse(2)
@@ -64,7 +65,7 @@ void mesh_t::ConnectNodes(){
     localChange = 0;
 
     // send halo data and recv into extension of buffer
-    halo->Exchange(globalIds, Np, ogs::Hlong);
+    halo.Exchange(globalIds.ptr(), Np, ogs::Hlong);
 
     // compare trace nodes
     #pragma omp parallel for collapse(2)
@@ -87,3 +88,5 @@ void mesh_t::ConnectNodes(){
     MPI_Allreduce(&localChange, &gatherChange, 1, MPI_HLONG, MPI_SUM, comm);
   }
 }
+
+} //namespace libp

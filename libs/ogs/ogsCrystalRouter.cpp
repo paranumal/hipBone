@@ -35,6 +35,8 @@ using __gnu_parallel::sort;
 using std::sort;
 #endif
 
+namespace libp {
+
 namespace ogs {
 
 void ogsCrystalRouter_t::Start(const int k,
@@ -85,7 +87,7 @@ void ogsCrystalRouter_t::Finish(const int k,
     device.finish();
   }
 
-  crLevel *levels;
+  libp::memory<crLevel> levels;
   if (trans==NoTrans)
     levels = levelsN;
   else
@@ -98,8 +100,8 @@ void ogsCrystalRouter_t::Finish(const int k,
       sendPtr = (char*)o_sendBuf.ptr();
       recvPtr = (char*)o_haloBuf.ptr() + levels[l].recvOffset*Nbytes;
     } else { //host pointer
-      sendPtr = (char*)sendBuf;
-      recvPtr = (char*)haloBuf + levels[l].recvOffset*Nbytes;
+      sendPtr = sendBuf;
+      recvPtr = haloBuf + levels[l].recvOffset*Nbytes;
     }
 
     //post recvs
@@ -123,7 +125,7 @@ void ogsCrystalRouter_t::Finish(const int k,
       }
     } else {
       extract(levels[l].Nsend, k, type,
-              levels[l].sendIds, haloBuf, sendBuf);
+              levels[l].sendIds.ptr(), haloBuf, sendBuf);
     }
 
     //post send
@@ -140,10 +142,10 @@ void ogsCrystalRouter_t::Finish(const int k,
 
     //Gather the recv'd values into the haloBuffer
     if (gpu_aware) {
-      levels[l].gather->Gather(o_haloBuf, o_recvBuf,
+      levels[l].gather.Gather(o_haloBuf, o_recvBuf,
                                k, type, op, Trans);
     } else {
-      levels[l].gather->Gather(haloBuf, recvBuf,
+      levels[l].gather.Gather(haloBuf, recvBuf,
                                k, type, op, Trans);
     }
   }
@@ -196,14 +198,14 @@ void ogsCrystalRouter_t::Finish(const int k,
  */
 
 ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
-                                       parallelNode_t* sharedNodes,
-                                       ogsOperator_t *gatherHalo,
+                                       libp::memory<parallelNode_t> &sharedNodes,
+                                       ogsOperator_t& gatherHalo,
                                        MPI_Comm _comm,
                                        platform_t &_platform):
   ogsExchange_t(_platform,_comm) {
 
-  NhaloP = gatherHalo->NrowsN;
-  Nhalo  = gatherHalo->NrowsT;
+  NhaloP = gatherHalo.NrowsN;
+  Nhalo  = gatherHalo.NrowsT;
 
   //first count how many levels we need
   Nlevels = 0;
@@ -224,8 +226,8 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     }
     Nlevels++;
   }
-  levelsN = new crLevel[Nlevels];
-  levelsT = new crLevel[Nlevels];
+  levelsN.malloc(Nlevels);
+  levelsT.malloc(Nlevels);
 
 
   //Now build the levels
@@ -234,8 +236,7 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
   np_offset=0;
 
   dlong N = Nshared + Nhalo;
-  parallelNode_t *nodes = (parallelNode_t*)
-                        malloc(N*sizeof(parallelNode_t));
+  libp::memory<parallelNode_t> nodes(N);
 
   //setup is easier if we include copies of the nodes we own
   // in the list of shared nodes
@@ -256,7 +257,7 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
   }
   for(dlong n=Nhalo;n<N;++n) nodes[n] = sharedNodes[n-Nhalo];
 
-  sort(nodes, nodes+N,
+  sort(nodes.ptr(), nodes.ptr()+N,
        [](const parallelNode_t& a, const parallelNode_t& b) {
          return a.newId < b.newId; //group by newId (which also groups by abs(baseId))
        });
@@ -314,8 +315,8 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     else       Nhi+=Nrecv;
 
     //split node list in two
-    parallelNode_t *loNodes = (parallelNode_t *) malloc(Nlo*sizeof(parallelNode_t));
-    parallelNode_t *hiNodes = (parallelNode_t *) malloc(Nhi*sizeof(parallelNode_t));
+    libp::memory<parallelNode_t> loNodes(Nlo);
+    libp::memory<parallelNode_t> hiNodes(Nhi);
 
     Nlo=0, Nhi=0;
     for (dlong n=0;n<N;n++) {
@@ -326,14 +327,14 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     }
 
     //free up space
-    free(nodes);
+    nodes.free();
 
     //point to the buffer we keep after the comms
     nodes = is_lo ? loNodes : hiNodes;
     N     = is_lo ? Nlo+Nrecv : Nhi+Nrecv;
 
     const int offset = is_lo ? Nlo : Nhi;
-    parallelNode_t *sendNodes = is_lo ? hiNodes : loNodes;
+    libp::memory<parallelNode_t> sendNodes = is_lo ? hiNodes : loNodes;
 
     //count how many entries from the halo buffer we're sending
     int NentriesSendN=0;
@@ -346,8 +347,8 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     }
     levelsN[Nlevels].Nsend = NentriesSendN;
     levelsT[Nlevels].Nsend = NentriesSendT;
-    levelsN[Nlevels].sendIds = (dlong *) malloc(NentriesSendN*sizeof(dlong));
-    levelsT[Nlevels].sendIds = (dlong *) malloc(NentriesSendT*sizeof(dlong));
+    levelsN[Nlevels].sendIds.malloc(NentriesSendN);
+    levelsT[Nlevels].sendIds.malloc(NentriesSendT);
 
     NentriesSendN=0; //reset
     NentriesSendT=0; //reset
@@ -360,10 +361,8 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
       }
       sendNodes[n].newId = -1; //wipe the newId before sending
     }
-    levelsT[Nlevels].o_sendIds = platform.malloc(NentriesSendT*sizeof(dlong),
-                                                levelsT[Nlevels].sendIds);
-    levelsN[Nlevels].o_sendIds = platform.malloc(NentriesSendN*sizeof(dlong),
-                                                levelsN[Nlevels].sendIds);
+    levelsT[Nlevels].o_sendIds = platform.malloc(levelsT[Nlevels].sendIds);
+    levelsN[Nlevels].o_sendIds = platform.malloc(levelsN[Nlevels].sendIds);
 
     //share the entry count with our partner
     MPI_Isend(&NentriesSendT, 1, MPI_INT, partner, rank, comm, request+0);
@@ -400,20 +399,20 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
 
 
     //send half the list to our partner
-    MPI_Isend(sendNodes, Nsend,
+    MPI_Isend(sendNodes.ptr(), Nsend,
               MPI_PARALLELNODE_T, partner, rank, comm, request+0);
 
     //recv new nodes from our partner(s)
     if (Nmsg>0)
-      MPI_Irecv(nodes+offset,        Nrecv0,
+      MPI_Irecv(nodes.ptr()+offset,        Nrecv0,
                 MPI_PARALLELNODE_T, partner, partner, comm, request+1);
     if (Nmsg==2)
-      MPI_Irecv(nodes+offset+Nrecv0, Nrecv1,
+      MPI_Irecv(nodes.ptr()+offset+Nrecv0, Nrecv1,
                 MPI_PARALLELNODE_T, r_half-1, r_half-1, comm, request+2);
 
     MPI_Waitall(Nmsg+1, request, status);
 
-    free(sendNodes);
+    sendNodes.free();
 
     //We now have a list of nodes who's destinations are in our half
     // of the hypercube
@@ -424,7 +423,7 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     for (dlong n=0;n<N;n++) nodes[n].localId = n;
 
     //sort the new node list by baseId to find matches
-    sort(nodes, nodes+N,
+    sort(nodes.ptr(), nodes.ptr()+N,
        [](const parallelNode_t& a, const parallelNode_t& b) {
          if(abs(a.baseId) < abs(b.baseId)) return true; //group by abs(baseId)
          if(abs(a.baseId) > abs(b.baseId)) return false;
@@ -460,7 +459,7 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
 
 
     //make an index map to save the original extended halo ids
-    dlong *indexMap = (dlong*) malloc(NhaloExtT*sizeof(dlong));
+    libp::memory<dlong> indexMap(NhaloExtT);
 
     //fill newIds of new entries if possible, or give them an index
     NhaloExtT = Nhalo + NhaloExtN;
@@ -505,44 +504,44 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     //sort back to first ordering
     permute(N, nodes, [](const parallelNode_t& a) { return a.localId; } );
 
-    ogsOperator_t *gatherN = new ogsOperator_t(platform);
-    ogsOperator_t *gatherT = new ogsOperator_t(platform);
+    ogsOperator_t gatherN(platform);
+    ogsOperator_t gatherT(platform);
 
-    gatherN->kind = Unsigned;
-    gatherT->kind = Unsigned;
+    gatherN.kind = Unsigned;
+    gatherT.kind = Unsigned;
 
-    gatherN->NrowsN = NhaloExtN;
-    gatherN->NrowsT = NhaloExtN;
-    gatherN->Ncols  = levelsN[Nlevels].recvOffset
+    gatherN.NrowsN = NhaloExtN;
+    gatherN.NrowsT = NhaloExtN;
+    gatherN.Ncols  = levelsN[Nlevels].recvOffset
                       + NentriesRecvN0 + NentriesRecvN1;
 
-    gatherT->NrowsN = NhaloExtT;
-    gatherT->NrowsT = NhaloExtT;
-    gatherT->Ncols  = levelsT[Nlevels].recvOffset
+    gatherT.NrowsN = NhaloExtT;
+    gatherT.NrowsT = NhaloExtT;
+    gatherT.Ncols  = levelsT[Nlevels].recvOffset
                       + NentriesRecvT0 + NentriesRecvT1;
 
-    gatherT->rowStartsT = (dlong*) calloc(gatherT->NrowsT+1,sizeof(dlong));
-    gatherT->rowStartsN = gatherT->rowStartsT;
+    gatherT.rowStartsT.calloc(gatherT.NrowsT+1);
+    gatherT.rowStartsN = gatherT.rowStartsT;
 
-    gatherN->rowStartsT = (dlong*) calloc(gatherT->NrowsT+1,sizeof(dlong));
-    gatherN->rowStartsN = gatherN->rowStartsT;
+    gatherN.rowStartsT.calloc(gatherT.NrowsT+1);
+    gatherN.rowStartsN = gatherN.rowStartsT;
 
     //gatherT the existing halo
-    for (dlong n=0;n<Nhalo;++n) gatherT->rowStartsT[n+1]=1;
+    for (dlong n=0;n<Nhalo;++n) gatherT.rowStartsT[n+1]=1;
 
     //for notrans theres nothing to gather in the negative nodes the first time
     if (np==size)
-      for (dlong n=0;n<NhaloP;++n) gatherN->rowStartsT[n+1]=1;
+      for (dlong n=0;n<NhaloP;++n) gatherN.rowStartsT[n+1]=1;
     else
-      for (dlong n=0;n<Nhalo;++n) gatherN->rowStartsT[n+1]=1;
+      for (dlong n=0;n<Nhalo;++n) gatherN.rowStartsT[n+1]=1;
 
     //look through the nodes we still have for extended halo nodes
     for (dlong n=0;n<offset;++n) {
       if (n==0 || abs(nodes[n].baseId)!=abs(nodes[n-1].baseId)) {
         const dlong id = nodes[n].newId;
         if (nodes[n].newId >= Nhalo) {
-          if (nodes[n].sign >0) gatherN->rowStartsT[id+1]++;
-          gatherT->rowStartsT[id+1]++;
+          if (nodes[n].sign >0) gatherN.rowStartsT[id+1]++;
+          gatherT.rowStartsT[id+1]++;
         }
       }
     }
@@ -551,48 +550,48 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     for (dlong n=offset;n<offset+Nrecv0;++n) {
       if (n==offset || abs(nodes[n].baseId)!=abs(nodes[n-1].baseId)) {
         const dlong id = nodes[n].newId;
-        if (nodes[n].sign >0) gatherN->rowStartsT[id+1]++;
-        gatherT->rowStartsT[id+1]++;
+        if (nodes[n].sign >0) gatherN.rowStartsT[id+1]++;
+        gatherT.rowStartsT[id+1]++;
       }
     }
     //look through second message for nodes to gather
     for (dlong n=offset+Nrecv0;n<N;++n) {
       if (n==offset+Nrecv0 || abs(nodes[n].baseId)!=abs(nodes[n-1].baseId)) {
         const dlong id = nodes[n].newId;
-        if (nodes[n].sign >0) gatherN->rowStartsT[id+1]++;
-        gatherT->rowStartsT[id+1]++;
+        if (nodes[n].sign >0) gatherN.rowStartsT[id+1]++;
+        gatherT.rowStartsT[id+1]++;
       }
     }
 
-    for (dlong i=0;i<gatherT->NrowsT;i++) {
-      gatherT->rowStartsT[i+1] += gatherT->rowStartsT[i];
-      gatherN->rowStartsT[i+1] += gatherN->rowStartsT[i];
+    for (dlong i=0;i<gatherT.NrowsT;i++) {
+      gatherT.rowStartsT[i+1] += gatherT.rowStartsT[i];
+      gatherN.rowStartsT[i+1] += gatherN.rowStartsT[i];
     }
 
-    gatherT->nnzT = gatherT->rowStartsT[gatherT->NrowsT];
-    gatherT->nnzN = gatherT->rowStartsT[gatherT->NrowsT];
+    gatherT.nnzT = gatherT.rowStartsT[gatherT.NrowsT];
+    gatherT.nnzN = gatherT.rowStartsT[gatherT.NrowsT];
 
-    gatherT->colIdsT = (dlong*) calloc(gatherT->nnzT,sizeof(dlong));
-    gatherT->colIdsN = gatherT->colIdsT;
+    gatherT.colIdsT.calloc(gatherT.nnzT);
+    gatherT.colIdsN = gatherT.colIdsT;
 
-    gatherN->nnzT = gatherN->rowStartsT[gatherN->NrowsT];
-    gatherN->nnzN = gatherN->rowStartsT[gatherN->NrowsT];
+    gatherN.nnzT = gatherN.rowStartsT[gatherN.NrowsT];
+    gatherN.nnzN = gatherN.rowStartsT[gatherN.NrowsT];
 
-    gatherN->colIdsT = (dlong*) calloc(gatherN->nnzT,sizeof(dlong));
-    gatherN->colIdsN = gatherN->colIdsT;
+    gatherN.colIdsT.calloc(gatherN.nnzT);
+    gatherN.colIdsN = gatherN.colIdsT;
 
     //gatherT the existing halo
     for (dlong n=0;n<Nhalo;++n) {
-      gatherT->colIdsT[gatherT->rowStartsT[n]++] = n;
+      gatherT.colIdsT[gatherT.rowStartsT[n]++] = n;
     }
 
     if (np==size) {
       for (dlong n=0;n<NhaloP;++n) {
-        gatherN->colIdsT[gatherN->rowStartsT[n]++] = n;
+        gatherN.colIdsT[gatherN.rowStartsT[n]++] = n;
       }
     } else {
       for (dlong n=0;n<Nhalo;++n) {
-        gatherN->colIdsT[gatherN->rowStartsT[n]++] = n;
+        gatherN.colIdsT[gatherN.rowStartsT[n]++] = n;
       }
     }
 
@@ -602,14 +601,14 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
         const dlong id = nodes[n].newId;
         if (nodes[n].newId >= Nhalo) {
           if (nodes[n].sign > 0) {
-            gatherN->colIdsT[gatherN->rowStartsT[id]++] = indexMap[id-Nhalo];
+            gatherN.colIdsT[gatherN.rowStartsT[id]++] = indexMap[id-Nhalo];
           }
-          gatherT->colIdsT[gatherT->rowStartsT[id]++] = indexMap[id-Nhalo];
+          gatherT.colIdsT[gatherT.rowStartsT[id]++] = indexMap[id-Nhalo];
         }
       }
     }
 
-    free(indexMap);
+    indexMap.free();
 
     dlong NentriesRecvN=levelsN[Nlevels].recvOffset;
     dlong NentriesRecvT=levelsT[Nlevels].recvOffset;
@@ -618,9 +617,9 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
       if (n==offset || abs(nodes[n].baseId)!=abs(nodes[n-1].baseId)) {
         const dlong id = nodes[n].newId;
         if (nodes[n].sign > 0) {
-          gatherN->colIdsT[gatherN->rowStartsT[id]++] = NentriesRecvN++;
+          gatherN.colIdsT[gatherN.rowStartsT[id]++] = NentriesRecvN++;
         }
-        gatherT->colIdsT[gatherT->rowStartsT[id]++] = NentriesRecvT++;
+        gatherT.colIdsT[gatherT.rowStartsT[id]++] = NentriesRecvT++;
       }
     }
     //look through second message for nodes to gatherT
@@ -628,37 +627,37 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
       if (n==offset+Nrecv0 || abs(nodes[n].baseId)!=abs(nodes[n-1].baseId)) {
         const dlong id = nodes[n].newId;
         if (nodes[n].sign > 0) {
-          gatherN->colIdsT[gatherN->rowStartsT[id]++] = NentriesRecvN++;
+          gatherN.colIdsT[gatherN.rowStartsT[id]++] = NentriesRecvN++;
         }
-        gatherT->colIdsT[gatherT->rowStartsT[id]++] = NentriesRecvT++;
+        gatherT.colIdsT[gatherT.rowStartsT[id]++] = NentriesRecvT++;
       }
     }
 
     //reset row starts
-    for (dlong i=gatherT->NrowsT;i>0;--i) {
-      gatherT->rowStartsT[i] = gatherT->rowStartsT[i-1];
-      gatherN->rowStartsT[i] = gatherN->rowStartsT[i-1];
+    for (dlong i=gatherT.NrowsT;i>0;--i) {
+      gatherT.rowStartsT[i] = gatherT.rowStartsT[i-1];
+      gatherN.rowStartsT[i] = gatherN.rowStartsT[i-1];
     }
-    gatherT->rowStartsT[0] = 0;
-    gatherN->rowStartsT[0] = 0;
+    gatherT.rowStartsT[0] = 0;
+    gatherN.rowStartsT[0] = 0;
 
-    gatherT->o_rowStartsT = platform.malloc((gatherT->NrowsT+1)*sizeof(dlong), gatherT->rowStartsT);
-    gatherT->o_rowStartsN = gatherT->o_rowStartsT;
-    gatherN->o_rowStartsT = platform.malloc((gatherN->NrowsT+1)*sizeof(dlong), gatherN->rowStartsT);
-    gatherN->o_rowStartsN = gatherN->o_rowStartsT;
-    gatherT->o_colIdsT = platform.malloc((gatherT->nnzT)*sizeof(dlong), gatherT->colIdsT);
-    gatherT->o_colIdsN = gatherT->o_colIdsT;
-    gatherN->o_colIdsT = platform.malloc((gatherN->nnzT)*sizeof(dlong), gatherN->colIdsT);
-    gatherN->o_colIdsN = gatherN->o_colIdsT;
+    gatherT.o_rowStartsT = platform.malloc(gatherT.rowStartsT);
+    gatherT.o_rowStartsN = gatherT.o_rowStartsT;
+    gatherN.o_rowStartsT = platform.malloc(gatherN.rowStartsT);
+    gatherN.o_rowStartsN = gatherN.o_rowStartsT;
+    gatherT.o_colIdsT = platform.malloc(gatherT.colIdsT);
+    gatherT.o_colIdsN = gatherT.o_colIdsT;
+    gatherN.o_colIdsT = platform.malloc(gatherN.colIdsT);
+    gatherN.o_colIdsN = gatherN.o_colIdsT;
 
-    gatherN->setupRowBlocks();
-    gatherT->setupRowBlocks();
+    gatherN.setupRowBlocks();
+    gatherT.setupRowBlocks();
 
     levelsT[Nlevels].gather = gatherT;
     levelsN[Nlevels].gather = gatherN;
 
     //sort the new node list by newId
-    sort(nodes, nodes+N,
+    sort(nodes.ptr(), nodes.ptr()+N,
        [](const parallelNode_t& a, const parallelNode_t& b) {
          return a.newId < b.newId; //group by newId (which also groups by abs(baseId))
        });
@@ -691,7 +690,7 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     }
     Nlevels++;
   }
-  if (size>1) free(nodes);
+  if (size>1) nodes.free();
 
   NsendMax=0, NrecvMax=0;
   for (int k=0;k<Nlevels;k++) {
@@ -709,12 +708,12 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
 void ogsCrystalRouter_t::AllocBuffer(size_t Nbytes) {
 
   if (o_sendBuf.size() < NsendMax*Nbytes) {
-    sendBuf = platform.hostMalloc(NsendMax*Nbytes,  nullptr, h_sendBuf);
+    sendBuf = static_cast<char*>(platform.hostMalloc(NsendMax*Nbytes,  nullptr, h_sendBuf));
     o_sendBuf = platform.malloc(NsendMax*Nbytes);
   }
   if (o_buf[0].size() < NrecvMax*Nbytes) {
-    buf[0] = (char*)platform.hostMalloc(NrecvMax*Nbytes,  nullptr, h_buf[0]);
-    buf[1] = (char*)platform.hostMalloc(NrecvMax*Nbytes,  nullptr, h_buf[1]);
+    buf[0] = static_cast<char*>(platform.hostMalloc(NrecvMax*Nbytes,  nullptr, h_buf[0]));
+    buf[1] = static_cast<char*>(platform.hostMalloc(NrecvMax*Nbytes,  nullptr, h_buf[1]));
     haloBuf = buf[0];
     recvBuf = buf[1];
 
@@ -726,16 +725,6 @@ void ogsCrystalRouter_t::AllocBuffer(size_t Nbytes) {
   }
 }
 
-ogsCrystalRouter_t::~ogsCrystalRouter_t() {
-  if(levelsN) {delete[] levelsN; levelsN = nullptr;}
-  if(levelsT) {delete[] levelsT; levelsT = nullptr;}
-
-  if(o_buf[0].size()) o_buf[0].free();
-  if(o_buf[1].size()) o_buf[1].free();
-  if(h_buf[0].size()) h_buf[0].free();
-  if(h_buf[1].size()) h_buf[1].free();
-  if(o_sendBuf.size()) o_sendBuf.free();
-  if(h_sendBuf.size()) h_sendBuf.free();
-}
-
 } //namespace ogs
+
+} //namespace libp
