@@ -53,10 +53,6 @@ cg::cg(platform_t& _platform, dlong _N, dlong _Nhalo):
   //add defines
   kernelInfo["defines/" "p_blockSize"] = (int)CG_BLOCKSIZE;
 
-  if (platform.device.mode()=="HIP") {
-    kernelInfo["compiler_flags"] += " --gpu-max-threads-per-block=" + std::to_string(CG_BLOCKSIZE);
-  }
-
   // combined CG update and r.r kernel
   updateCGKernel1 = platform.buildKernel(HIPBONE_DIR "/libs/core/okl/linearSolverUpdateCG.okl",
                                 "updateCG_1", kernelInfo);
@@ -159,6 +155,7 @@ dfloat cg::UpdateCG(const dfloat alpha, occa::memory &o_x, occa::memory &o_r){
 cg::~cg() {
   updateCGKernel1.free();
   updateCGKernel2.free();
+
 }
 
 } //namespace libp
