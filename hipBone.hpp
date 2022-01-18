@@ -53,6 +53,7 @@ class hipBone_t: public solver_t {
   occa::memory o_AqL;
 
   occa::kernel operatorKernel;
+  occa::kernel localOperatorKernel;
   occa::kernel forcingKernel;
 
   hipBone_t() = default;
@@ -68,6 +69,7 @@ class hipBone_t: public solver_t {
   void PlotFields(dfloat* Q, char *fileName);
 
   void Operator(occa::memory& o_q, occa::memory& o_Aq);
+  void LocalOperator(occa::memory& o_q, occa::memory& o_Aq);
 };
 
 

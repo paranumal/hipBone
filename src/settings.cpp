@@ -39,6 +39,14 @@ hipBoneSettings_t::hipBoneSettings_t(const int argc, char** argv, MPI_Comm &_com
              "Enable verbose output",
              {"TRUE", "FALSE"});
 
+  newSetting("-op", "--operator",
+             "OPERATOR",
+             "GLOBAL",
+             "Use local or global operatorkernel",
+             {"LOCAL", "GLOBAL"});
+
+
+
   parseSettings(argc, argv);
 }
 

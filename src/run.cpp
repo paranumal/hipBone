@@ -40,6 +40,8 @@ void hipBone_t::Run(){
   dlong Nall = N+Nhalo;
   occa::memory o_r = platform.malloc(Nall*sizeof(dfloat));
   occa::memory o_x = platform.malloc(Nall*sizeof(dfloat));
+  occa::memory o_rL = platform.malloc(NLocal*sizeof(dfloat));
+  occa::memory o_xL = platform.malloc(NLocal*sizeof(dfloat));
 
   //set x =0
   // platform.linAlg().set(Nall, 0.0, o_x);
@@ -49,7 +51,7 @@ void hipBone_t::Run(){
 
   int maxIter = 100;
   int verbose = platform.settings().compareSetting("VERBOSE", "TRUE") ? 1 : 0;
-
+  int isLocal = platform.settings().compareSetting("OPERATOR", "LOCAL") ? 1 : 0;
   platform.device.finish();
   MPI_Barrier(mesh.comm);
   double startTime = MPI_Wtime();
@@ -60,7 +62,10 @@ void hipBone_t::Run(){
 
   int Niter=50;
   for (int i=0;i<Niter;++i) {
-    Operator(o_r, o_x);
+    if(isLocal)
+      LocalOperator(o_rL, o_xL);
+    else
+      Operator(o_r, o_xL);
   }
 
   platform.device.finish();
@@ -76,12 +81,20 @@ void hipBone_t::Run(){
 
   hlong Ndofs = NGlobal;
 
-  size_t NbytesAx =   NGlobal*sizeof(dfloat) //q
-                   +  (Np*7*sizeof(dfloat) // ggeo
-                   +  sizeof(dlong) // localGatherElementList
-                   +  Np*sizeof(dlong) // GlobalToLocal
-                   +  Np*sizeof(dfloat) /*Aq*/ )*mesh.NelementsGlobal;
+  size_t NbytesAx;
 
+  if(!isLocal)
+    NbytesAx = NGlobal*sizeof(dfloat) //q
+      +  (Np*7*sizeof(dfloat) // ggeo
+	  +  sizeof(dlong) // localGatherElementList
+	  +  Np*sizeof(dlong) // GlobalToLocal
+	  +  Np*sizeof(dfloat) /*Aq*/ )*mesh.NelementsGlobal;
+  else
+    NbytesAx = 
+      (Np*7*sizeof(dfloat) // ggeo
+       +  sizeof(dlong) // localGatherElementList
+       +  2*Np*sizeof(dfloat) /*q,Aq*/ )*mesh.NelementsGlobal;
+    
   size_t NbytesGather =  (NGlobal+1)*sizeof(dlong) //row starts
                        + NunMaskedGlobal*sizeof(dlong) //local Ids
                        + NunMaskedGlobal*sizeof(dfloat) //AqL
@@ -101,8 +114,8 @@ void hipBone_t::Run(){
   size_t Nflops =   (NflopsAx)*Niter; //flops per CG iteration
 
   size_t NflopsNekbone =   (15*Np  //CG flops
-                          + 19*Np+12*Nq*Nq*Nq*Nq )*mesh.NelementsGlobal*Niter; //flops per CG iteration
-
+			    + 19*Np+12*Nq*Nq*Nq*Nq )*mesh.NelementsGlobal*Niter; //flops per CG iteration
+  
   if (mesh.rank==0){
     printf("hipBone: %d, " hlongFormat ", %4.4f, %1.2e, %4.1f, %4.1f; N, DOFs, elapsed, time per DOF, BW (GB/s), GFLOPs \n",
            mesh.N,

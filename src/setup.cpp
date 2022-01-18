@@ -50,6 +50,10 @@ void hipBone_t::Setup(platform_t& _platform, mesh_t& _mesh){
   operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx.okl",
                                    "hipBoneAx", kernelInfo);
 
+  // Ax local2local kernel
+  localOperatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneLocalAx.okl",
+					     "hipBoneLocalAx", kernelInfo);
+
   forcingKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneRhs.okl",
                                    "hipBoneRhs", kernelInfo);
 }
