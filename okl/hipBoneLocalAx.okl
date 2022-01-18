@@ -421,9 +421,6 @@
       }
     }
 
-    @exclusive dfloat r_G00_0, r_G01_0, r_G02_0, r_G11_0, r_G12_0, r_G22_0, r_GwJ_0;
-    @exclusive dfloat r_G00_1, r_G01_1, r_G02_1, r_G11_1, r_G12_1, r_G22_1, r_GwJ_1;
-    
     // Layer by layer
     //#pragma unroll (p_Nq+1)/2
 #pragma unroll 
