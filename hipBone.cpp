@@ -40,7 +40,7 @@ int main(int argc, char **argv){
   // set up platform
   platform_t platform(settings);
 
-  for (int p=9;p<16;++p) {
+  for (int p=3;p<16;++p) {
     platform.settings().changeSetting("POLYNOMIAL DEGREE", std::to_string(p));
 
     //sweep through lots of tests

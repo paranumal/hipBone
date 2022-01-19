@@ -52,6 +52,12 @@ void hipBone_t::Run(){
   int maxIter = 100;
   int verbose = platform.settings().compareSetting("VERBOSE", "TRUE") ? 1 : 0;
   int isLocal = platform.settings().compareSetting("OPERATOR", "LOCAL") ? 1 : 0;
+
+  if(isLocal)
+    LocalOperator(o_rL, o_xL);
+  else
+    Operator(o_r, o_xL);
+  
   platform.device.finish();
   MPI_Barrier(mesh.comm);
   double startTime = MPI_Wtime();
