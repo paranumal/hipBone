@@ -26,18 +26,21 @@ SOFTWARE.
 
 #include "mesh.hpp"
 
+namespace libp {
+
 // serial face-vertex to face-vertex connection
 void mesh_t::ConnectFaceVertices(){
 
   //allocate and fill a halo region in element-to-vertex mapping
-  EToV = (hlong*) realloc(EToV, (Nelements+totalHaloPairs)*Nverts*sizeof(hlong));
-  halo->Exchange(EToV, Nverts, ogs::Hlong);
+  EToV.realloc((Nelements+totalHaloPairs)*Nverts);
+  halo.Exchange(EToV.ptr(), Nverts, ogs::Hlong);
 
   /* volume indices of the interior and exterior face vertices for each element */
-  VmapM = (dlong*) malloc(NfaceVertices*Nfaces*Nelements*sizeof(dlong));
-  VmapP = (dlong*) malloc(NfaceVertices*Nfaces*Nelements*sizeof(dlong));
+  VmapM.malloc(NfaceVertices*Nfaces*Nelements);
+  VmapP.malloc(NfaceVertices*Nfaces*Nelements);
 
   /* assume elements already connected */
+  #pragma omp parallel for collapse(2)
   for(dlong e=0;e<Nelements;++e){
     for(int f=0;f<Nfaces;++f){
       dlong eP = EToE[e*Nfaces+f];
@@ -66,3 +69,4 @@ void mesh_t::ConnectFaceVertices(){
   }
 }
 
+} //namespace libp

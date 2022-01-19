@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "settings.hpp"
 
+namespace libp {
+
 void platformAddSettings(settings_t& settings) {
 
   settings.newSetting("-m", "--mode",
@@ -60,3 +62,5 @@ void platformReportSettings(settings_t& settings) {
         ||settings.compareSetting("THREAD MODEL","OpenCL") ))
     settings.reportSetting("DEVICE NUMBER");
 }
+
+} //namespace libp

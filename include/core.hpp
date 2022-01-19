@@ -34,6 +34,9 @@ SOFTWARE.
 #include <algorithm>
 #include <cmath>
 #include "utils.hpp"
+#include "memory.hpp"
+
+namespace libp {
 
 void matrixRightSolve(int NrowsA, int NcolsA, double *A, int NrowsB, int NcolsB, double *B, double *C);
 void matrixRightSolve(int NrowsA, int NcolsA, float *A, int NrowsB, int NcolsB, float *B, float *C);
@@ -46,5 +49,11 @@ void matrixEigenValues(int N, float *A, float *WR, float *WI);
 
 void matrixInverse(int N, double *A);
 void matrixInverse(int N, float *A);
+
+void RankDecomp(int  size_x, int  size_y, int  size_z,
+                int &rank_x, int &rank_y, int &rank_z,
+                const int rank);
+
+} //namespace libp
 
 #endif

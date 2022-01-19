@@ -35,6 +35,8 @@ SOFTWARE.
 
 #define DHIPBONE HIPBONE_DIR
 
+using namespace libp;
+
 class hipBoneSettings_t: public settings_t {
 public:
   hipBoneSettings_t(const int argc, char** argv, MPI_Comm& _comm);
@@ -42,8 +44,9 @@ public:
 };
 
 class hipBone_t: public solver_t {
-public:
-  mesh_t &mesh;
+
+ public:
+  mesh_t mesh;
 
   dfloat lambda;
 
@@ -52,14 +55,13 @@ public:
   occa::kernel operatorKernel;
   occa::kernel forcingKernel;
 
-  hipBone_t() = delete;
-  hipBone_t(platform_t& _platform, mesh_t &_mesh):
-    solver_t(_platform), mesh(_mesh) {}
-
-  ~hipBone_t();
+  hipBone_t() = default;
+  hipBone_t(platform_t& _platform, mesh_t &_mesh) {
+    Setup(_platform, _mesh);
+  }
 
   //setup
-  static hipBone_t& Setup(platform_t& _platform, mesh_t& mesh);
+  void Setup(platform_t& _platform, mesh_t& _mesh);
 
   void Run();
 

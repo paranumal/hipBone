@@ -28,10 +28,8 @@
 
 @kernel void updateCG_1(const dlong N,
                        const dlong Nblocks,
-                       @restrict const dfloat *p,
                        @restrict const dfloat *Ap,
                        const dfloat alpha,
-                       @restrict dfloat *x,
                        @restrict dfloat *r,
                        @restrict dfloat *redr){
 
@@ -65,15 +63,7 @@
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  8) s_dot[t] += s_dot[t+  8];
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  4) s_dot[t] += s_dot[t+  4];
     for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  2) s_dot[t] += s_dot[t+  2];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) {
-      if(t<  1) redr[b] = s_dot[0] + s_dot[1];
-
-      dlong id = t + b*p_blockSize;
-      while (id<N) {
-        x[id] += alpha*p[id];
-        id += p_blockSize*Nblocks;
-      }
-    }
+    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  1) redr[b] = s_dot[0] + s_dot[1];
   }
 }
 

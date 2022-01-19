@@ -41,17 +41,13 @@ int main(int argc, char **argv){
   platform_t platform(settings);
 
   // set up mesh
-  mesh_t& mesh = mesh_t::Setup(platform);
+  mesh_t mesh(platform);
 
   // set up hb solver
-  hipBone_t& hb = hipBone_t::Setup(platform, mesh);
+  hipBone_t hb(platform, mesh);
 
   // run
   hb.Run();
-
-  // clean up
-  delete &hb;
-  delete &mesh;
 
   // close down MPI
   MPI_Finalize();

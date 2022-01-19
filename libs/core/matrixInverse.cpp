@@ -34,6 +34,8 @@ extern "C" {
   void sgetri_(int* N, float* A, int* lda, int* IPIV, float* WORK, int* lwork, int* INFO);
 }
 
+namespace libp {
+
 void matrixInverse(int N, double *A){
   int lwork = N*N;
   int info;
@@ -89,3 +91,5 @@ void matrixInverse(int N, float *A){
   free(work);
   free(ipiv);
 }
+
+} //namespace libp

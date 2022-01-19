@@ -24,59 +24,12 @@ SOFTWARE.
 
 */
 
-#ifndef LINEARSOLVER_HPP
-#define LINEARSOLVER_HPP
-
 #include "core.hpp"
-#include "platform.hpp"
-#include "solver.hpp"
 
 namespace libp {
-
-//virtual base linear solver class
-class linearSolver_t {
-public:
-  platform_t platform;
-  MPI_Comm comm;
-
-  dlong N;
-  dlong Nhalo;
-
-  linearSolver_t(platform_t& _platform, dlong _N, dlong _Nhalo):
-    platform(_platform), comm(platform.comm),
-    N(_N), Nhalo(_Nhalo) {}
-
-  virtual int Solve(solver_t& solver,
-                    occa::memory& o_x, occa::memory& o_rhs,
-                    const dfloat tol, const int MAXIT, const int verbose)=0;
-
-  virtual ~linearSolver_t(){}
-};
-
-//Conjugate Gradient
-class cg: public linearSolver_t {
-private:
-  occa::memory o_p, o_Ap;
-
-  dfloat* tmprdotr;
-  occa::memory h_tmprdotr;
-  occa::memory o_tmprdotr;
-
-  occa::kernel updateCGKernel1;
-  occa::kernel updateCGKernel2;
-  occa::kernel updateCGKernel_r;
-
-  dfloat UpdateCG(const dfloat alpha, occa::memory &o_x, occa::memory &o_r);
-
-public:
-  cg(platform_t& _platform, dlong _N, dlong _Nhalo);
-  ~cg();
-
-  int Solve(solver_t& solver,
-            occa::memory& o_x, occa::memory& o_rhs,
-            const dfloat tol, const int MAXIT, const int verbose);
-};
-
+  /*explicit instantiation of common specializations*/
+  template class memory<int>;
+  template class memory<long long int>;
+  template class memory<float>;
+  template class memory<double>;
 } //namespace libp
-
-#endif

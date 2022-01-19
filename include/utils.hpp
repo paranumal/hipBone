@@ -32,6 +32,8 @@ SOFTWARE.
 #include <string>
 #include "types.h"
 
+namespace libp {
+
 //error codes
 #define HIPBONE_SUCCESS 0
 #define HIPBONE_ERROR -1
@@ -67,5 +69,7 @@ SOFTWARE.
 
 #define mymax(a,b) (((a)>(b))?(a):(b))
 #define mymin(a,b) (((a)<(b))?(a):(b))
+
+} //namespace libp
 
 #endif

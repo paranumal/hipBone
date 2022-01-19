@@ -27,6 +27,9 @@ SOFTWARE.
 #include "linAlg.hpp"
 #include "platform.hpp"
 
+
+namespace libp {
+
 /*********************/
 /* vector operations */
 /*********************/
@@ -78,3 +81,5 @@ dfloat linAlg_t::innerProd(const dlong N, occa::memory& o_x, occa::memory& o_y,
 
   return dot;
 }
+
+} //namespace libp

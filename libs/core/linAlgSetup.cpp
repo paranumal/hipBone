@@ -28,15 +28,18 @@ SOFTWARE.
 #include "linAlg.hpp"
 #include "platform.hpp"
 
+namespace libp {
+
 constexpr int LINALG_BLOCKSIZE = 256;
 constexpr int AXPY_BLOCKSIZE = 1024;
 
-linAlg_t::linAlg_t(): blocksize(LINALG_BLOCKSIZE) {};
+using std::string;
+using std::stringstream;
 
-void linAlg_t::Setup(platform_t *_platform) {
+linAlg_t::linAlg_t(platform_t *_platform): blocksize(LINALG_BLOCKSIZE) {
 
   platform = _platform;
-  kernelInfo = platform->props;
+  kernelInfo = platform->props();
 
   //add defines
   kernelInfo["defines/" "p_blockSize"] = (int)LINALG_BLOCKSIZE;
@@ -48,7 +51,7 @@ void linAlg_t::Setup(platform_t *_platform) {
 }
 
 //initialize list of kernels
-void linAlg_t::InitKernels(vector<string> kernels, MPI_Comm comm) {
+void linAlg_t::InitKernels(std::vector<string> kernels, MPI_Comm comm) {
 
   for (size_t i=0;i<kernels.size();i++) {
     string name = kernels[i];
@@ -60,9 +63,6 @@ void linAlg_t::InitKernels(vector<string> kernels, MPI_Comm comm) {
                                         kernelInfo);
     } else if (name=="axpy") {
       occa::properties axpyKernelInfo = kernelInfo;
-      if (platform->device.mode()=="HIP") {
-        axpyKernelInfo["compiler_flags"] += " --gpu-max-threads-per-block=" + std::to_string(AXPY_BLOCKSIZE);
-      }
       if (axpyKernel.isInitialized()==false)
         axpyKernel = platform->buildKernel(HIPBONE_DIR "/libs/core/okl/"
                                         "linAlgAXPY.okl",
@@ -108,3 +108,5 @@ linAlg_t::~linAlg_t() {
   innerProdKernel1.free();
   innerProdKernel2.free();
 }
+
+} //namespace libp

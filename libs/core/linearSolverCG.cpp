@@ -26,6 +26,8 @@ SOFTWARE.
 
 #include "linearSolver.hpp"
 
+namespace libp {
+
 constexpr int CG_BLOCKSIZE = 1024;
 
 cg::cg(platform_t& _platform, dlong _N, dlong _Nhalo):
@@ -46,14 +48,10 @@ cg::cg(platform_t& _platform, dlong _N, dlong _Nhalo):
   o_tmprdotr = platform.malloc(1*sizeof(dfloat));
 
   /* build kernels */
-  occa::properties kernelInfo = platform.props; //copy base properties
+  occa::properties kernelInfo = platform.props(); //copy base properties
 
   //add defines
   kernelInfo["defines/" "p_blockSize"] = (int)CG_BLOCKSIZE;
-
-  if (platform.device.mode()=="HIP") {
-    kernelInfo["compiler_flags"] += " --gpu-max-threads-per-block=" + std::to_string(CG_BLOCKSIZE);
-  }
 
   // combined CG update and r.r kernel
   updateCGKernel1 = platform.buildKernel(HIPBONE_DIR "/libs/core/okl/linearSolverUpdateCG.okl",
@@ -71,7 +69,7 @@ int cg::Solve(solver_t& solver,
                const dfloat tol, const int MAXIT, const int verbose) {
 
   int rank = platform.rank;
-  linAlg_t &linAlg = platform.linAlg;
+  linAlg_t &linAlg = platform.linAlg();
 
   // register scalars
   dfloat rdotr1 = 0.0;
@@ -134,24 +132,26 @@ int cg::Solve(solver_t& solver,
 
 dfloat cg::UpdateCG(const dfloat alpha, occa::memory &o_x, occa::memory &o_r){
 
-  // x <= x + alpha*p
+  linAlg_t &linAlg = platform.linAlg();
+
   // r <= r - alpha*A*p
   // dot(r,r)
   int Nblocks = (N+CG_BLOCKSIZE-1)/CG_BLOCKSIZE;
   Nblocks = (Nblocks>CG_BLOCKSIZE) ? CG_BLOCKSIZE : Nblocks; //limit to CG_BLOCKSIZE entries
 
   // TODO: replace this with a device memset rather than using a kernel
-  platform.linAlg.setKernel(1, 0.0, o_tmprdotr);
+  linAlg.setKernel(1, 0.0, o_tmprdotr);
   updateCGKernel_r(N, Nblocks, o_Ap, alpha, o_r, o_tmprdotr);
   o_tmprdotr.copyTo(tmprdotr, 1*sizeof(dfloat), 0, "async: true");
 
   occa::streamTag tag = platform.device.tagStream();
 
   // x = alpha * p + 1.0 * x
-  platform.linAlg.axpy(N, alpha, o_p, 1.0, o_x);
+  linAlg.axpy(N, alpha, o_p, 1.0, o_x);
 
   platform.device.waitFor(tag);
 
+  /*Compute all reduce while axpy is running*/
   dfloat rdotr1 = 0.0;
   MPI_Allreduce(tmprdotr, &rdotr1, 1, MPI_DFLOAT, MPI_SUM, comm);
 
@@ -163,3 +163,5 @@ cg::~cg() {
   updateCGKernel2.free();
   updateCGKernel_r.free();
 }
+
+} //namespace libp

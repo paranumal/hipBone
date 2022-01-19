@@ -42,6 +42,8 @@ extern "C" {
                 int     *INFO );
 }
 
+namespace libp {
+
 // C = A/B  = trans(trans(B)\trans(A))
 // assume row major
 void matrixRightSolve(int NrowsA, int NcolsA, double *A, int NrowsB, int NcolsB, double *B, double *C){
@@ -135,3 +137,5 @@ void matrixRightSolve(int NrowsA, int NcolsA, float *A, int NrowsB, int NcolsB, 
   free(tmpX);
   free(tmpY);
 }
+
+} //namespace libp

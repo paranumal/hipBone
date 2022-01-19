@@ -29,6 +29,8 @@ SOFTWARE.
 
 #include "ogs.hpp"
 
+namespace libp {
+
 namespace ogs {
 
 //forward declarations
@@ -42,7 +44,7 @@ class halo_t;
 
 class ogsBase_t {
 public:
-  platform_t& platform;
+  platform_t platform;
   MPI_Comm comm;
 
   dlong         N=0;
@@ -59,8 +61,9 @@ public:
   bool unique=false;
   bool gather_defined=false;
 
+  ogsBase_t()=default;
   ogsBase_t(platform_t& _platform);
-  virtual ~ogsBase_t();
+  virtual ~ogsBase_t()=default;
 
   virtual void Setup(const dlong _N,
                       hlong *ids,
@@ -68,38 +71,41 @@ public:
                       const Kind _kind,
                       const Method method,
                       const bool _unique,
-                      const bool verbose);
+                      const bool verbose,
+                      platform_t& _platform);
   void Free();
 
 protected:
-  ogsOperator_t *gatherLocal=nullptr;
-  ogsOperator_t *gatherHalo=nullptr;
-  ogsExchange_t *exchange=nullptr;
+  std::shared_ptr<ogsOperator_t> gatherLocal;
+  std::shared_ptr<ogsOperator_t> gatherHalo;
+  std::shared_ptr<ogsExchange_t> exchange;
 
   void AssertGatherDefined();
 
 private:
   void FindSharedNodes(const dlong Nids,
-                       parallelNode_t* nodes,
+                       libp::memory<parallelNode_t> &nodes,
                        const int verbose);
 
   void ConstructSharedNodes(const dlong Nids,
-                           parallelNode_t* nodes,
+                           libp::memory<parallelNode_t> &nodes,
                            dlong &Nshared,
-                           parallelNode_t* &sharedNodes);
+                           libp::memory<parallelNode_t> &sharedNodes);
 
-  void LocalSignedSetup(const dlong Nids, parallelNode_t* nodes);
-  void LocalUnsignedSetup(const dlong Nids, parallelNode_t* nodes);
-  void LocalHaloSetup(const dlong Nids, parallelNode_t* nodes);
+  void LocalSignedSetup(const dlong Nids, libp::memory<parallelNode_t> &nodes);
+  void LocalUnsignedSetup(const dlong Nids, libp::memory<parallelNode_t> &nodes);
+  void LocalHaloSetup(const dlong Nids, libp::memory<parallelNode_t> &nodes);
 
   ogsExchange_t* AutoSetup(dlong Nshared,
-                           parallelNode_t* sharedNodes,
-                           ogsOperator_t *gatherHalo,
+                           libp::memory<parallelNode_t> &sharedNodes,
+                           ogsOperator_t& gatherHalo,
                            MPI_Comm _comm,
                            platform_t &_platform,
                            const int verbose);
 };
 
 } //namespace ogs
+
+} //namespace libp
 
 #endif

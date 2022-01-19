@@ -29,6 +29,8 @@ SOFTWARE.
 #include "ogs/ogsOperator.hpp"
 #include "ogs/ogsExchange.hpp"
 
+namespace libp {
+
 namespace ogs {
 
 /********************************
@@ -200,3 +202,5 @@ void halo_t::Combine(void* v,
 }
 
 } //namespace ogs
+
+} //namespace libp

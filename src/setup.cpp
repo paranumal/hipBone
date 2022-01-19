@@ -26,26 +26,27 @@ SOFTWARE.
 
 #include "hipBone.hpp"
 
-hipBone_t& hipBone_t::Setup(platform_t& platform, mesh_t& mesh){
+void hipBone_t::Setup(platform_t& _platform, mesh_t& _mesh){
 
-  hipBone_t* hipBone = new hipBone_t(platform, mesh);
+  platform = _platform;
+  mesh = _mesh;
 
-  hipBone->lambda = 0.1; //hard code
+  lambda = 0.1; //hard code
 
   //setup linear algebra module
-  platform.linAlg.InitKernels({"set", "axpy", "innerProd", "norm2"},
+  platform.linAlg().InitKernels({"set", "axpy", "innerProd", "norm2"},
                                 mesh.comm);
 
   //Trigger JIT kernel builds
   ogs::InitializeKernels(platform, ogs::Dfloat, ogs::Add);
 
   //tmp local storage buffer for Ax op
-  hipBone->o_AqL = platform.malloc(mesh.Np*mesh.Nelements*sizeof(dfloat));
+  o_AqL = platform.malloc(mesh.Np*mesh.Nelements*sizeof(dfloat));
 
   // OCCA build stuff
-  occa::properties kernelInfo = platform.props; //copy base occa properties
+  occa::properties kernelInfo = platform.props(); //copy base occa properties
 
-  hipBone->forcingKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneRhs.okl",
+  forcingKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneRhs.okl",
                                    "hipBoneRhs", kernelInfo);
 
   // Ax kernels
@@ -53,20 +54,11 @@ hipBone_t& hipBone_t::Setup(platform_t& platform, mesh_t& mesh){
   // kernels at only order 15
   if (mesh.Nq == 16) {
     kernelInfo["okl/enabled"] = false;
-    hipBone->operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx_mfma.cpp",
+    operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx_mfma.cpp",
                                      "hipBoneAx_mfma", kernelInfo);
   }
   else {
-    hipBone->operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx.okl",
+    operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx.okl",
                                      "hipBoneAx", kernelInfo);
   }
-
-
-  return *hipBone;
-}
-
-hipBone_t::~hipBone_t() {
-  o_AqL.free();
-  operatorKernel.free();
-  forcingKernel.free();
 }

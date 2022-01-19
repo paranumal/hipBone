@@ -29,6 +29,8 @@ SOFTWARE.
 
 #include "ogs.hpp"
 
+namespace libp {
+
 namespace ogs {
 
 // The Z operator class is essentially a sparse CSR matrix,
@@ -36,17 +38,18 @@ namespace ogs {
 // matrix will have at most 1 non-zero per column.
 class ogsOperator_t {
 public:
-  platform_t& platform;
+  platform_t platform;
 
   dlong Ncols=0;
   dlong NrowsN=0;
   dlong NrowsT=0;
   dlong nnzN=0;
   dlong nnzT=0;
-  dlong *rowStartsN=nullptr;
-  dlong *rowStartsT=nullptr;
-  dlong *colIdsN=nullptr;
-  dlong *colIdsT=nullptr;
+
+  libp::memory<dlong> rowStartsN;
+  libp::memory<dlong> rowStartsT;
+  libp::memory<dlong> colIdsN;
+  libp::memory<dlong> colIdsT;
 
   occa::memory o_rowStartsN;
   occa::memory o_rowStartsT;
@@ -55,18 +58,18 @@ public:
 
   dlong NrowBlocksN=0;
   dlong NrowBlocksT=0;
-  dlong *blockRowStartsN=nullptr;
-  dlong *blockRowStartsT=nullptr;
+  libp::memory<dlong> blockRowStartsN;
+  libp::memory<dlong> blockRowStartsT;
   occa::memory o_blockRowStartsN;
   occa::memory o_blockRowStartsT;
 
   Kind kind;
 
+  ogsOperator_t()=default;
   ogsOperator_t(platform_t& _platform)
    : platform(_platform) {};
 
   void Free();
-  ~ogsOperator_t() {Free();}
 
   void setupRowBlocks();
 
@@ -120,6 +123,18 @@ private:
   template <typename T, template<typename> class Op>
   void GatherScatter(T* v,
               const int K, const Transpose trans);
+
+  //NC: Hard code these for now. Should be sufficient for GPU devices, but needs attention for CPU
+  static constexpr int blockSize = 256;
+  static constexpr int gatherNodesPerBlock = 1024; //should be a multiple of blockSize for good unrolling
+
+  //4 types - Float, Double, Int32, Int64
+  //4 ops - Add, Mul, Max, Min
+  static occa::kernel gatherScatterKernel[4][4];
+  static occa::kernel gatherKernel[4][4];
+  static occa::kernel scatterKernel[4];
+
+  friend void InitializeKernels(platform_t& platform, const Type type, const Op op);
 };
 
 template<typename T>
@@ -137,5 +152,7 @@ void extract(const dlong N,
              void *gatherq);
 
 } //namespace ogs
+
+} //namespace libp
 
 #endif
