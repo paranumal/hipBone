@@ -187,6 +187,11 @@ protected:
   void FaceNodesHex3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[],  int _faceNodes[]);
   void VertexNodesHex3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[], int _vertexNodes[]);
 
+};
+
+void meshAddSettings(settings_t& settings);
+void meshReportSettings(settings_t& settings);
+
   /* offsets for second order geometric factors */
   static constexpr int GWJID=0;
   static constexpr int G00ID=1;
@@ -195,11 +200,8 @@ protected:
   static constexpr int G12ID=4;
   static constexpr int G02ID=5;
   static constexpr int G22ID=6;
-};
 
-void meshAddSettings(settings_t& settings);
-void meshReportSettings(settings_t& settings);
-
+  
 } //namespace libp
 
 #endif
