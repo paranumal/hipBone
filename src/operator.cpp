@@ -58,7 +58,6 @@ void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
     operatorKernel((mesh.NlocalGatherElements+1)/2,
                    mesh.o_localGatherElementList+(mesh.NlocalGatherElements/2)*sizeof(dlong),
                    mesh.o_GlobalToLocal,
-                   mesh.o_ggeo, mesh.o_D,
                    mesh.o_ggeo,
                    mesh.o_D,
                    lambda, o_q, o_AqL);
