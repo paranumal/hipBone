@@ -386,28 +386,20 @@ SOFTWARE.
 // Good for low orders, but will exceed 1024 threads per block after N=9
 
 #if p_N==1
-//8
 #define p_NelementsPerBlk 8
 #elif p_N==2
-//4
 #define p_NelementsPerBlk 4
 #elif p_N==3
-//2
 #define p_NelementsPerBlk 2
 #elif p_N==4
-//2
 #define p_NelementsPerBlk 1
 #elif p_N==5
-//2
 #define p_NelementsPerBlk 1
 #elif p_N==6
-//1
 #define p_NelementsPerBlk 1
 #elif p_N==7
-//1
 #define p_NelementsPerBlk 1
 #else
-// unoptimized
 #define p_NelementsPerBlk 1
 #endif
 
