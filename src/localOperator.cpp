@@ -28,11 +28,46 @@
 
 void hipBone_t::LocalOperator(occa::memory &o_qL, occa::memory &o_Aq){
 
-
+  unsigned long long int skip = mesh.Np*(unsigned long long int)mesh.Nelements*sizeof(dfloat);
+  
+#if 1
   if(mesh.NlocalGatherElements/2){
     localOperatorKernel(mesh.NlocalGatherElements/2,
 			mesh.o_localGatherElementList,
-			mesh.o_ggeo, mesh.o_D,
+			mesh.o_ggeo,
+			mesh.o_D,
+			lambda, o_qL, o_AqL);
+  }
+  
+  
+  if(mesh.NglobalGatherElements) {
+    localOperatorKernel(mesh.NglobalGatherElements,
+			mesh.o_globalGatherElementList,
+			mesh.o_ggeo,
+			mesh.o_D,
+			lambda, o_qL, o_AqL);
+  }
+
+  if((mesh.NlocalGatherElements+1)/2){
+    localOperatorKernel((mesh.NlocalGatherElements+1)/2,
+			mesh.o_localGatherElementList+(mesh.NlocalGatherElements/2)*sizeof(dlong),
+			mesh.o_ggeo,
+			mesh.o_D,
+			lambda, o_qL, o_AqL);
+  }
+  
+#else
+  if(mesh.NlocalGatherElements/2){
+    localOperatorKernel(mesh.NlocalGatherElements/2,
+			mesh.o_localGatherElementList,
+			mesh.o_ggeo + G00ID*skip,
+			mesh.o_ggeo + G01ID*skip,
+			mesh.o_ggeo + G02ID*skip,
+			mesh.o_ggeo + G11ID*skip,
+			mesh.o_ggeo + G12ID*skip,
+			mesh.o_ggeo + G22ID*skip,
+			mesh.o_ggeo + GWJID*skip,
+			mesh.o_D,
 			lambda, o_qL, o_AqL);
   }
 
@@ -40,15 +75,30 @@ void hipBone_t::LocalOperator(occa::memory &o_qL, occa::memory &o_Aq){
   if(mesh.NglobalGatherElements) {
     localOperatorKernel(mesh.NglobalGatherElements,
 			mesh.o_globalGatherElementList,
-			mesh.o_ggeo, mesh.o_D,
+			mesh.o_ggeo + G00ID*skip,
+			mesh.o_ggeo + G01ID*skip,
+			mesh.o_ggeo + G02ID*skip,
+			mesh.o_ggeo + G11ID*skip,
+			mesh.o_ggeo + G12ID*skip,
+			mesh.o_ggeo + G22ID*skip,
+			mesh.o_ggeo + GWJID*skip,
+			mesh.o_D,
 			lambda, o_qL, o_AqL);
   }
 
   if((mesh.NlocalGatherElements+1)/2){
     localOperatorKernel((mesh.NlocalGatherElements+1)/2,
 			mesh.o_localGatherElementList+(mesh.NlocalGatherElements/2)*sizeof(dlong),
-			mesh.o_ggeo, mesh.o_D,
+			mesh.o_ggeo + G00ID*skip,
+			mesh.o_ggeo + G01ID*skip,
+			mesh.o_ggeo + G02ID*skip,
+			mesh.o_ggeo + G11ID*skip,
+			mesh.o_ggeo + G12ID*skip,
+			mesh.o_ggeo + G22ID*skip,
+			mesh.o_ggeo + GWJID*skip,
+			mesh.o_D,
 			lambda, o_qL, o_AqL);
   }
+#endif
 }
 
