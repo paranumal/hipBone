@@ -37,8 +37,8 @@ SOFTWARE.
 // to store the element itself. May be slower for low order but allows us to run
 // high degree efficiently
 
-#if p_N>8
-/* Base version */
+/* The NV compiler doesn't like the blocked kernel. Skip using it. */
+#if OCCA_USE_CUDA==1 && p_N>8
 
 //padding for bank conflicts
 #if p_Nq==16
@@ -47,6 +47,7 @@ SOFTWARE.
 #define p_pad 0
 #endif
 
+/* Base version */
 @kernel void hipBoneAx(const dlong Nelements,
                         @restrict const  dlong  *  elementList,
                         @restrict const  dlong  *  GlobalToLocal,
