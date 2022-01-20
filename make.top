@@ -56,17 +56,18 @@ else
   export HIPBONE_CFLAGS=-fopenmp -O3 -Wall -Wshadow -Wno-unused-function
   export HIPBONE_CXXFLAGS=-fopenmp -O3 -Wall -Wshadow -Wno-unused-function -std=c++17
   export HIPBONE_DEFINES=
+
+  ifeq (GNU,${HIPBONE_ARCH})
+    HIPBONE_CFLAGS+= -mavx2 -ftree-vectorize -march=native -DGLIBCXX_PARALLEL
+    HIPBONE_CXXFLAGS+= -mavx2 -ftree-vectorize -march=native -DGLIBCXX_PARALLEL
+  else ifeq (INTEL,${HIPBONE_ARCH})
+    HIPBONE_CFLAGS+=-funroll-loops -xHost
+    HIPBONE_CXXFLAGS+=-funroll-loops -xHost
+  else
+    $(error unknown arch for [HIPBONE_ARCH] specified)
+  endif
 endif
 
-ifeq (GNU,${HIPBONE_ARCH})
-  HIPBONE_CFLAGS+= -mavx2 -ftree-vectorize -march=native -DGLIBCXX_PARALLEL
-  HIPBONE_CXXFLAGS+= -mavx2 -ftree-vectorize -march=native -DGLIBCXX_PARALLEL
-else ifeq (INTEL,${HIPBONE_ARCH})
-  HIPBONE_CFLAGS+=-funroll-loops -xHost
-  HIPBONE_CXXFLAGS+=-funroll-loops -xHost
-else
-  $(error unknown arch for [HIPBONE_ARCH] specified)
-endif
 
 export OBJ_COLOR = \033[0;36m
 export LIB_COLOR = \033[0;34m
