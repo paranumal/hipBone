@@ -37,6 +37,151 @@ SOFTWARE.
 // to store the element itself. May be slower for low order but allows us to run
 // high degree efficiently
 
+#if p_N>8
+/* Base version */
+
+//padding for bank conflicts
+#if p_Nq==16
+#define p_pad 1
+#else
+#define p_pad 0
+#endif
+
+@kernel void hipBoneAx(const dlong Nelements,
+                        @restrict const  dlong  *  elementList,
+                        @restrict const  dlong  *  GlobalToLocal,
+                        @restrict const  dfloat *  ggeo,
+                        @restrict const  dfloat *  D,
+                        const dfloat lambda,
+                        @restrict const  dfloat *  q,
+                              @restrict dfloat *  Aq){
+
+  for(dlong e=0; e<Nelements; e++; @outer(0)){
+
+    @shared dfloat s_D[p_Nq][p_Nq+p_pad];
+    @shared dfloat s_q[p_Nq][p_Nq+p_pad];
+    @shared dfloat s_v[p_Nq][p_Nq+p_pad];
+    @shared dfloat s_w[p_Nq][p_Nq+p_pad];
+
+    @exclusive dfloat r_GDut, r_Auk;
+
+    // register array to hold u(i,j,0:N) private to thread
+    @exclusive dfloat r_u[p_Nq];
+    // array for results Au(i,j,0:N)
+    @exclusive dfloat r_Au[p_Nq];
+
+    @exclusive dlong element;
+
+    for(int j=0;j<p_Nq;++j;@inner(1)){
+      for(int i=0;i<p_Nq;++i;@inner(0)){
+
+        //load D into local memory
+        // s_D[i][j] = d \phi_i at node j
+        s_D[j][i] = D[p_Nq*j+i];// D is column major
+
+        element = elementList[e];
+
+        const dlong base = i + j*p_Nq + element*p_Np;
+
+        // load pencil of u into register
+        #pragma unroll p_Nq
+        for (int k=0;k<p_Nq;k++) {
+          const dlong id = GlobalToLocal[base + k*p_Nq*p_Nq];
+          r_u[k] = (id!=-1) ? q[id] : 0.0;
+        }
+
+        #pragma unroll p_Nq
+        for (int k=0;k<p_Nq;k++) {
+          r_Au[k] = 0.0;
+        }
+      }
+    }
+
+    // Layer by layer
+#if OCCA_USE_CUDA==1
+    // only force some type of unrolling in CUDA mode
+    #pragma unroll p_Nq
+#endif
+    for(int k = 0;k < p_Nq; k++){
+
+      for(int j=0;j<p_Nq;++j;@inner(1)){
+        for(int i=0;i<p_Nq;++i;@inner(0)){
+          // share u(:,:,k)
+          s_q[j][i] = r_u[k];
+        }
+      }
+
+      for(int j=0;j<p_Nq;++j;@inner(1)){
+        for(int i=0;i<p_Nq;++i;@inner(0)){
+          // prefetch geometric factors
+          const dlong gbase = p_Nggeo*(element*p_Np + k*p_Nq*p_Nq + j*p_Nq + i);
+          const dfloat r_GwJ = ggeo[gbase+p_GWJID];
+          const dfloat r_G00 = ggeo[gbase+p_G00ID];
+          const dfloat r_G01 = ggeo[gbase+p_G01ID];
+          const dfloat r_G11 = ggeo[gbase+p_G11ID];
+          const dfloat r_G12 = ggeo[gbase+p_G12ID];
+          const dfloat r_G02 = ggeo[gbase+p_G02ID];
+          const dfloat r_G22 = ggeo[gbase+p_G22ID];
+
+          dfloat ur = 0.f;
+          dfloat us = 0.f;
+          dfloat ut = 0;
+
+          #pragma unroll p_Nq
+          for (int m=0;m<p_Nq;m++) {
+            ut += s_D[k][m]*r_u[m];
+          }
+
+          #pragma unroll p_Nq
+          for (int m=0;m<p_Nq;m++) {
+            ur   += s_D[i][m]*s_q[j][m];
+            us   += s_D[j][m]*s_q[m][i];
+          }
+
+          s_w[j][i] = (r_G01*ur + r_G11*us + r_G12*ut);
+          s_v[j][i] = (r_G00*ur + r_G01*us + r_G02*ut);
+          r_GDut    = (r_G02*ur + r_G12*us + r_G22*ut);
+
+          r_Auk = r_GwJ*lambda*r_u[k];
+        }
+      }
+
+      for(int j=0;j<p_Nq;++j;@inner(1)){
+        for(int i=0;i<p_Nq;++i;@inner(0)){
+
+          #pragma unroll p_Nq
+          for (int m=0;m<p_Nq;m++) {
+            r_Au[m] += s_D[k][m]*r_GDut;
+          }
+
+          #pragma unroll p_Nq
+          for (int m=0;m<p_Nq;m++) {
+            r_Auk += s_D[m][j]*s_w[m][i];
+            r_Auk += s_D[m][i]*s_v[j][m];
+          }
+
+          r_Au[k] += r_Auk;
+        }
+      }
+    } //end Layer by layer
+
+    // write out
+    for(int j=0;j<p_Nq;++j;@inner(1)){
+      for(int i=0;i<p_Nq;++i;@inner(0)){
+        const dlong id = element*p_Np + j*p_Nq + i;
+
+        #pragma unroll p_Nq
+        for (int k=0;k<p_Nq;k++) {
+          Aq[id+k*p_Nq*p_Nq] = r_Au[k];
+        }
+      }
+    }
+  }
+}
+
+#else
+
+/* Blocked version */
 #if p_N==1
 #define p_NelementsPerBlk 16
 #elif p_N==2
@@ -233,6 +378,7 @@ SOFTWARE.
     }
   }
 }
+#endif
 
 #elif USE_3D_SHMEM
 //This kernel stores the entire hex element in shmem.
