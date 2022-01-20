@@ -24,7 +24,7 @@ SOFTWARE.
 
 */
 
-#if p_N<6
+#if p_N<=8
 #define USE_3D_SHMEM 1
 #else
 #define USE_3D_SHMEM 0
@@ -58,9 +58,9 @@ SOFTWARE.
 #elif p_N==10
 #define p_NelementsPerBlk 1
 #elif p_N==11
-#define p_NelementsPerBlk 3
+#define p_NelementsPerBlk 1
 #elif p_N==12
-#define p_NelementsPerBlk 3
+#define p_NelementsPerBlk 1
 #elif p_N==13
 #define p_NelementsPerBlk 1
 #elif p_N==14
