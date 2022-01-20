@@ -60,14 +60,14 @@ void mesh_t::GeometricFactors(){
           dfloat JW = J*gllw[i]*gllw[j]*gllw[k];
 
           /* store second order geometric factors */
-          ggeo[Nggeo*Np*e + n + Np*G00ID] = JW*(rx*rx + ry*ry + rz*rz);
-          ggeo[Nggeo*Np*e + n + Np*G01ID] = JW*(rx*sx + ry*sy + rz*sz);
-          ggeo[Nggeo*Np*e + n + Np*G02ID] = JW*(rx*tx + ry*ty + rz*tz);
-          ggeo[Nggeo*Np*e + n + Np*G11ID] = JW*(sx*sx + sy*sy + sz*sz);
-          ggeo[Nggeo*Np*e + n + Np*G12ID] = JW*(sx*tx + sy*ty + sz*tz);
-          ggeo[Nggeo*Np*e + n + Np*G22ID] = JW*(tx*tx + ty*ty + tz*tz);
-          // ggeo[Nggeo*Np*e + n + Np*GWJID] = JW;
-          ggeo[Nggeo*Np*e + n + Np*GWJID] = weight[Np*e + n]; //inverse counting weights
+          ggeo[Nggeo*(Np*e + n) + G00ID] = JW*(rx*rx + ry*ry + rz*rz);
+          ggeo[Nggeo*(Np*e + n) + G01ID] = JW*(rx*sx + ry*sy + rz*sz);
+          ggeo[Nggeo*(Np*e + n) + G02ID] = JW*(rx*tx + ry*ty + rz*tz);
+          ggeo[Nggeo*(Np*e + n) + G11ID] = JW*(sx*sx + sy*sy + sz*sz);
+          ggeo[Nggeo*(Np*e + n) + G12ID] = JW*(sx*tx + sy*ty + sz*tz);
+          ggeo[Nggeo*(Np*e + n) + G22ID] = JW*(tx*tx + ty*ty + tz*tz);
+          // ggeo[Nggeo*(Np*e + n) + GWJID] = JW;
+          ggeo[Nggeo*(Np*e + n) + GWJID] = weight[Np*e + n]; //inverse counting weights
         }
       }
     }
