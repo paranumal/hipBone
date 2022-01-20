@@ -130,7 +130,7 @@ void platform_t::DeviceConfig(){
   int NcoresPerNode = Ncores*Nsockets;
   int Nthreads=0;
 
-#if !defined(LIBP_DEBUG)
+#if !defined(HIPBONE_DEBUG)
   /*Check OMP_NUM_THREADS env variable*/
   std::string ompNumThreads;
   char * ompEnvVar = std::getenv("OMP_NUM_THREADS");
