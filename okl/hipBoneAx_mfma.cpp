@@ -32,14 +32,14 @@ SOFTWARE.
 
 #define p_pad 1
 
-extern "C" __global__ void hipBoneAx_mfma(const dlong Nelements,
-                                          const dlong  *  elementList,
-                                          const dlong  *  GlobalToLocal,
-                                          const dfloat *  ggeo,
-                                          const dfloat *  D,
-                                          const dfloat lambda,
-                                          const dfloat *  q,
-                                                dfloat *  Aq){
+extern "C" __global__ __launch_bounds__(256) void hipBoneAx_mfma(const dlong Nelements,
+                                                                 const dlong  *  elementList,
+                                                                 const dlong  *  GlobalToLocal,
+                                                                 const dfloat *  ggeo,
+                                                                 const dfloat *  D,
+                                                                 const dfloat lambda,
+                                                                 const dfloat *  q,
+                                                                       dfloat *  Aq){
 
   const int e = blockIdx.x;
   const int r_e = e;
