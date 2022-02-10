@@ -35,7 +35,8 @@ void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
     operatorKernel(mesh.NlocalGatherElements/2,
                    mesh.o_localGatherElementList,
                    mesh.o_GlobalToLocal,
-                   mesh.o_ggeo, mesh.o_D,
+                   mesh.o_ggeo,
+                   mesh.o_D,
                    lambda, o_q, o_AqL);
   }
 
@@ -47,7 +48,8 @@ void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
     operatorKernel(mesh.NglobalGatherElements,
                    mesh.o_globalGatherElementList,
                    mesh.o_GlobalToLocal,
-                   mesh.o_ggeo, mesh.o_D,
+                   mesh.o_ggeo,
+                   mesh.o_D,
                    lambda, o_q, o_AqL);
   }
 
@@ -58,7 +60,8 @@ void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
     operatorKernel((mesh.NlocalGatherElements+1)/2,
                    mesh.o_localGatherElementList+(mesh.NlocalGatherElements/2)*sizeof(dlong),
                    mesh.o_GlobalToLocal,
-                   mesh.o_ggeo, mesh.o_D,
+                   mesh.o_ggeo,
+                   mesh.o_D,
                    lambda, o_q, o_AqL);
   }
 

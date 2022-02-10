@@ -37,19 +37,164 @@ SOFTWARE.
 // to store the element itself. May be slower for low order but allows us to run
 // high degree efficiently
 
-//TODO: Needs tuning for ROCm 4.0
+/* The NV compiler doesn't like the blocked kernel. Skip using it. */
+#if OCCA_USE_CUDA==1 && p_N>8
+
+//padding for bank conflicts
+#if p_Nq==16
+#define p_pad 1
+#else
+#define p_pad 0
+#endif
+
+/* Base version */
+@kernel void hipBoneAx(const dlong Nelements,
+                        @restrict const  dlong  *  elementList,
+                        @restrict const  dlong  *  GlobalToLocal,
+                        @restrict const  dfloat *  ggeo,
+                        @restrict const  dfloat *  D,
+                        const dfloat lambda,
+                        @restrict const  dfloat *  q,
+                              @restrict dfloat *  Aq){
+
+  for(dlong e=0; e<Nelements; e++; @outer(0)){
+
+    @shared dfloat s_D[p_Nq][p_Nq+p_pad];
+    @shared dfloat s_q[p_Nq][p_Nq+p_pad];
+    @shared dfloat s_v[p_Nq][p_Nq+p_pad];
+    @shared dfloat s_w[p_Nq][p_Nq+p_pad];
+
+    @exclusive dfloat r_GDut, r_Auk;
+
+    // register array to hold u(i,j,0:N) private to thread
+    @exclusive dfloat r_u[p_Nq];
+    // array for results Au(i,j,0:N)
+    @exclusive dfloat r_Au[p_Nq];
+
+    @exclusive dlong element;
+
+    for(int j=0;j<p_Nq;++j;@inner(1)){
+      for(int i=0;i<p_Nq;++i;@inner(0)){
+
+        //load D into local memory
+        // s_D[i][j] = d \phi_i at node j
+        s_D[j][i] = D[p_Nq*j+i];// D is column major
+
+        element = elementList[e];
+
+        const dlong base = i + j*p_Nq + element*p_Np;
+
+        // load pencil of u into register
+        #pragma unroll p_Nq
+        for (int k=0;k<p_Nq;k++) {
+          const dlong id = GlobalToLocal[base + k*p_Nq*p_Nq];
+          r_u[k] = (id!=-1) ? q[id] : 0.0;
+        }
+
+        #pragma unroll p_Nq
+        for (int k=0;k<p_Nq;k++) {
+          r_Au[k] = 0.0;
+        }
+      }
+    }
+
+    // Layer by layer
+#if OCCA_USE_CUDA==1
+    // only force some type of unrolling in CUDA mode
+    #pragma unroll p_Nq
+#endif
+    for(int k = 0;k < p_Nq; k++){
+
+      for(int j=0;j<p_Nq;++j;@inner(1)){
+        for(int i=0;i<p_Nq;++i;@inner(0)){
+          // share u(:,:,k)
+          s_q[j][i] = r_u[k];
+        }
+      }
+
+      for(int j=0;j<p_Nq;++j;@inner(1)){
+        for(int i=0;i<p_Nq;++i;@inner(0)){
+          // prefetch geometric factors
+          const dlong gbase = p_Nggeo*(element*p_Np + k*p_Nq*p_Nq + j*p_Nq + i);
+          const dfloat r_GwJ = ggeo[gbase+p_GWJID];
+          const dfloat r_G00 = ggeo[gbase+p_G00ID];
+          const dfloat r_G01 = ggeo[gbase+p_G01ID];
+          const dfloat r_G11 = ggeo[gbase+p_G11ID];
+          const dfloat r_G12 = ggeo[gbase+p_G12ID];
+          const dfloat r_G02 = ggeo[gbase+p_G02ID];
+          const dfloat r_G22 = ggeo[gbase+p_G22ID];
+
+          dfloat ur = 0.f;
+          dfloat us = 0.f;
+          dfloat ut = 0;
+
+          #pragma unroll p_Nq
+          for (int m=0;m<p_Nq;m++) {
+            ut += s_D[k][m]*r_u[m];
+          }
+
+          #pragma unroll p_Nq
+          for (int m=0;m<p_Nq;m++) {
+            ur   += s_D[i][m]*s_q[j][m];
+            us   += s_D[j][m]*s_q[m][i];
+          }
+
+          s_w[j][i] = (r_G01*ur + r_G11*us + r_G12*ut);
+          s_v[j][i] = (r_G00*ur + r_G01*us + r_G02*ut);
+          r_GDut    = (r_G02*ur + r_G12*us + r_G22*ut);
+
+          r_Auk = r_GwJ*lambda*r_u[k];
+        }
+      }
+
+      for(int j=0;j<p_Nq;++j;@inner(1)){
+        for(int i=0;i<p_Nq;++i;@inner(0)){
+
+          #pragma unroll p_Nq
+          for (int m=0;m<p_Nq;m++) {
+            r_Au[m] += s_D[k][m]*r_GDut;
+          }
+
+          #pragma unroll p_Nq
+          for (int m=0;m<p_Nq;m++) {
+            r_Auk += s_D[m][j]*s_w[m][i];
+            r_Auk += s_D[m][i]*s_v[j][m];
+          }
+
+          r_Au[k] += r_Auk;
+        }
+      }
+    } //end Layer by layer
+
+    // write out
+    for(int j=0;j<p_Nq;++j;@inner(1)){
+      for(int i=0;i<p_Nq;++i;@inner(0)){
+        const dlong id = element*p_Np + j*p_Nq + i;
+
+        #pragma unroll p_Nq
+        for (int k=0;k<p_Nq;k++) {
+          Aq[id+k*p_Nq*p_Nq] = r_Au[k];
+        }
+      }
+    }
+  }
+}
+
+#else
+
+/* Blocked version */
 #if p_N==1
-#define p_NelementsPerBlk 9
+#define p_NelementsPerBlk 16
 #elif p_N==2
-#define p_NelementsPerBlk 4
+#define p_NelementsPerBlk 56
 #elif p_N==3
-#define p_NelementsPerBlk 3
+#define p_NelementsPerBlk 32
 #elif p_N==4
-#define p_NelementsPerBlk 2
+#define p_NelementsPerBlk 5
 #elif p_N==5
-#define p_NelementsPerBlk 3
-#elif p_N==6
 #define p_NelementsPerBlk 1
+#elif p_N==6
+#define p_NelementsPerBlk 5
 #elif p_N==7
 #define p_NelementsPerBlk 1
 #elif p_N==8
@@ -68,12 +213,12 @@ SOFTWARE.
 #define p_NelementsPerBlk 1
 #elif p_N==15
 #define p_NelementsPerBlk 1
-#else //untuned
+#else
 #define p_NelementsPerBlk 1
 #endif
 
 //padding for bank conflicts
-#if p_Nq==16 || p_Nq==8
+#if p_Nq==16
 #define p_pad 1
 #else
 #define p_pad 0
@@ -91,7 +236,6 @@ SOFTWARE.
   for(dlong eo=0; eo<Nelements; eo+=p_NelementsPerBlk; @outer(0)){
 
     @shared dfloat s_D[p_Nq][p_Nq+p_pad];
-    @shared dfloat s_DT[p_Nq][p_Nq+p_pad];
     @shared dfloat s_q[p_NelementsPerBlk][p_Nq][p_Nq+p_pad];
     @shared dfloat s_v[p_NelementsPerBlk][p_Nq][p_Nq+p_pad];
     @shared dfloat s_w[p_NelementsPerBlk][p_Nq][p_Nq+p_pad];
@@ -112,9 +256,7 @@ SOFTWARE.
           //load D into local memory
           // s_D[i][j] = d \phi_i at node j
           if (es==0) {
-            const dfloat Dji = D[p_Nq*j+i];// D is column major
-            s_D[j][i] = Dji;
-            s_DT[i][j] = Dji;
+            s_D[j][i] = D[p_Nq*j+i];// D is column major
           }
 
           r_e = es+eo;
@@ -164,15 +306,15 @@ SOFTWARE.
 
             if(r_e<Nelements){
               // prefetch geometric factors
-              const dlong gbase = element*p_Nggeo*p_Np + k*p_Nq*p_Nq + j*p_Nq + i;
+              const dlong gbase = p_Nggeo*(element*p_Np + k*p_Nq*p_Nq + j*p_Nq + i);
 
-              r_GwJ = ggeo[gbase+p_GWJID*p_Np];
-              r_G00 = ggeo[gbase+p_G00ID*p_Np];
-              r_G01 = ggeo[gbase+p_G01ID*p_Np];
-              r_G11 = ggeo[gbase+p_G11ID*p_Np];
-              r_G12 = ggeo[gbase+p_G12ID*p_Np];
-              r_G02 = ggeo[gbase+p_G02ID*p_Np];
-              r_G22 = ggeo[gbase+p_G22ID*p_Np];
+              r_GwJ = ggeo[gbase+p_GWJID];
+              r_G00 = ggeo[gbase+p_G00ID];
+              r_G01 = ggeo[gbase+p_G01ID];
+              r_G11 = ggeo[gbase+p_G11ID];
+              r_G12 = ggeo[gbase+p_G12ID];
+              r_G02 = ggeo[gbase+p_G02ID];
+              r_G22 = ggeo[gbase+p_G22ID];
             }
 
             dfloat ur = 0.f;
@@ -181,13 +323,13 @@ SOFTWARE.
 
             #pragma unroll p_Nq
             for (int m=0;m<p_Nq;m++) {
-              ut += s_DT[m][k]*r_u[m];
+              ut += s_D[k][m]*r_u[m];
             }
 
             #pragma unroll p_Nq
             for (int m=0;m<p_Nq;m++) {
-              ur   += s_DT[m][i]*s_q[es][j][m];
-              us   += s_DT[m][j]*s_q[es][m][i];
+              ur   += s_D[i][m]*s_q[es][j][m];
+              us   += s_D[j][m]*s_q[es][m][i];
             }
 
             s_w[es][j][i] = (r_G01*ur + r_G11*us + r_G12*ut);
@@ -237,25 +379,27 @@ SOFTWARE.
     }
   }
 }
+#endif
 
 #elif USE_3D_SHMEM
 //This kernel stores the entire hex element in shmem.
-// Good for low orders, but exceeds shmem capacity beyond degree 8
+// Good for low orders, but will exceed 1024 threads per block after N=9
 
 #if p_N==1
-#define p_NelementsPerBlk 32
+#define p_NelementsPerBlk 8
 #elif p_N==2
-#define p_NelementsPerBlk 9
-#elif p_N==3
 #define p_NelementsPerBlk 4
+#elif p_N==3
+#define p_NelementsPerBlk 2
 #elif p_N==4
-#define p_NelementsPerBlk 2
+#define p_NelementsPerBlk 1
 #elif p_N==5
-#define p_NelementsPerBlk 2
+#define p_NelementsPerBlk 1
 #elif p_N==6
 #define p_NelementsPerBlk 1
+#elif p_N==7
+#define p_NelementsPerBlk 1
 #else
-// unoptimized
 #define p_NelementsPerBlk 1
 #endif
 
@@ -285,6 +429,7 @@ SOFTWARE.
     @shared dfloat s_Gqt[p_NelementsPerBlk][p_Nq][p_Nq][p_Nq+p_pad];
 
     @exclusive dlong r_e, element;
+    @exclusive dfloat r_wJ;
 
     @exclusive int k, es;
 
@@ -321,14 +466,18 @@ SOFTWARE.
         for(int i=0;i<p_Nq;++i;@inner(0)){
 
           if(r_e<Nelements){
-            const dlong gbase = element*p_Nggeo*p_Np + i + j*p_Nq + k*p_Nq*p_Nq;
+            const dlong gbase = p_Nggeo*(element*p_Np + i + j*p_Nq + k*p_Nq*p_Nq);
 
             // 't' terms
             dfloat tmp=0.0;
 
-            const dfloat G02 = ggeo[gbase+p_G02ID*p_Np];
-            const dfloat G12 = ggeo[gbase+p_G12ID*p_Np];
-            const dfloat G22 = ggeo[gbase+p_G22ID*p_Np];
+            r_wJ = ggeo[gbase+p_GWJID];
+            const dfloat G00 = ggeo[gbase+p_G00ID];
+            const dfloat G01 = ggeo[gbase+p_G01ID];
+            const dfloat G11 = ggeo[gbase+p_G11ID];
+            const dfloat G02 = ggeo[gbase+p_G02ID];
+            const dfloat G12 = ggeo[gbase+p_G12ID];
+            const dfloat G22 = ggeo[gbase+p_G22ID];
 
             // #pragma unroll p_Unr
             for(int m = 0; m < p_Nq; ++m) {
@@ -342,8 +491,6 @@ SOFTWARE.
             s_Gqs[es][k][j][i] = G12*tmp;
             s_Gqt[es][k][j][i] = G22*tmp;
 
-            const dfloat G00 = ggeo[gbase+p_G00ID*p_Np];
-            const dfloat G01 = ggeo[gbase+p_G01ID*p_Np];
 
             // 'r' terms
             tmp = 0;
@@ -357,7 +504,6 @@ SOFTWARE.
             s_Gqs[es][k][j][i] += G01*tmp;
             s_Gqt[es][k][j][i] += G02*tmp;
 
-            const dfloat G11 = ggeo[gbase+p_G11ID*p_Np];
 
             // 's' terms
             tmp = 0;
@@ -380,10 +526,7 @@ SOFTWARE.
         for(int i=0;i<p_Nq;++i;@inner(0)){
 
           if(r_e<Nelements){
-            const dlong gbase = element*p_Nggeo*p_Np + i + j*p_Nq + k*p_Nq*p_Nq;
-            const dfloat GWJ = ggeo[gbase+p_GWJID*p_Np];
-
-            dfloat tmpAp = s_q[es][k][j][i]*lambda*GWJ;
+            dfloat tmpAp = s_q[es][k][j][i]*lambda*r_wJ;
 
             // use same matrix for both slices
             // #pragma unroll p_Unr

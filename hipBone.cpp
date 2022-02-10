@@ -31,23 +31,27 @@ int main(int argc, char **argv){
   // start up MPI
   MPI_Init(&argc, &argv);
 
-  MPI_Comm comm = MPI_COMM_WORLD;
+  { /*Scope so everything is destructed before MPI_Finalize */
 
-  hipBoneSettings_t settings(argc, argv, comm);
-  if (settings.compareSetting("VERBOSE", "TRUE"))
-    settings.report();
+    MPI_Comm comm = MPI_COMM_WORLD;
 
-  // set up platform
-  platform_t platform(settings);
+    hipBoneSettings_t settings(argc, argv, comm);
+    if (settings.compareSetting("VERBOSE", "TRUE"))
+      settings.report();
 
-  // set up mesh
-  mesh_t mesh(platform);
+    // set up platform
+    platform_t platform(settings);
 
-  // set up hb solver
-  hipBone_t hb(platform, mesh);
+    // set up mesh
+    mesh_t mesh(platform);
 
-  // run
-  hb.Run();
+    // set up hb solver
+    hipBone_t hb(platform, mesh);
+
+    // run
+    hb.Run();
+
+  }
 
   // close down MPI
   MPI_Finalize();

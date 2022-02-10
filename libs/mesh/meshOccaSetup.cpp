@@ -37,7 +37,7 @@ void mesh_t::OccaSetup(){
 
   defaultStream = platform.device.getStream();
 
-  occa::properties& props = platform.props();
+  props = platform.props(); //copy platform props
 
   props["defines/" "p_dim"]= dim;
   props["defines/" "p_N"]= N;

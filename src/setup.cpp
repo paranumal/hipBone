@@ -44,7 +44,7 @@ void hipBone_t::Setup(platform_t& _platform, mesh_t& _mesh){
   o_AqL = platform.malloc(mesh.Np*mesh.Nelements*sizeof(dfloat));
 
   // OCCA build stuff
-  occa::properties kernelInfo = platform.props(); //copy base occa properties
+  occa::properties kernelInfo = mesh.props; //copy mesh occa properties
 
   forcingKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneRhs.okl",
                                    "hipBoneRhs", kernelInfo);
