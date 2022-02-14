@@ -97,15 +97,15 @@ extern "C" __global__ __launch_bounds__(256) void hipBoneAx_mfma(const dlong Nel
 
     if(r_e<Nelements){
 	// prefetch geometric factors
-	const dlong gbase = element*p_Nggeo*p_Np + k*p_Nq*p_Nq + j*p_Nq + i;
+	const dlong gbase = p_Nggeo*(element*p_Np + k*p_Nq*p_Nq + j*p_Nq + i);
 
-	r_GwJ = ggeo[gbase+p_GWJID*p_Np];
-	r_G00 = ggeo[gbase+p_G00ID*p_Np];
-	r_G01 = ggeo[gbase+p_G01ID*p_Np];
-	r_G11 = ggeo[gbase+p_G11ID*p_Np];
-	r_G12 = ggeo[gbase+p_G12ID*p_Np];
-	r_G02 = ggeo[gbase+p_G02ID*p_Np];
-	r_G22 = ggeo[gbase+p_G22ID*p_Np];
+	r_GwJ = ggeo[gbase+p_GWJID];
+	r_G00 = ggeo[gbase+p_G00ID];
+	r_G01 = ggeo[gbase+p_G01ID];
+	r_G11 = ggeo[gbase+p_G11ID];
+	r_G12 = ggeo[gbase+p_G12ID];
+	r_G02 = ggeo[gbase+p_G02ID];
+	r_G22 = ggeo[gbase+p_G22ID];
     }
 
     dfloat qr = 0.f;
