@@ -57,6 +57,7 @@ void hipBone_t::Operator(occa::memory &o_q, occa::memory &o_Aq){
   mesh.ogsMasked.GatherStart(o_Aq, o_AqL, 1, ogs::Dfloat, ogs::Add, ogs::Trans);
 
   if((mesh.NlocalGatherElements+1)/2){
+    operatorKernel.setRunDims((mesh.NlocalGatherElements+1)/2, occa::dim(16, 16));
     operatorKernel((mesh.NlocalGatherElements+1)/2,
                    mesh.o_localGatherElementList+(mesh.NlocalGatherElements/2)*sizeof(dlong),
                    mesh.o_GlobalToLocal,
