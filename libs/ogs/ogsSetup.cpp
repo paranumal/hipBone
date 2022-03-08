@@ -28,6 +28,7 @@ SOFTWARE.
 #include "ogs/ogsUtils.hpp"
 #include "ogs/ogsOperator.hpp"
 #include "ogs/ogsExchange.hpp"
+#include "timer.hpp"
 
 #ifdef GLIBCXX_PARALLEL
 #include <parallel/algorithm>
@@ -41,8 +42,8 @@ namespace libp {
 namespace ogs {
 
 void ogs_t::Setup(const dlong _N,
-                  hlong *ids,
-                  MPI_Comm _comm,
+                  memory<hlong> ids,
+                  comm_t _comm,
                   const Kind _kind,
                   const Method method,
                   const bool _unique,
@@ -52,8 +53,8 @@ void ogs_t::Setup(const dlong _N,
 }
 
 void halo_t::Setup(const dlong _N,
-                  hlong *ids,
-                  MPI_Comm _comm,
+                  memory<hlong> ids,
+                  comm_t _comm,
                   const Method method,
                   const bool verbose,
                   platform_t& _platform){
@@ -66,8 +67,8 @@ void halo_t::Setup(const dlong _N,
  * Setup
  ********************************/
 void ogsBase_t::Setup(const dlong _N,
-                      hlong *ids,
-                      MPI_Comm _comm,
+                      memory<hlong> ids,
+                      comm_t _comm,
                       const Kind _kind,
                       const Method method,
                       const bool _unique,
@@ -77,7 +78,12 @@ void ogsBase_t::Setup(const dlong _N,
   //release resources if this ogs was setup before
   Free();
 
+  timePoint_t start = Time();
+
   platform = _platform;
+
+  if (!dataStream.isInitialized())
+      dataStream = platform.device.createStream();
 
   N = _N;
   comm = _comm;
@@ -85,13 +91,13 @@ void ogsBase_t::Setup(const dlong _N,
   unique = _unique;
 
   int rank, size;
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &size);
+  rank = comm.rank();
+  size = comm.size();
 
   //sanity check options
-  if (   (kind==Unsigned && unique==true)
-      || (kind==Halo && unique==true) )
-    HIPBONE_ABORT("Invalid ogs setup requested");
+  LIBP_ABORT("Invalid ogs setup requested",
+             (kind==Unsigned && unique==true)
+              || (kind==Halo && unique==true));
 
   //count how many ids are non-zero
   dlong Nids=0;
@@ -99,7 +105,7 @@ void ogsBase_t::Setup(const dlong _N,
     if (ids[n]!=0) Nids++;
 
   // make list of nodes
-  libp::memory<parallelNode_t> nodes(Nids);
+  memory<parallelNode_t> nodes(Nids);
 
   //fill the data (squeezing out zero ids)
   Nids=0;
@@ -114,9 +120,6 @@ void ogsBase_t::Setup(const dlong _N,
     }
   }
 
-  /*Register MPI_PARALLELNODE_T type*/
-  InitMPIType();
-
   //flag which nodes are shared via MPI
   FindSharedNodes(Nids, nodes, verbose);
 
@@ -124,7 +127,7 @@ void ogsBase_t::Setup(const dlong _N,
   // construct sharedNodes which contains all the info
   // we need to setup the MPI exchange.
   dlong Nshared=0;
-  libp::memory<parallelNode_t> sharedNodes;
+  memory<parallelNode_t> sharedNodes;
   ConstructSharedNodes(Nids, nodes, Nshared, sharedNodes);
 
   Nids=0;
@@ -159,15 +162,18 @@ void ogsBase_t::Setup(const dlong _N,
   if (method == AllToAll) {
     exchange = std::shared_ptr<ogsExchange_t>(
                   new ogsAllToAll_t(Nshared, sharedNodes,
-                                    *gatherHalo, comm, platform));
+                                    *gatherHalo, dataStream,
+                                    comm, platform));
   } else if (method == Pairwise) {
     exchange = std::shared_ptr<ogsExchange_t>(
                   new ogsPairwise_t(Nshared, sharedNodes,
-                                    *gatherHalo, comm, platform));
+                                    *gatherHalo, dataStream,
+                                    comm, platform));
   } else if (method == CrystalRouter) {
     exchange = std::shared_ptr<ogsExchange_t>(
                   new ogsCrystalRouter_t(Nshared, sharedNodes,
-                                         *gatherHalo, comm, platform));
+                                         *gatherHalo, dataStream,
+                                         comm, platform));
   } else { //Auto
     exchange = std::shared_ptr<ogsExchange_t>(
                   AutoSetup(Nshared, sharedNodes,
@@ -175,30 +181,33 @@ void ogsBase_t::Setup(const dlong _N,
                             platform, verbose));
   }
 
-  /*Free the MPI_PARALLELNODE_T type*/
-  DestroyMPIType();
+  timePoint_t end = GlobalPlatformTime(platform);
+  double elapsedTime = ElapsedTime(start, end);
+
+  if (!rank && verbose) {
+    std::cout << "ogs Setup Time: " << elapsedTime << " seconds." << std::endl;
+  }
 }
 
 void ogsBase_t::FindSharedNodes(const dlong Nids,
-                                libp::memory<parallelNode_t> &nodes,
+                                memory<parallelNode_t> &nodes,
                                 const int verbose){
 
   int rank, size;
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &size);
+  rank = comm.rank();
+  size = comm.size();
 
-  libp::memory<int> sendCounts(size,0);
-  libp::memory<int> recvCounts(size);
-  libp::memory<int> sendOffsets(size+1);
-  libp::memory<int> recvOffsets(size+1);
+  memory<int> sendCounts(size,0);
+  memory<int> recvCounts(size);
+  memory<int> sendOffsets(size+1);
+  memory<int> recvOffsets(size+1);
 
   //count number of ids we're sending
   for (dlong n=0;n<Nids;n++) {
     sendCounts[nodes[n].destRank]++;
   }
 
-  MPI_Alltoall(sendCounts.ptr(), 1, MPI_INT,
-               recvCounts.ptr(), 1, MPI_INT, comm);
+  comm.Alltoall(sendCounts, recvCounts);
 
   sendOffsets[0] = 0;
   recvOffsets[0] = 0;
@@ -221,12 +230,11 @@ void ogsBase_t::FindSharedNodes(const dlong Nids,
 
   dlong recvN = recvOffsets[size]; //total ids to recv
 
-  libp::memory<parallelNode_t> recvNodes(recvN);
+  memory<parallelNode_t> recvNodes(recvN);
 
   //Send all the nodes to their destination rank.
-  MPI_Alltoallv(    nodes.ptr(), sendCounts.ptr(), sendOffsets.ptr(), MPI_PARALLELNODE_T,
-                recvNodes.ptr(), recvCounts.ptr(), recvOffsets.ptr(), MPI_PARALLELNODE_T,
-                comm);
+  comm.Alltoallv(    nodes, sendCounts, sendOffsets,
+                 recvNodes, recvCounts, recvOffsets);
 
   //remember this ordering
   for (dlong n=0;n<recvN;n++) {
@@ -243,7 +251,7 @@ void ogsBase_t::FindSharedNodes(const dlong Nids,
   // Our list is sorted by baseId to group nodes with the same globalId together
   // We now want to flag which nodes are shared via MPI
 
-  int locally_unique=1;
+  int is_unique=1;
 
   dlong Nshared=0;
 
@@ -271,16 +279,13 @@ void ogsBase_t::FindSharedNodes(const dlong Nids,
           if (recvNodes[i].baseId>0) positiveCount++;
 
         //if we didnt find a sole positive baseId, the gather is not well-defined
-        if (positiveCount!=1) locally_unique=0;
+        if (positiveCount!=1) is_unique=0;
       }
 
       // When making a halo excahnge, check that we have a leading positive id
-      if (kind==Halo && positiveCount!=1) {
-        std::stringstream ss;
-        ss << "Found " << positiveCount << " positive Ids for baseId: "
-           << abs(recvNodes[start].baseId)<< ".";
-        HIPBONE_ABORT(ss.str());
-      }
+      LIBP_ABORT("Found " << positiveCount << " positive Ids for baseId: "
+                 << abs(recvNodes[start].baseId)<< ".",
+                 kind==Halo && positiveCount!=1);
 
       //determine if this node is shared via MPI,
       int shared=1;
@@ -304,13 +309,11 @@ void ogsBase_t::FindSharedNodes(const dlong Nids,
   }
 
   //shared the unique node check so we know if the gather operation is well-defined
-  int globally_unique=1;
-  MPI_Allreduce(&locally_unique, &globally_unique, 1, MPI_INT, MPI_MIN, comm);
-  gather_defined = (globally_unique==1);
+  comm.Allreduce(is_unique, comm_t::Min);
+  gather_defined = (is_unique==1);
 
-  hlong Nshared_local = Nshared;
   hlong Nshared_global = Nshared;
-  MPI_Reduce(&Nshared_local, &Nshared_global, 1, MPI_HLONG, MPI_SUM, 0, comm);
+  comm.Reduce(Nshared_global, 0);
   if (!rank && verbose) {
     std::cout << "ogs Setup: " << Nshared_global << " unique labels shared." << std::endl;
   }
@@ -323,19 +326,16 @@ void ogsBase_t::FindSharedNodes(const dlong Nids,
   permute(recvN, recvNodes, [](const parallelNode_t& a) { return a.newId; } );
 
   //Return all the nodes to their origin rank.
-  MPI_Alltoallv(recvNodes.ptr(), recvCounts.ptr(), recvOffsets.ptr(), MPI_PARALLELNODE_T,
-                    nodes.ptr(), sendCounts.ptr(), sendOffsets.ptr(), MPI_PARALLELNODE_T,
-                comm);
+  comm.Alltoallv(recvNodes, recvCounts, recvOffsets,
+                     nodes, sendCounts, sendOffsets);
 }
 
 void ogsBase_t::ConstructSharedNodes(const dlong Nids,
-                                     libp::memory<parallelNode_t> &nodes,
+                                     memory<parallelNode_t> &nodes,
                                      dlong &Nshared,
-                                     libp::memory<parallelNode_t> &sharedNodes) {
+                                     memory<parallelNode_t> &sharedNodes) {
 
-  int rank, size;
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &size);
+  int size = comm.size();
 
   // sort based on abs(baseId)
   sort(nodes.ptr(), nodes.ptr()+Nids,
@@ -388,11 +388,11 @@ void ogsBase_t::ConstructSharedNodes(const dlong Nids,
   Ngather = NlocalP+NhaloP;
 
   //global total
-  hlong NgatherLocal = (hlong) Ngather;
-  MPI_Allreduce(&NgatherLocal, &(NgatherGlobal), 1, MPI_HLONG, MPI_SUM, comm);
+  NgatherGlobal = Ngather;
+  comm.Allreduce(NgatherGlobal);
 
   //extract the leading node from each shared baseId
-  libp::memory<parallelNode_t> sendSharedNodes(NhaloT);
+  memory<parallelNode_t> sendSharedNodes(NhaloT);
 
   NhaloT=0;
   for (dlong n=0;n<Nids;n++) {
@@ -408,7 +408,7 @@ void ogsBase_t::ConstructSharedNodes(const dlong Nids,
 
   // Use the newId index to reorder the baseId groups based on
   // the order we encouter them in their original ordering.
-  libp::memory<dlong> indexMap(NbaseIds, -1);
+  memory<dlong> indexMap(NbaseIds, -1);
 
   dlong localCntN = 0, localCntT = NlocalP;  //start point for local gather nodes
   dlong haloCntN  = 0, haloCntT  = NhaloP;   //start point for halo gather nodes
@@ -441,10 +441,10 @@ void ogsBase_t::ConstructSharedNodes(const dlong Nids,
 
   indexMap.free();
 
-  libp::memory<int> sendCounts(size,0);
-  libp::memory<int> recvCounts(size);
-  libp::memory<int> sendOffsets(size+1);
-  libp::memory<int> recvOffsets(size+1);
+  memory<int> sendCounts(size,0);
+  memory<int> recvCounts(size);
+  memory<int> sendOffsets(size+1);
+  memory<int> recvOffsets(size+1);
 
   // sort based on destination rank
   sort(sendSharedNodes.ptr(), sendSharedNodes.ptr()+NhaloT,
@@ -457,8 +457,7 @@ void ogsBase_t::ConstructSharedNodes(const dlong Nids,
     sendCounts[sendSharedNodes[n].destRank]++;
   }
 
-  MPI_Alltoall(sendCounts.ptr(), 1, MPI_INT,
-               recvCounts.ptr(), 1, MPI_INT, comm);
+  comm.Alltoall(sendCounts, recvCounts);
 
   sendOffsets[0] = 0;
   recvOffsets[0] = 0;
@@ -468,15 +467,13 @@ void ogsBase_t::ConstructSharedNodes(const dlong Nids,
   }
   dlong recvN = recvOffsets[size]; //total ids to recv
 
-  libp::memory<parallelNode_t> recvSharedNodes(recvN);
+  memory<parallelNode_t> recvSharedNodes(recvN);
 
   //Send all the nodes to their destination rank.
-  MPI_Alltoallv(sendSharedNodes.ptr(), sendCounts.ptr(), sendOffsets.ptr(), MPI_PARALLELNODE_T,
-                recvSharedNodes.ptr(), recvCounts.ptr(), recvOffsets.ptr(), MPI_PARALLELNODE_T,
-                comm);
+  comm.Alltoallv(sendSharedNodes, sendCounts, sendOffsets,
+                 recvSharedNodes, recvCounts, recvOffsets);
 
   //free up some space
-  MPI_Barrier(comm);
   sendSharedNodes.free();
   sendCounts.free();
   recvCounts.free();
@@ -490,10 +487,10 @@ void ogsBase_t::ConstructSharedNodes(const dlong Nids,
        });
 
   //count number of shared nodes we will be sending
-  libp::memory<int> sharedSendCounts(size,0);
-  libp::memory<int> sharedRecvCounts(size);
-  libp::memory<int> sharedSendOffsets(size+1);
-  libp::memory<int> sharedRecvOffsets(size+1);
+  memory<int> sharedSendCounts(size,0);
+  memory<int> sharedRecvCounts(size);
+  memory<int> sharedSendOffsets(size+1);
+  memory<int> sharedRecvOffsets(size+1);
 
   start=0;
   for (dlong n=0;n<recvN;n++) {
@@ -515,8 +512,7 @@ void ogsBase_t::ConstructSharedNodes(const dlong Nids,
   // information to the involved ranks.
 
   //share counts
-  MPI_Alltoall(sharedSendCounts.ptr(), 1, MPI_INT,
-               sharedRecvCounts.ptr(), 1, MPI_INT, comm);
+  comm.Alltoall(sharedSendCounts, sharedRecvCounts);
 
   //cumulative sum
   sharedSendOffsets[0] = 0;
@@ -527,7 +523,7 @@ void ogsBase_t::ConstructSharedNodes(const dlong Nids,
   }
 
   //make a send buffer
-  libp::memory<parallelNode_t> sharedSendNodes(sharedSendOffsets[size]);
+  memory<parallelNode_t> sharedSendNodes(sharedSendOffsets[size]);
 
   //reset sendCounts
   for (int r=0;r<size;r++) sharedSendCounts[r]=0;
@@ -562,20 +558,15 @@ void ogsBase_t::ConstructSharedNodes(const dlong Nids,
 
   //make sharedNodes to hold the exchange data we recv
   Nshared = sharedRecvOffsets[size];
-  sharedNodes = libp::memory<parallelNode_t>(Nshared);
+  sharedNodes = memory<parallelNode_t>(Nshared);
 
   //Share all the gathering info
-  MPI_Alltoallv(sharedSendNodes.ptr(), sharedSendCounts.ptr(), sharedSendOffsets.ptr(), MPI_PARALLELNODE_T,
-                    sharedNodes.ptr(), sharedRecvCounts.ptr(), sharedRecvOffsets.ptr(), MPI_PARALLELNODE_T,
-                comm);
+  comm.Alltoallv(sharedSendNodes, sharedSendCounts, sharedSendOffsets,
+                     sharedNodes, sharedRecvCounts, sharedRecvOffsets);
 }
 
 //Make local and halo gather operators using nodes list
-void ogsBase_t::LocalSignedSetup(const dlong Nids, libp::memory<parallelNode_t> &nodes){
-
-  int rank, size;
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &size);
+void ogsBase_t::LocalSignedSetup(const dlong Nids, memory<parallelNode_t> &nodes){
 
   gatherLocal = std::make_shared<ogsOperator_t>(platform);
   gatherHalo  = std::make_shared<ogsOperator_t>(platform);
@@ -593,10 +584,10 @@ void ogsBase_t::LocalSignedSetup(const dlong Nids, libp::memory<parallelNode_t> 
 
   //tally up how many nodes are being gathered to each gatherNode and
   //  map to a local ordering
-  libp::memory<dlong> localGatherNCounts(gatherLocal->NrowsT,0);
-  libp::memory<dlong> localGatherTCounts(gatherLocal->NrowsT,0);
-  libp::memory<dlong> haloGatherNCounts(gatherHalo->NrowsT,0);
-  libp::memory<dlong> haloGatherTCounts(gatherHalo->NrowsT,0);
+  memory<dlong> localGatherNCounts(gatherLocal->NrowsT,0);
+  memory<dlong> localGatherTCounts(gatherLocal->NrowsT,0);
+  memory<dlong> haloGatherNCounts(gatherHalo->NrowsT,0);
+  memory<dlong> haloGatherTCounts(gatherHalo->NrowsT,0);
 
   for (dlong i=0;i<Nids;i++) {
     const dlong gid = nodes[i].newId; //re-mapped baseId on this rank
@@ -692,7 +683,7 @@ void ogsBase_t::LocalSignedSetup(const dlong Nids, libp::memory<parallelNode_t> 
 }
 
 //Make local and halo gather operators using nodes list
-void ogsBase_t::LocalUnsignedSetup(const dlong Nids, libp::memory<parallelNode_t> &nodes){
+void ogsBase_t::LocalUnsignedSetup(const dlong Nids, memory<parallelNode_t> &nodes){
 
   gatherLocal = std::make_shared<ogsOperator_t>(platform);
   gatherHalo  = std::make_shared<ogsOperator_t>(platform);
@@ -710,8 +701,8 @@ void ogsBase_t::LocalUnsignedSetup(const dlong Nids, libp::memory<parallelNode_t
 
   //tally up how many nodes are being gathered to each gatherNode and
   //  map to a local ordering
-  libp::memory<dlong> localGatherTCounts(gatherLocal->NrowsT,0);
-  libp::memory<dlong> haloGatherTCounts(gatherHalo->NrowsT,0);
+  memory<dlong> localGatherTCounts(gatherLocal->NrowsT,0);
+  memory<dlong> haloGatherTCounts(gatherHalo->NrowsT,0);
 
   for (dlong i=0;i<Nids;i++) {
     const dlong gid = nodes[i].newId; //re-mapped baseId on this rank
@@ -785,7 +776,7 @@ void ogsBase_t::LocalUnsignedSetup(const dlong Nids, libp::memory<parallelNode_t
 }
 
 //Make local and halo gather operators using nodes list
-void ogsBase_t::LocalHaloSetup(const dlong Nids, libp::memory<parallelNode_t> &nodes){
+void ogsBase_t::LocalHaloSetup(const dlong Nids, memory<parallelNode_t> &nodes){
 
   gatherHalo  = std::make_shared<ogsOperator_t>(platform);
   gatherHalo->kind = Signed;
@@ -797,8 +788,8 @@ void ogsBase_t::LocalHaloSetup(const dlong Nids, libp::memory<parallelNode_t> &n
 
   //tally up how many nodes are being gathered to each gatherNode and
   //  map to a local ordering
-  libp::memory<dlong> haloGatherNCounts(gatherHalo->NrowsT,0);
-  libp::memory<dlong> haloGatherTCounts(gatherHalo->NrowsT,0);
+  memory<dlong> haloGatherNCounts(gatherHalo->NrowsT,0);
+  memory<dlong> haloGatherTCounts(gatherHalo->NrowsT,0);
 
   for (dlong i=0;i<Nids;i++) {
     const dlong gid = nodes[i].newId; //re-mapped baseId on this rank
@@ -856,6 +847,7 @@ void ogsBase_t::LocalHaloSetup(const dlong Nids, libp::memory<parallelNode_t> &n
 }
 
 void ogsBase_t::Free() {
+  comm.Free();
   gatherLocal = nullptr;
   gatherHalo = nullptr;
   exchange = nullptr;
@@ -867,17 +859,19 @@ void ogsBase_t::Free() {
 }
 
 void ogsBase_t::AssertGatherDefined() {
-  if (!gather_defined) {
-    HIPBONE_ABORT("Gather operation not well-defined.");
-  }
+  LIBP_ABORT("Gather operation not well-defined.",
+             !gather_defined);
 }
 
 //Populate the local mapping of the original ids and the gathered ordering
-void ogs_t::SetupGlobalToLocalMapping(dlong *GlobalToLocal) {
+void ogs_t::SetupGlobalToLocalMapping(memory<dlong> GlobalToLocal) {
+
+  LIBP_ABORT("ogs handle is not set up.",
+             NgatherGlobal==0);
 
   //Note: Must have GlobalToLocal have N entries.
 
-  libp::memory<dlong> ids(NlocalT+NhaloT);
+  memory<dlong> ids(NlocalT+NhaloT);
 
   for (dlong n=0;n<NlocalT+NhaloT;n++)
     ids[n] = n;
@@ -885,15 +879,18 @@ void ogs_t::SetupGlobalToLocalMapping(dlong *GlobalToLocal) {
   for (dlong n=0;n<N;n++)
     GlobalToLocal[n] = -1;
 
-  gatherLocal->Scatter(GlobalToLocal, ids.ptr(),
-                       1, Dlong, Add, NoTrans);
-  gatherHalo->Scatter(GlobalToLocal, ids.ptr()+NlocalT,
-                       1, Dlong, Add, NoTrans);
+  gatherLocal->Scatter(GlobalToLocal, ids,
+                       1, NoTrans);
+  gatherHalo->Scatter(GlobalToLocal, ids+NlocalT,
+                       1, NoTrans);
 }
 
 void halo_t::SetupFromGather(ogs_t& ogs) {
 
   ogs.AssertGatherDefined();
+
+  platform = ogs.platform;
+  comm = ogs.comm;
 
   N = ogs.NlocalT + ogs.NhaloT;
 
@@ -901,7 +898,6 @@ void halo_t::SetupFromGather(ogs_t& ogs) {
   Nhalo = ogs.NhaloT - ogs.NhaloP;
 
   NgatherGlobal = ogs.NgatherGlobal;
-  comm = ogs.comm;
 
   kind = Halo;
   unique = ogs.unique;

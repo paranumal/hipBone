@@ -46,22 +46,22 @@ public:
   dlong nnzN=0;
   dlong nnzT=0;
 
-  libp::memory<dlong> rowStartsN;
-  libp::memory<dlong> rowStartsT;
-  libp::memory<dlong> colIdsN;
-  libp::memory<dlong> colIdsT;
+  memory<dlong> rowStartsN;
+  memory<dlong> rowStartsT;
+  memory<dlong> colIdsN;
+  memory<dlong> colIdsT;
 
-  occa::memory o_rowStartsN;
-  occa::memory o_rowStartsT;
-  occa::memory o_colIdsN;
-  occa::memory o_colIdsT;
+  deviceMemory<dlong> o_rowStartsN;
+  deviceMemory<dlong> o_rowStartsT;
+  deviceMemory<dlong> o_colIdsN;
+  deviceMemory<dlong> o_colIdsT;
 
   dlong NrowBlocksN=0;
   dlong NrowBlocksT=0;
-  libp::memory<dlong> blockRowStartsN;
-  libp::memory<dlong> blockRowStartsT;
-  occa::memory o_blockRowStartsN;
-  occa::memory o_blockRowStartsT;
+  memory<dlong> blockRowStartsN;
+  memory<dlong> blockRowStartsT;
+  deviceMemory<dlong> o_blockRowStartsN;
+  deviceMemory<dlong> o_blockRowStartsT;
 
   Kind kind;
 
@@ -74,55 +74,49 @@ public:
   void setupRowBlocks();
 
   //Apply Z operator
-  void Gather(occa::memory&  o_gv,
-              occa::memory&  o_v,
-              const int k,
-              const Type type,
-              const Op op,
-              const Transpose trans);
-  void Gather(void* gv,
-              const void* v,
-              const int k,
-              const Type type,
-              const Op op,
-              const Transpose trans);
+  template<template<typename> class U,
+           template<typename> class V,
+           typename T>
+  void Gather(U<T> gv, const V<T> v,
+              const int k, const Op op, const Transpose trans);
+
+  template<typename T>
+  void Gather(deviceMemory<T> gv, const deviceMemory<T> v,
+              const int k, const Op op, const Transpose trans);
 
   //Apply Z^T transpose operator
-  void Scatter(occa::memory&  o_v,
-               occa::memory&  o_gv,
-               const int k,
-               const Type type,
-               const Op op,
-               const Transpose trans);
-  void Scatter(void* v,
-               const void* gv,
-               const int k,
-               const Type type,
-               const Op op,
-               const Transpose trans);
+  template<template<typename> class U,
+           template<typename> class V,
+           typename T>
+  void Scatter(U<T> v, const V<T> gv,
+               const int k, const Transpose trans);
+
+  template<typename T>
+  void Scatter(deviceMemory<T> v, const deviceMemory<T> gv,
+               const int k, const Transpose trans);
 
   //Apply Z^T*Z operator
-  void GatherScatter(occa::memory&  o_v,
-                     const int k,
-                     const Type type,
-                     const Op op,
-                     const Transpose trans);
-  void GatherScatter(void* v,
-                     const int k,
-                     const Type type,
-                     const Op op,
-                     const Transpose trans);
+  template<template<typename> class U,
+           typename T>
+  void GatherScatter(U<T> v, const int k,
+                     const Op op, const Transpose trans);
+
+  template<typename T>
+  void GatherScatter(deviceMemory<T> v, const int k,
+                     const Op op, const Transpose trans);
 
 private:
-  template <typename T, template<typename> class Op>
-  void Gather(T* gv, const T* v,
+  template <template<typename> class U,
+            template<typename> class V,
+            template<typename> class Op,
+            typename T>
+  void Gather(U<T> gv, const V<T> v,
               const int K, const Transpose trans);
-  template <typename T>
-  void Scatter(T* v, const T* gv,
-              const int K, const Transpose trans);
-  template <typename T, template<typename> class Op>
-  void GatherScatter(T* v,
-              const int K, const Transpose trans);
+  template <template<typename> class U,
+            template<typename> class Op,
+            typename T>
+  void GatherScatter(U<T> v, const int K,
+                     const Transpose trans);
 
   //NC: Hard code these for now. Should be sufficient for GPU devices, but needs attention for CPU
   static constexpr int blockSize = 256;
@@ -130,26 +124,21 @@ private:
 
   //4 types - Float, Double, Int32, Int64
   //4 ops - Add, Mul, Max, Min
-  static occa::kernel gatherScatterKernel[4][4];
-  static occa::kernel gatherKernel[4][4];
-  static occa::kernel scatterKernel[4];
+  static kernel_t gatherScatterKernel[4][4];
+  static kernel_t gatherKernel[4][4];
+  static kernel_t scatterKernel[4];
 
   friend void InitializeKernels(platform_t& platform, const Type type, const Op op);
 };
 
-template<typename T>
+template <template<typename> class U,
+          template<typename> class V,
+          typename T>
 void extract(const dlong N,
              const int K,
-             const dlong *ids,
-             const T *q,
-             T *gatherq);
-
-void extract(const dlong N,
-             const int K,
-             const Type type,
-             const dlong *ids,
-             const void *q,
-             void *gatherq);
+             const memory<dlong> ids,
+             const U<T> q,
+             V<T> gatherq);
 
 } //namespace ogs
 
