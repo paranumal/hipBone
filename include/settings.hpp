@@ -92,12 +92,12 @@ private:
   std::vector<string> insertOrder;
 
 public:
-  MPI_Comm comm;
+  comm_t comm;
 
   std::map<string, setting_t> settings;
 
   settings_t() = delete;
-  settings_t(MPI_Comm _comm);
+  settings_t(comm_t _comm);
 
   //copy
   settings_t(const settings_t& other)=default;
@@ -120,9 +120,7 @@ public:
       const setting_t& val = search->second;
       value = val.getVal<T>();
     } else {
-      stringstream ss;
-      ss << "Unable to find setting: [" << name << "]";
-      HIPBONE_ABORT(ss.str());
+      LIBP_FORCE_ABORT("Unable to find setting: [" << name << "]");
     }
   }
 

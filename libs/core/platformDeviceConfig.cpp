@@ -33,22 +33,20 @@ namespace libp {
 void platform_t::DeviceConfig(){
 
   //find out how many ranks and devices are on this system
-  char* hostnames = (char *) ::malloc(size*sizeof(char)*MPI_MAX_PROCESSOR_NAME);
-  char* hostname = hostnames+rank*MPI_MAX_PROCESSOR_NAME;
+  memory<char> hostnames(size()*MAX_PROCESSOR_NAME);
+  memory<char> hostname = hostnames + rank()*MAX_PROCESSOR_NAME;
 
   int namelen;
-  MPI_Get_processor_name(hostname,&namelen);
-
-  MPI_Allgather(MPI_IN_PLACE , MPI_MAX_PROCESSOR_NAME, MPI_CHAR,
-                hostnames, MPI_MAX_PROCESSOR_NAME, MPI_CHAR, MPI_COMM_WORLD);
+  comm_t::GetProcessorName(hostname.ptr(), namelen);
+  comm.Allgather(hostnames, MAX_PROCESSOR_NAME);
 
   int localRank = 0;
   int localSize = 0;
-  for (int n=0; n<rank; n++){
-    if (!strcmp(hostname, hostnames+n*MPI_MAX_PROCESSOR_NAME)) localRank++;
+  for (int n=0; n<rank(); n++){
+    if (!strcmp(hostname.ptr(), hostnames.ptr()+n*MAX_PROCESSOR_NAME)) localRank++;
   }
-  for (int n=0; n<size; n++){
-    if (!strcmp(hostname, hostnames+n*MPI_MAX_PROCESSOR_NAME)) localSize++;
+  for (int n=0; n<size(); n++){
+    if (!strcmp(hostname.ptr(), hostnames.ptr()+n*MAX_PROCESSOR_NAME)) localSize++;
   }
 
   int plat=0;
@@ -83,18 +81,16 @@ void platform_t::DeviceConfig(){
       ||Settings.compareSetting("THREAD MODEL", "HIP")
       ||Settings.compareSetting("THREAD MODEL", "OpenCL")) {
     //for testing a single device, run with 1 rank and specify DEVICE NUMBER
-    if (size==1) {
+    if (size()==1) {
       Settings.getSetting("DEVICE NUMBER",device_id);
     } else {
 
       device_id = localRank;
 
       //check for over-subscribing devices
-      int deviceCount = occa::getDeviceCount(mode);
+      int deviceCount = getDeviceCount(mode);
       if (deviceCount>0 && localRank>=deviceCount) {
-        std::stringstream ss;
-        ss << "Rank " << rank << " oversubscribing device " << device_id%deviceCount << " on node \"" << hostname<< "\"";
-        HIPBONE_WARNING(ss.str());
+        LIBP_FORCE_WARNING("Rank " << rank() << " oversubscribing device " << device_id%deviceCount << " on node \"" << hostname.ptr()<< "\"");
         device_id = device_id%deviceCount;
       }
     }
@@ -108,19 +104,18 @@ void platform_t::DeviceConfig(){
   /*Use lscpu to determine core and socket counts */
   FILE *pipeCores   = popen("lscpu | grep \"Core(s) per socket\" | awk '{print $4}'", "r");
   FILE *pipeSockets = popen("lscpu | grep \"Socket(s)\" | awk '{print $2}'", "r");
-  if (!pipeCores || !pipeSockets) {
-    HIPBONE_ABORT("popen() failed!");
-  }
+  LIBP_ABORT("popen() failed!",
+                !pipeCores || !pipeSockets);
 
   std::array<char, 128> buffer;
-  if (!fgets(buffer.data(), buffer.size(), pipeCores)) { //read to end of line
-    HIPBONE_ABORT("Error reading core count")
-  }
+  //read to end of line
+  LIBP_ABORT("Error reading core count",
+                !fgets(buffer.data(), buffer.size(), pipeCores));
   int Ncores = std::stoi(buffer.data());
 
-  if (!fgets(buffer.data(), buffer.size(), pipeSockets)) { //read to end of line
-    HIPBONE_ABORT("Error reading core count")
-  }
+  //read to end of line
+  LIBP_ABORT("Error reading core count",
+                !fgets(buffer.data(), buffer.size(), pipeSockets));
   int Nsockets = std::stoi(buffer.data());
 
   pclose(pipeCores);
@@ -130,7 +125,7 @@ void platform_t::DeviceConfig(){
   int NcoresPerNode = Ncores*Nsockets;
   int Nthreads=0;
 
-#if !defined(HIPBONE_DEBUG)
+#if !defined(LIBP_DEBUG)
   /*Check OMP_NUM_THREADS env variable*/
   std::string ompNumThreads;
   char * ompEnvVar = std::getenv("OMP_NUM_THREADS");
@@ -146,11 +141,8 @@ void platform_t::DeviceConfig(){
       Nthreads = std::stoi(ompNumThreads);
     }
   }
-  if (Nthreads*localSize>NcoresPerNode) {
-    std::stringstream ss;
-    ss << "Rank " << rank << " oversubscribing CPU on node \"" << hostname<< "\"";
-    HIPBONE_WARNING(ss.str());
-  }
+  LIBP_WARNING("Rank " << rank() << " oversubscribing CPU on node \"" << hostname.ptr()<< "\"",
+                  Nthreads*localSize>NcoresPerNode);
   omp_set_num_threads(Nthreads);
   // omp_set_num_threads(1);
 
@@ -161,25 +153,24 @@ void platform_t::DeviceConfig(){
 
   device.setup(mode);
 
-  std::string occaCacheDir;
+  std::string cacheDir;
   char * cacheEnvVar = std::getenv("HIPBONE_CACHE_DIR");
   if (cacheEnvVar == nullptr) {
     // Environment variable is not set
-    occaCacheDir = HIPBONE_DIR "/.occa";
+    cacheDir = HIPBONE_DIR "/.occa";
   }
   else {
     // Environmet variable is set, but could be empty string
-    occaCacheDir = cacheEnvVar;
+    cacheDir = cacheEnvVar;
 
-    if (occaCacheDir.size() == 0) {
+    if (cacheDir.size() == 0) {
       // Environment variable is set but equal to empty string
-      occaCacheDir = HIPBONE_DIR "/.occa";
+      cacheDir = HIPBONE_DIR "/.occa";
     }
   }
-  occa::env::setOccaCacheDir(occaCacheDir);
+  setCacheDir(cacheDir);
 
-  MPI_Barrier(MPI_COMM_WORLD);
-  free(hostnames);
+  comm.Barrier();
 }
 
 } //namespace libp

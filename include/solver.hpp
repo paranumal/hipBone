@@ -38,14 +38,13 @@ public:
   solver_t()=default;
   solver_t(platform_t& _platform):
     platform(_platform) {}
-  virtual ~solver_t(){}
 
   settings_t& settings() { return platform.settings(); }
 
   virtual void Run()=0;
 
-  virtual void Operator(occa::memory& o_q, occa::memory& o_Aq) {
-    HIPBONE_ABORT(std::string("Operator not implemented in this solver"))
+  virtual void Operator(deviceMemory<dfloat>& o_q, deviceMemory<dfloat>& o_Aq) {
+    LIBP_FORCE_ABORT("Operator not implemented in this solver");
   }
 };
 
