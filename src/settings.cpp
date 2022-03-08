@@ -27,11 +27,11 @@ SOFTWARE.
 #include "hipBone.hpp"
 
 //settings for hipBone solver
-hipBoneSettings_t::hipBoneSettings_t(const int argc, char** argv, MPI_Comm &_comm):
+hipBoneSettings_t::hipBoneSettings_t(const int argc, char** argv, comm_t _comm):
   settings_t(_comm) {
 
   platformAddSettings(*this);
-  libp::meshAddSettings(*this);
+  meshAddSettings(*this);
 
   newSetting("-v", "--verbose",
              "VERBOSE",
@@ -44,12 +44,9 @@ hipBoneSettings_t::hipBoneSettings_t(const int argc, char** argv, MPI_Comm &_com
 
 void hipBoneSettings_t::report() {
 
-  int rank;
-  MPI_Comm_rank(comm, &rank);
-
-  if (rank==0) {
+  if (comm.rank()==0) {
     std::cout << "Settings:\n\n";
     platformReportSettings(*this);
-    libp::meshReportSettings(*this);
+    meshReportSettings(*this);
   }
 }

@@ -34,17 +34,16 @@ void hipBone_t::Setup(platform_t& _platform, mesh_t& _mesh){
   lambda = 0.1; //hard code
 
   //setup linear algebra module
-  platform.linAlg().InitKernels({"set", "axpy", "innerProd", "norm2"},
-                                mesh.comm);
+  platform.linAlg().InitKernels({"set", "axpy", "innerProd", "norm2"});
 
   //Trigger JIT kernel builds
   ogs::InitializeKernels(platform, ogs::Dfloat, ogs::Add);
 
   //tmp local storage buffer for Ax op
-  o_AqL = platform.malloc(mesh.Np*mesh.Nelements*sizeof(dfloat));
+  o_AqL = platform.malloc<dfloat>(mesh.Np*mesh.Nelements);
 
   // OCCA build stuff
-  occa::properties kernelInfo = mesh.props; //copy mesh occa properties
+  properties_t kernelInfo = mesh.props; //copy mesh occa properties
 
   // Ax kernel
   operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx.okl",

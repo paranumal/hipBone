@@ -39,7 +39,7 @@ using namespace libp;
 
 class hipBoneSettings_t: public settings_t {
 public:
-  hipBoneSettings_t(const int argc, char** argv, MPI_Comm& _comm);
+  hipBoneSettings_t(const int argc, char** argv, comm_t _comm);
   void report();
 };
 
@@ -50,10 +50,10 @@ class hipBone_t: public solver_t {
 
   dfloat lambda;
 
-  occa::memory o_AqL;
+  deviceMemory<dfloat> o_AqL;
 
-  occa::kernel operatorKernel;
-  occa::kernel forcingKernel;
+  kernel_t operatorKernel;
+  kernel_t forcingKernel;
 
   hipBone_t() = default;
   hipBone_t(platform_t& _platform, mesh_t &_mesh) {
@@ -65,9 +65,7 @@ class hipBone_t: public solver_t {
 
   void Run();
 
-  void PlotFields(dfloat* Q, char *fileName);
-
-  void Operator(occa::memory& o_q, occa::memory& o_Aq);
+  void Operator(deviceMemory<dfloat>& o_q, deviceMemory<dfloat>& o_Aq);
 };
 
 

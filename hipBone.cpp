@@ -29,11 +29,10 @@ SOFTWARE.
 int main(int argc, char **argv){
 
   // start up MPI
-  MPI_Init(&argc, &argv);
+  comm_t::Init(argc, argv);
 
   { /*Scope so everything is destructed before MPI_Finalize */
-
-    MPI_Comm comm = MPI_COMM_WORLD;
+    comm_t comm(comm_t::world().Dup());
 
     hipBoneSettings_t settings(argc, argv, comm);
     if (settings.compareSetting("VERBOSE", "TRUE"))
@@ -50,10 +49,9 @@ int main(int argc, char **argv){
 
     // run
     hb.Run();
-
   }
 
   // close down MPI
-  MPI_Finalize();
-  return HIPBONE_SUCCESS;
+  comm_t::Finalize();
+  return LIBP_SUCCESS;
 }

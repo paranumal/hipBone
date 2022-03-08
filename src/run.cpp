@@ -25,21 +25,22 @@ SOFTWARE.
 */
 
 #include "hipBone.hpp"
+#include "timer.hpp"
 
 void hipBone_t::Run(){
 
   //setup linear solver
   dlong N = mesh.ogsMasked.Ngather;
   dlong Nhalo = mesh.gHalo.Nhalo;
-  linearSolver_t *linearSolver = new cg(platform, N, Nhalo);
+  cg linearSolver(platform, N, Nhalo);
 
   hlong NGlobal = mesh.ogsMasked.NgatherGlobal;
   dlong NLocal = mesh.Np*mesh.Nelements;
 
   //create occa buffers
   dlong Nall = N+Nhalo;
-  occa::memory o_r = platform.malloc(Nall*sizeof(dfloat));
-  occa::memory o_x = platform.malloc(Nall*sizeof(dfloat));
+  deviceMemory<dfloat> o_r = platform.malloc<dfloat>(Nall);
+  deviceMemory<dfloat> o_x = platform.malloc<dfloat>(Nall);
 
   //set x =0
   platform.linAlg().set(Nall, 0.0, o_x);
@@ -50,24 +51,19 @@ void hipBone_t::Run(){
   int maxIter = 100;
   int verbose = platform.settings().compareSetting("VERBOSE", "TRUE") ? 1 : 0;
 
-  platform.device.finish();
-  MPI_Barrier(mesh.comm);
-  double startTime = MPI_Wtime();
+  timePoint_t startTime = GlobalPlatformTime(platform);
 
   //call the solver
   dfloat tol = 0.0;
-  int Niter = linearSolver->Solve(*this, o_x, o_r, tol, maxIter, verbose);
+  int Niter = linearSolver.Solve(*this, o_x, o_r, tol, maxIter, verbose);
 
-  platform.device.finish();
-  MPI_Barrier(mesh.comm);
-  double endTime = MPI_Wtime();
-  double elapsedTime = endTime - startTime;
+  timePoint_t endTime = GlobalPlatformTime(platform);
+  double elapsedTime = ElapsedTime(startTime, endTime);
 
   int Np = mesh.Np, Nq = mesh.Nq;
 
-  hlong NunMasked = NLocal - mesh.Nmasked;
-  hlong NunMaskedGlobal;
-  MPI_Allreduce(&NunMasked, &NunMaskedGlobal, 1, MPI_HLONG, MPI_SUM, mesh.comm);
+  hlong NunMaskedGlobal = NLocal - mesh.Nmasked;
+  mesh.comm.Allreduce(NunMaskedGlobal);
 
   hlong Ndofs = NGlobal;
 
@@ -109,7 +105,4 @@ void hipBone_t::Run(){
 
     printf("hipBone: NekBone FOM = %4.1f GFLOPs. \n", NflopsNekbone/(1.0e9 * elapsedTime));
   }
-
-  o_r.free(); o_x.free();
-  delete linearSolver;
 }
