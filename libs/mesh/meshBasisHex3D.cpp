@@ -34,7 +34,7 @@ namespace libp {
 void mesh_t::NodesHex3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[]){
   int _Nq = _N+1;
 
-  libp::memory<dfloat> r1D(_Nq);
+  memory<dfloat> r1D(_Nq);
   JacobiGLL(_N, r1D.ptr()); //Gauss-Legendre-Lobatto nodes
 
   //Tensor product
@@ -106,6 +106,150 @@ void mesh_t::VertexNodesHex3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[], int
       _vertexNodes[6] = n;
     if( (_r[n]+1)*(_r[n]+1)+(_s[n]-1)*(_s[n]-1)+(_t[n]-1)*(_t[n]-1)<NODETOL)
       _vertexNodes[7] = n;
+  }
+}
+
+/*Find a matching array between nodes on matching faces */
+void mesh_t::FaceNodeMatchingHex3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[],
+                                   int _faceNodes[], int R[]){
+
+  int _Nq = _N+1;
+  int _Nfp = _Nq*_Nq;
+
+  const dfloat NODETOL = 1.0e-5;
+
+  dfloat V0[4][2] = {{-1.0,-1.0},{ 1.0,-1.0},{ 1.0, 1.0},{-1.0, 1.0}};
+  dfloat V1[4][2] = {{-1.0,-1.0},{-1.0, 1.0},{ 1.0, 1.0},{ 1.0,-1.0}};
+
+  dfloat EX0[Nverts], EY0[Nverts];
+  dfloat EX1[Nverts], EY1[Nverts];
+
+  memory<dfloat> x0(_Nfp);
+  memory<dfloat> y0(_Nfp);
+
+  memory<dfloat> x1(_Nfp);
+  memory<dfloat> y1(_Nfp);
+
+
+  for (int fM=0;fM<Nfaces;fM++) {
+
+    for (int v=0;v<Nverts;v++) {
+      EX0[v] = 0.0; EY0[v] = 0.0;
+    }
+    //setup top element with face fM on the bottom
+    for (int v=0;v<NfaceVertices;v++) {
+      int fv = faceVertices[fM*NfaceVertices + v];
+      EX0[fv] = V0[v][0]; EY0[fv] = V0[v][1];
+    }
+
+    for(int n=0;n<_Nfp;++n){ /* for each face node */
+      const int fn = _faceNodes[fM*_Nfp+n];
+
+      /* (r,s,t) coordinates of interpolation nodes*/
+      dfloat rn = _r[fn];
+      dfloat sn = _s[fn];
+      dfloat tn = _t[fn];
+
+      /* physical coordinate of interpolation node */
+      x0[n] =
+        +0.125*(1-rn)*(1-sn)*(1-tn)*EX0[0]
+        +0.125*(1+rn)*(1-sn)*(1-tn)*EX0[1]
+        +0.125*(1+rn)*(1+sn)*(1-tn)*EX0[2]
+        +0.125*(1-rn)*(1+sn)*(1-tn)*EX0[3]
+        +0.125*(1-rn)*(1-sn)*(1+tn)*EX0[4]
+        +0.125*(1+rn)*(1-sn)*(1+tn)*EX0[5]
+        +0.125*(1+rn)*(1+sn)*(1+tn)*EX0[6]
+        +0.125*(1-rn)*(1+sn)*(1+tn)*EX0[7];
+
+      y0[n] =
+        +0.125*(1-rn)*(1-sn)*(1-tn)*EY0[0]
+        +0.125*(1+rn)*(1-sn)*(1-tn)*EY0[1]
+        +0.125*(1+rn)*(1+sn)*(1-tn)*EY0[2]
+        +0.125*(1-rn)*(1+sn)*(1-tn)*EY0[3]
+        +0.125*(1-rn)*(1-sn)*(1+tn)*EY0[4]
+        +0.125*(1+rn)*(1-sn)*(1+tn)*EY0[5]
+        +0.125*(1+rn)*(1+sn)*(1+tn)*EY0[6]
+        +0.125*(1-rn)*(1+sn)*(1+tn)*EY0[7];
+    }
+
+    for (int fP=0;fP<Nfaces;fP++) { /*For each neighbor face */
+      for (int rot=0;rot<NfaceVertices;rot++) { /* For each face rotation */
+        // Zero vertices
+        for (int v=0;v<Nverts;v++) {
+          EX1[v] = 0.0; EY1[v] = 0.0;
+        }
+        //setup bottom element with face fP on the top
+        for (int v=0;v<NfaceVertices;v++) {
+          int fv = faceVertices[fP*NfaceVertices + ((v+rot)%NfaceVertices)];
+          EX1[fv] = V1[v][0]; EY1[fv] = V1[v][1];
+        }
+
+        for(int n=0;n<_Nfp;++n){ /* for each node */
+          const int fn = _faceNodes[fP*_Nfp+n];
+
+          /* (r,s,t) coordinates of interpolation nodes*/
+          dfloat rn = _r[fn];
+          dfloat sn = _s[fn];
+          dfloat tn = _t[fn];
+
+          /* physical coordinate of interpolation node */
+          x1[n] =  0.125*(1-rn)*(1-sn)*(1-tn)*EX1[0]
+                  +0.125*(1+rn)*(1-sn)*(1-tn)*EX1[1]
+                  +0.125*(1+rn)*(1+sn)*(1-tn)*EX1[2]
+                  +0.125*(1-rn)*(1+sn)*(1-tn)*EX1[3]
+                  +0.125*(1-rn)*(1-sn)*(1+tn)*EX1[4]
+                  +0.125*(1+rn)*(1-sn)*(1+tn)*EX1[5]
+                  +0.125*(1+rn)*(1+sn)*(1+tn)*EX1[6]
+                  +0.125*(1-rn)*(1+sn)*(1+tn)*EX1[7];
+
+          y1[n] =  0.125*(1-rn)*(1-sn)*(1-tn)*EY1[0]
+                  +0.125*(1+rn)*(1-sn)*(1-tn)*EY1[1]
+                  +0.125*(1+rn)*(1+sn)*(1-tn)*EY1[2]
+                  +0.125*(1-rn)*(1+sn)*(1-tn)*EY1[3]
+                  +0.125*(1-rn)*(1-sn)*(1+tn)*EY1[4]
+                  +0.125*(1+rn)*(1-sn)*(1+tn)*EY1[5]
+                  +0.125*(1+rn)*(1+sn)*(1+tn)*EY1[6]
+                  +0.125*(1-rn)*(1+sn)*(1+tn)*EY1[7];
+        }
+
+        /* for each node on this face find the neighbor node */
+        for(int n=0;n<_Nfp;++n){
+          const dfloat xM = x0[n];
+          const dfloat yM = y0[n];
+
+          int m=0;
+          for(;m<_Nfp;++m){ /* for each neighbor node */
+            const dfloat xP = x1[m];
+            const dfloat yP = y1[m];
+
+            /* distance between target and neighbor node */
+            const dfloat dist = pow(xM-xP,2) + pow(yM-yP,2);
+
+            /* if neighbor node is close to target, match */
+            if(dist<NODETOL){
+              R[fM*Nfaces*NfaceVertices*_Nfp
+                + fP*NfaceVertices*_Nfp
+                + rot*_Nfp + n] = m;
+              break;
+            }
+          }
+
+          /*Check*/
+          const dfloat xP = x1[m];
+          const dfloat yP = y1[m];
+
+          /* distance between target and neighbor node */
+          const dfloat dist = pow(xM-xP,2) + pow(yM-yP,2);
+          //This shouldn't happen
+          LIBP_ABORT("Unable to match face node, face: " << fM
+                     << ", matching face: " << fP
+                     << ", rotation: " << rot
+                     << ", node: " << n
+                     << ". Is the reference node set not symmetric?",
+                     dist>NODETOL);
+        }
+      }
+    }
   }
 }
 

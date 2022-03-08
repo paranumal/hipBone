@@ -60,19 +60,18 @@ void mesh_t::SetupBox(){
 
     // size is total number of ranks and populated by the mpi communicator
     size_x = std::cbrt(size); //number of ranks in each dimension
-    if (size_x*size_x*size_x != size)
-      HIPBONE_ABORT(std::string("3D BOX mesh requires a cubic number of MPI ranks since px,py,pz have not been provided."))
+    LIBP_ABORT("3D BOX mesh requires a cubic number of MPI ranks since px,py,pz have not been provided.",
+               size_x*size_x*size_x != size);
 
     size_y = size_x;
     size_z = size_x;
 
   }
-  else if (size_x * size_y * size_z != size) {
-    // User provided only *some* of px, py, pz, so check if they multiply to
-    // the right thing.
 
-    HIPBONE_ABORT(std::string("3D BOX mesh requires the user specifies all of px, py, pz, or none of px, py, pz.  If all are provided, their product must equal the total number of MPI ranks"))
-  }
+  // User provided only *some* of px, py, pz, so check if they multiply to
+  // the right thing.
+  LIBP_ABORT("3D BOX mesh requires the user specifies all of px, py, pz, or none of px, py, pz.  If all are provided, their product must equal the total number of MPI ranks",
+             size_x * size_y * size_z != size);
 
   //local grid physical sizes
   dfloat dimx = DIMX/size_x;
