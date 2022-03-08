@@ -37,7 +37,7 @@ namespace libp {
 class linearSolver_t {
 public:
   platform_t platform;
-  MPI_Comm comm;
+  comm_t comm;
 
   dlong N;
   dlong Nhalo;
@@ -47,33 +47,37 @@ public:
     N(_N), Nhalo(_Nhalo) {}
 
   virtual int Solve(solver_t& solver,
-                    occa::memory& o_x, occa::memory& o_rhs,
-                    const dfloat tol, const int MAXIT, const int verbose)=0;
-
-  virtual ~linearSolver_t(){}
+                    deviceMemory<dfloat> o_x,
+                    deviceMemory<dfloat> o_rhs,
+                    const dfloat tol,
+                    const int MAXIT,
+                    const int verbose)=0;
 };
 
 //Conjugate Gradient
 class cg: public linearSolver_t {
 private:
-  occa::memory o_p, o_Ap;
+  deviceMemory<dfloat> o_p, o_Ap;
 
-  dfloat* tmprdotr;
-  occa::memory h_tmprdotr;
-  occa::memory o_tmprdotr;
+  deviceMemory<dfloat> o_tmprdotr;
+  pinnedMemory<dfloat> h_tmprdotr;
 
-  occa::kernel updateCGKernel1;
-  occa::kernel updateCGKernel2;
+  kernel_t updateCGKernel1;
+  kernel_t updateCGKernel2;
 
-  dfloat UpdateCG(const dfloat alpha, occa::memory &o_x, occa::memory &o_r);
+  dfloat UpdateCG(const dfloat alpha,
+                  deviceMemory<dfloat> o_x,
+                  deviceMemory<dfloat> o_r);
 
 public:
   cg(platform_t& _platform, dlong _N, dlong _Nhalo);
-  ~cg();
 
   int Solve(solver_t& solver,
-            occa::memory& o_x, occa::memory& o_rhs,
-            const dfloat tol, const int MAXIT, const int verbose);
+            deviceMemory<dfloat> o_x,
+            deviceMemory<dfloat> o_rhs,
+            const dfloat tol,
+            const int MAXIT,
+            const int verbose);
 };
 
 } //namespace libp
