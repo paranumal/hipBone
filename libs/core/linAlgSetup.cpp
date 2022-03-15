@@ -31,7 +31,6 @@ SOFTWARE.
 namespace libp {
 
 constexpr int LINALG_BLOCKSIZE = 256;
-constexpr int AXPY_BLOCKSIZE = 1024;
 
 using std::string;
 using std::stringstream;
@@ -45,13 +44,12 @@ linAlg_t::linAlg_t(platform_t *_platform): blocksize(LINALG_BLOCKSIZE) {
   kernelInfo["defines/" "p_blockSize"] = (int)LINALG_BLOCKSIZE;
 
   //pinned scratch buffer
-  scratch = (dfloat*) platform->hostMalloc(LINALG_BLOCKSIZE*sizeof(dfloat),
-                                           NULL, h_scratch);
-  o_scratch = platform->malloc(LINALG_BLOCKSIZE*sizeof(dfloat));
+  h_scratch = platform->hostMalloc<dfloat>(LINALG_BLOCKSIZE);
+  o_scratch = platform->malloc<dfloat>(LINALG_BLOCKSIZE);
 }
 
 //initialize list of kernels
-void linAlg_t::InitKernels(std::vector<string> kernels, MPI_Comm comm) {
+void linAlg_t::InitKernels(std::vector<string> kernels) {
 
   for (size_t i=0;i<kernels.size();i++) {
     string name = kernels[i];
@@ -62,12 +60,11 @@ void linAlg_t::InitKernels(std::vector<string> kernels, MPI_Comm comm) {
                                         "set",
                                         kernelInfo);
     } else if (name=="axpy") {
-      occa::properties axpyKernelInfo = kernelInfo;
       if (axpyKernel.isInitialized()==false)
         axpyKernel = platform->buildKernel(HIPBONE_DIR "/libs/core/okl/"
                                         "linAlgAXPY.okl",
                                         "axpy",
-                                        axpyKernelInfo);
+                                        kernelInfo);
     } else if (name=="norm2") {
       if (norm2Kernel1.isInitialized()==false)
         norm2Kernel1 = platform->buildKernel(HIPBONE_DIR "/libs/core/okl/"
@@ -93,20 +90,9 @@ void linAlg_t::InitKernels(std::vector<string> kernels, MPI_Comm comm) {
                                         "innerProd_2",
                                         kernelInfo);
     } else {
-      stringstream ss;
-      ss << "Requested linAlg routine \"" << name << "\" not found";
-      HIPBONE_ABORT(ss.str());
+      LIBP_FORCE_ABORT("Requested linAlg routine \"" << name << "\" not found");
     }
   }
-}
-
-linAlg_t::~linAlg_t() {
-  setKernel.free();
-  axpyKernel.free();
-  norm2Kernel1.free();
-  norm2Kernel2.free();
-  innerProdKernel1.free();
-  innerProdKernel2.free();
 }
 
 } //namespace libp

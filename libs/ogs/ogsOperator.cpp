@@ -35,31 +35,34 @@ namespace ogs {
 
 template<typename T>
 struct Op_Add {
-  const T init(){ return T{0}; }
-  void operator()(T& gv, const T v) { gv += v; }
+  inline const T init(){ return T{0}; }
+  inline void operator()(T& gv, const T v) { gv += v; }
 };
 template<typename T>
 struct Op_Mul {
-  const T init(){ return T{1}; }
-  void operator()(T& gv, const T v) { gv *= v; }
+  inline const T init(){ return T{1}; }
+  inline void operator()(T& gv, const T v) { gv *= v; }
 };
 template<typename T>
 struct Op_Max {
-  const T init(){ return -std::numeric_limits<T>::max(); }
-  void operator()(T& gv, const T v) { gv = (v>gv) ? v : gv; }
+  inline const T init(){ return -std::numeric_limits<T>::max(); }
+  inline void operator()(T& gv, const T v) { gv = (v>gv) ? v : gv; }
 };
 template<typename T>
 struct Op_Min {
-  const T init() {return  std::numeric_limits<T>::max(); }
-  void operator()(T& gv, const T v) { gv = (v<gv) ? v : gv; }
+  inline const T init() {return  std::numeric_limits<T>::max(); }
+  inline void operator()(T& gv, const T v) { gv = (v<gv) ? v : gv; }
 };
 
 /********************************
  * Gather Operation
  ********************************/
-template <typename T, template<typename> class Op>
-void ogsOperator_t::Gather(T* gv,
-                           const T* v,
+template <template<typename> class U,
+          template<typename> class V,
+          template<typename> class Op,
+          typename T>
+void ogsOperator_t::Gather(U<T> gv,
+                           const V<T> v,
                            const int K,
                            const Transpose trans) {
 
@@ -75,6 +78,9 @@ void ogsOperator_t::Gather(T* gv,
     colIds = colIdsT.ptr();
   }
 
+  const T* v_ptr  = v.ptr();
+  T* gv_ptr = gv.ptr();
+
   #pragma omp parallel for
   for(dlong n=0;n<Nrows;++n){
     const dlong start = rowStarts[n];
@@ -83,109 +89,80 @@ void ogsOperator_t::Gather(T* gv,
     for (int k=0;k<K;++k) {
       T val = Op<T>().init();
       for(dlong g=start;g<end;++g){
-        Op<T>()(val, v[k+colIds[g]*K]);
+        Op<T>()(val, v_ptr[k+colIds[g]*K]);
       }
-      gv[k+n*K] = val;
+      gv_ptr[k+n*K] = val;
     }
   }
 }
 
-void ogsOperator_t::Gather(void* gv,
-                            const void* v,
-                            const int k,
-                            const Type type,
-                            const Op op,
-                            const Transpose trans) {
+template <template<typename> class U,
+          template<typename> class V,
+          typename T>
+void ogsOperator_t::Gather(U<T> gv,
+                           const V<T> v,
+                           const int k,
+                           const Op op,
+                           const Transpose trans) {
   switch (op){
     case Add:
-    switch (type){
-      case Float:  Gather<float  , Op_Add>
-                    (static_cast<float  *>(gv),
-                     static_cast<const float  *>( v),
-                     k, trans); break;
-      case Double: Gather<double , Op_Add>
-                    (static_cast<double  *>(gv),
-                     static_cast<const double  *>( v),
-                     k, trans); break;
-      case Int32:  Gather<int32_t, Op_Add>
-                    (static_cast<int32_t  *>(gv),
-                     static_cast<const int32_t  *>( v),
-                     k, trans); break;
-      case Int64:  Gather<int64_t, Op_Add>
-                    (static_cast<int64_t  *>(gv),
-                     static_cast<const int64_t  *>( v),
-                     k, trans); break;
-    }
-    break;
+      Gather<U, V, Op_Add, T>(gv, v, k, trans); break;
     case Mul:
-    switch (type){
-      case Float:  Gather<float  , Op_Mul>
-                    (static_cast<float  *>(gv),
-                     static_cast<const float  *>( v),
-                     k, trans); break;
-      case Double: Gather<double , Op_Mul>
-                    (static_cast<double  *>(gv),
-                     static_cast<const double  *>( v),
-                     k, trans); break;
-      case Int32:  Gather<int32_t, Op_Mul>
-                    (static_cast<int32_t  *>(gv),
-                     static_cast<const int32_t  *>( v),
-                     k, trans); break;
-      case Int64:  Gather<int64_t, Op_Mul>
-                    (static_cast<int64_t  *>(gv),
-                     static_cast<const int64_t  *>( v),
-                     k, trans); break;
-    }
-    break;
+      Gather<U, V, Op_Mul, T>(gv, v, k, trans); break;
     case Max:
-    switch (type){
-      case Float:  Gather<float  , Op_Max>
-                    (static_cast<float  *>(gv),
-                     static_cast<const float  *>( v),
-                     k, trans); break;
-      case Double: Gather<double , Op_Max>
-                    (static_cast<double  *>(gv),
-                     static_cast<const double  *>( v),
-                     k, trans); break;
-      case Int32:  Gather<int32_t, Op_Max>
-                    (static_cast<int32_t  *>(gv),
-                     static_cast<const int32_t  *>( v),
-                     k, trans); break;
-      case Int64:  Gather<int64_t, Op_Max>
-                    (static_cast<int64_t  *>(gv),
-                     static_cast<const int64_t  *>( v),
-                     k, trans); break;
-    }
-    break;
+      Gather<U, V, Op_Max, T>(gv, v, k, trans); break;
     case Min:
-    switch (type){
-      case Float:  Gather<float  , Op_Min>
-                    (static_cast<float  *>(gv),
-                     static_cast<const float  *>( v),
-                     k, trans); break;
-      case Double: Gather<double , Op_Min>
-                    (static_cast<double  *>(gv),
-                     static_cast<const double  *>( v),
-                     k, trans); break;
-      case Int32:  Gather<int32_t, Op_Min>
-                    (static_cast<int32_t  *>(gv),
-                     static_cast<const int32_t  *>( v),
-                     k, trans); break;
-      case Int64:  Gather<int64_t, Op_Min>
-                    (static_cast<int64_t  *>(gv),
-                     static_cast<const int64_t  *>( v),
-                     k, trans); break;
-    }
-    break;
+      Gather<U, V, Op_Min, T>(gv, v, k, trans); break;
   }
 }
 
-void ogsOperator_t::Gather(occa::memory&  o_gv,
-                            occa::memory&  o_v,
-                            const int k,
-                            const Type type,
-                            const Op op,
-                            const Transpose trans) {
+template
+void ogsOperator_t::Gather(memory<float> gv, const memory<float> v,
+                           const int k, const Op op, const Transpose trans);
+template
+void ogsOperator_t::Gather(memory<double> gv, const memory<double> v,
+                           const int k, const Op op, const Transpose trans);
+template
+void ogsOperator_t::Gather(memory<int> gv, const memory<int> v,
+                           const int k, const Op op, const Transpose trans);
+template
+void ogsOperator_t::Gather(memory<long long int> gv, const memory<long long int> v,
+                           const int k, const Op op, const Transpose trans);
+
+template
+void ogsOperator_t::Gather(pinnedMemory<float> gv, const memory<float> v,
+                           const int k, const Op op, const Transpose trans);
+template
+void ogsOperator_t::Gather(pinnedMemory<double> gv, const memory<double> v,
+                           const int k, const Op op, const Transpose trans);
+template
+void ogsOperator_t::Gather(pinnedMemory<int> gv, const memory<int> v,
+                           const int k, const Op op, const Transpose trans);
+template
+void ogsOperator_t::Gather(pinnedMemory<long long int> gv, const memory<long long int> v,
+                           const int k, const Op op, const Transpose trans);
+
+template
+void ogsOperator_t::Gather(pinnedMemory<float> gv, const pinnedMemory<float> v,
+                           const int k, const Op op, const Transpose trans);
+template
+void ogsOperator_t::Gather(pinnedMemory<double> gv, const pinnedMemory<double> v,
+                           const int k, const Op op, const Transpose trans);
+template
+void ogsOperator_t::Gather(pinnedMemory<int> gv, const pinnedMemory<int> v,
+                           const int k, const Op op, const Transpose trans);
+template
+void ogsOperator_t::Gather(pinnedMemory<long long int> gv, const pinnedMemory<long long int> v,
+                           const int k, const Op op, const Transpose trans);
+
+
+template<typename T>
+void ogsOperator_t::Gather(deviceMemory<T> o_gv,
+                           deviceMemory<T> o_v,
+                           const int k,
+                           const Op op,
+                           const Transpose trans) {
+  constexpr Type type = ogsType<T>::get();
   InitializeKernels(platform, type, op);
 
   if (trans==NoTrans) {
@@ -209,14 +186,28 @@ void ogsOperator_t::Gather(occa::memory&  o_gv,
   }
 }
 
+template
+void ogsOperator_t::Gather(deviceMemory<float> gv, const deviceMemory<float> v,
+                           const int k, const Op op, const Transpose trans);
+template
+void ogsOperator_t::Gather(deviceMemory<double> gv, const deviceMemory<double> v,
+                           const int k, const Op op, const Transpose trans);
+template
+void ogsOperator_t::Gather(deviceMemory<int> gv, const deviceMemory<int> v,
+                           const int k, const Op op, const Transpose trans);
+template
+void ogsOperator_t::Gather(deviceMemory<long long int> gv, const deviceMemory<long long int> v,
+                           const int k, const Op op, const Transpose trans);
+
+
 /********************************
  * Scatter Operation
  ********************************/
-template <typename T>
-void ogsOperator_t::Scatter(T* v,
-                            const T* gv,
-                            const int K,
-                            const Transpose trans) {
+template <template<typename> class U,
+          template<typename> class V,
+          typename T>
+void ogsOperator_t::Scatter(U<T> v, const V<T> gv,
+                            const int K, const Transpose trans) {
 
   dlong Nrows;
   dlong *rowStarts, *colIds;
@@ -230,6 +221,9 @@ void ogsOperator_t::Scatter(T* v,
     colIds = colIdsT.ptr();
   }
 
+  T* v_ptr  = v.ptr();
+  const T* gv_ptr = gv.ptr();
+
   #pragma omp parallel for
   for(dlong n=0;n<Nrows;++n){
     const dlong start = rowStarts[n];
@@ -237,40 +231,44 @@ void ogsOperator_t::Scatter(T* v,
 
     for(dlong g=start;g<end;++g){
       for (int k=0;k<K;++k) {
-        v[k+colIds[g]*K] = gv[k+n*K];
+        v_ptr[k+colIds[g]*K] = gv_ptr[k+n*K];
       }
     }
   }
 }
 
-void ogsOperator_t::Scatter(void* v,
-                             const void* gv,
-                             const int k,
-                             const Type type,
-                             const Op op,
-                             const Transpose trans) {
-  switch (type){
-    case Float:  Scatter<float  >(static_cast<float  *>(v),
-                                  static_cast<const float  *>(gv),
-                                  k, trans); break;
-    case Double: Scatter<double >(static_cast<double *>(v),
-                                  static_cast<const double *>(gv),
-                                  k, trans); break;
-    case Int32:  Scatter<int32_t>(static_cast<int32_t*>(v),
-                                  static_cast<const int32_t*>(gv),
-                                  k, trans); break;
-    case Int64:  Scatter<int64_t>(static_cast<int64_t*>(v),
-                                  static_cast<const int64_t*>(gv),
-                                  k, trans); break;
-  }
-}
+template
+void ogsOperator_t::Scatter(memory<float> v, const memory<float> gv,
+                            const int K, const Transpose trans);
+template
+void ogsOperator_t::Scatter(memory<double> v, const memory<double> gv,
+                            const int K, const Transpose trans);
+template
+void ogsOperator_t::Scatter(memory<int> v, const memory<int> gv,
+                            const int K, const Transpose trans);
+template
+void ogsOperator_t::Scatter(memory<long long int> v, const memory<long long int> gv,
+                            const int K, const Transpose trans);
 
-void ogsOperator_t::Scatter(occa::memory&  o_v,
-                             occa::memory&  o_gv,
-                             const int k,
-                             const Type type,
-                             const Op op,
-                             const Transpose trans) {
+template
+void ogsOperator_t::Scatter(memory<float> v, const pinnedMemory<float> gv,
+                            const int K, const Transpose trans);
+template
+void ogsOperator_t::Scatter(memory<double> v, const pinnedMemory<double> gv,
+                            const int K, const Transpose trans);
+template
+void ogsOperator_t::Scatter(memory<int> v, const pinnedMemory<int> gv,
+                            const int K, const Transpose trans);
+template
+void ogsOperator_t::Scatter(memory<long long int> v, const pinnedMemory<long long int> gv,
+                            const int K, const Transpose trans);
+
+template<typename T>
+void ogsOperator_t::Scatter(deviceMemory<T> o_v,
+                            deviceMemory<T> o_gv,
+                            const int k,
+                            const Transpose trans) {
+  constexpr Type type = ogsType<T>::get();
   InitializeKernels(platform, type, Add);
 
   if (trans==Trans) {
@@ -294,12 +292,26 @@ void ogsOperator_t::Scatter(occa::memory&  o_v,
   }
 }
 
+template
+void ogsOperator_t::Scatter(deviceMemory<float> v, const deviceMemory<float> gv,
+                            const int K, const Transpose trans);
+template
+void ogsOperator_t::Scatter(deviceMemory<double> v, const deviceMemory<double> gv,
+                            const int K, const Transpose trans);
+template
+void ogsOperator_t::Scatter(deviceMemory<int> v, const deviceMemory<int> gv,
+                            const int K, const Transpose trans);
+template
+void ogsOperator_t::Scatter(deviceMemory<long long int> v, const deviceMemory<long long int> gv,
+                            const int K, const Transpose trans);
+
 /********************************
  * GatherScatter Operation
  ********************************/
-template <typename T, template<typename> class Op>
-void ogsOperator_t::GatherScatter(T* v,
-                                  const int K,
+template <template<typename> class U,
+          template<typename> class Op,
+          typename T>
+void ogsOperator_t::GatherScatter(U<T> v, const int K,
                                   const Transpose trans) {
 
   dlong Nrows;
@@ -326,6 +338,8 @@ void ogsOperator_t::GatherScatter(T* v,
     sColIds    = colIdsT.ptr();
   }
 
+  T* v_ptr = v.ptr();
+
   #pragma omp parallel for
   for(dlong n=0;n<Nrows;++n){
     const dlong gstart = gRowStarts[n];
@@ -336,77 +350,52 @@ void ogsOperator_t::GatherScatter(T* v,
     for (int k=0;k<K;++k) {
       T val = Op<T>().init();
       for(dlong g=gstart;g<gend;++g){
-        Op<T>()(val, v[k+gColIds[g]*K]);
+        Op<T>()(val, v_ptr[k+gColIds[g]*K]);
       }
       for(dlong s=sstart;s<send;++s){
-        v[k+sColIds[s]*K] = val;
+        v_ptr[k+sColIds[s]*K] = val;
       }
     }
   }
 }
 
-void ogsOperator_t::GatherScatter(void* v,
+template <template<typename> class U,
+          typename T>
+void ogsOperator_t::GatherScatter(U<T> v,
                                   const int k,
-                                  const Type type,
                                   const Op op,
                                   const Transpose trans) {
   switch (op){
     case Add:
-    switch (type){
-      case Float:  GatherScatter<float  , Op_Add>
-                    (static_cast<float  *>(v), k, trans); break;
-      case Double: GatherScatter<double , Op_Add>
-                    (static_cast<double *>(v), k, trans); break;
-      case Int32:  GatherScatter<int32_t, Op_Add>
-                    (static_cast<int32_t*>(v), k, trans); break;
-      case Int64:  GatherScatter<int64_t, Op_Add>
-                    (static_cast<int64_t*>(v), k, trans); break;
-    }
-    break;
+      GatherScatter<U, Op_Add, T>(v, k, trans); break;
     case Mul:
-    switch (type){
-      case Float:  GatherScatter<float  , Op_Mul>
-                    (static_cast<float  *>(v), k, trans); break;
-      case Double: GatherScatter<double , Op_Mul>
-                    (static_cast<double *>(v), k, trans); break;
-      case Int32:  GatherScatter<int32_t, Op_Mul>
-                    (static_cast<int32_t*>(v), k, trans); break;
-      case Int64:  GatherScatter<int64_t, Op_Mul>
-                    (static_cast<int64_t*>(v), k, trans); break;
-    }
-    break;
+      GatherScatter<U, Op_Mul, T>(v, k, trans); break;
     case Max:
-    switch (type){
-      case Float:  GatherScatter<float  , Op_Max>
-                    (static_cast<float  *>(v), k, trans); break;
-      case Double: GatherScatter<double , Op_Max>
-                    (static_cast<double *>(v), k, trans); break;
-      case Int32:  GatherScatter<int32_t, Op_Max>
-                    (static_cast<int32_t*>(v), k, trans); break;
-      case Int64:  GatherScatter<int64_t, Op_Max>
-                    (static_cast<int64_t*>(v), k, trans); break;
-    }
-    break;
+      GatherScatter<U, Op_Max, T>(v, k, trans); break;
     case Min:
-    switch (type){
-      case Float:  GatherScatter<float  , Op_Min>
-                    (static_cast<float  *>(v), k, trans); break;
-      case Double: GatherScatter<double , Op_Min>
-                    (static_cast<double *>(v), k, trans); break;
-      case Int32:  GatherScatter<int32_t, Op_Min>
-                    (static_cast<int32_t*>(v), k, trans); break;
-      case Int64:  GatherScatter<int64_t, Op_Min>
-                    (static_cast<int64_t*>(v), k, trans); break;
-    }
-    break;
+      GatherScatter<U, Op_Min, T>(v, k, trans); break;
   }
 }
 
-void ogsOperator_t::GatherScatter(occa::memory&  o_v,
+template
+void ogsOperator_t::GatherScatter(memory<float> v,const int k,
+                                  const Op op, const Transpose trans);
+template
+void ogsOperator_t::GatherScatter(memory<double> v,const int k,
+                                  const Op op, const Transpose trans);
+template
+void ogsOperator_t::GatherScatter(memory<int> v,const int k,
+                                  const Op op, const Transpose trans);
+template
+void ogsOperator_t::GatherScatter(memory<long long int> v,const int k,
+                                  const Op op, const Transpose trans);
+
+template<typename T>
+void ogsOperator_t::GatherScatter(deviceMemory<T> o_v,
                                   const int k,
-                                  const Type type,
                                   const Op op,
                                   const Transpose trans) {
+  constexpr Type type = ogsType<T>::get();
   InitializeKernels(platform, type, Add);
 
   if (trans==Trans) {
@@ -442,6 +431,19 @@ void ogsOperator_t::GatherScatter(occa::memory&  o_v,
   }
 }
 
+template
+void ogsOperator_t::GatherScatter(deviceMemory<float> v,const int k,
+                                  const Op op, const Transpose trans);
+template
+void ogsOperator_t::GatherScatter(deviceMemory<double> v,const int k,
+                                  const Op op, const Transpose trans);
+template
+void ogsOperator_t::GatherScatter(deviceMemory<int> v,const int k,
+                                  const Op op, const Transpose trans);
+template
+void ogsOperator_t::GatherScatter(deviceMemory<long long int> v,const int k,
+                                  const Op op, const Transpose trans);
+
 void ogsOperator_t::setupRowBlocks() {
 
   dlong blockSumN=0, blockSumT=0;
@@ -452,24 +454,15 @@ void ogsOperator_t::setupRowBlocks() {
 
   for (dlong i=0;i<NrowsT;i++) {
     const dlong rowSizeN  = rowStartsN[i+1]-rowStartsN[i];
-
-    if (rowSizeN > gatherNodesPerBlock) {
-      //this row is pathalogically big. We can't currently run this
-      std::stringstream ss;
-      ss << "Multiplicity of global node id: " << i
-         << " in ogsOperator_t::setupRowBlocks is too large.";
-      HIPBONE_ABORT(ss.str())
-    }
-
     const dlong rowSizeT  = rowStartsT[i+1]-rowStartsT[i];
 
-    if (rowSizeT > gatherNodesPerBlock) {
-      //this row is pathalogically big. We can't currently run this
-      std::stringstream ss;
-      ss << "Multiplicity of global node id: " << i
-         << " in ogsOperator_t::setupRowBlocks is too large.";
-      HIPBONE_ABORT(ss.str())
-    }
+    //this row is pathalogically big. We can't currently run this
+    LIBP_ABORT("Multiplicity of global node id: " << i
+               << " in ogsOperator_t::setupRowBlocks is too large.",
+               rowSizeN > gatherNodesPerBlock);
+    LIBP_ABORT("Multiplicity of global node id: " << i
+               << " in ogsOperator_t::setupRowBlocks is too large.",
+               rowSizeT > gatherNodesPerBlock);
 
     if (blockSumN+rowSizeN > gatherNodesPerBlock) { //adding this row will exceed the nnz per block
       NrowBlocksN++; //count the previous block
@@ -544,47 +537,44 @@ void ogsOperator_t::Free() {
 }
 
 
-template<typename T>
+template <template<typename> class U,
+          template<typename> class V,
+          typename T>
 void extract(const dlong N,
              const int K,
-             const dlong *ids,
-             const T *q,
-             T *gatherq) {
+             const memory<dlong> ids,
+             const U<T> q,
+             V<T> gatherq) {
+
+  const T* q_ptr = q.ptr();
+  T* gatherq_ptr = gatherq.ptr();
 
   for(dlong n=0;n<N;++n){
     const dlong gid = ids[n];
 
     for (int k=0;k<K;++k) {
-      gatherq[k+n*K] = q[k+gid*K];
+      gatherq_ptr[k+n*K] = q_ptr[k+gid*K];
     }
   }
 }
 
-void extract(const dlong N,
-             const int K,
-             const Type type,
-             const dlong *ids,
-             const void *q,
-             void *gatherq) {
-  switch (type){
-    case Float:  extract<float  >(N, K, ids,
-                                 static_cast<const float  *>(q),
-                                 static_cast<float  *>(gatherq));
-                 break;
-    case Double: extract<double >(N, K, ids,
-                                 static_cast<const double*>(q),
-                                 static_cast<double*>(gatherq));
-                 break;
-    case Int32:  extract<int32_t>(N, K, ids,
-                                 static_cast<const int32_t*>(q),
-                                 static_cast<int32_t*>(gatherq));
-                 break;
-    case Int64:  extract<int64_t>(N, K, ids,
-                                 static_cast<const int64_t*>(q),
-                                 static_cast<int64_t*>(gatherq));
-                 break;
-  }
-}
+template void extract(const dlong N, const int K, const memory<dlong> ids,
+                      const memory<float> q, memory<float> gatherq);
+template void extract(const dlong N, const int K, const memory<dlong> ids,
+                      const memory<double> q, memory<double> gatherq);
+template void extract(const dlong N, const int K, const memory<dlong> ids,
+                      const memory<int> q, memory<int> gatherq);
+template void extract(const dlong N, const int K, const memory<dlong> ids,
+                      const memory<long long int> q, memory<long long int> gatherq);
+
+template void extract(const dlong N, const int K, const memory<dlong> ids,
+                      const pinnedMemory<float> q, pinnedMemory<float> gatherq);
+template void extract(const dlong N, const int K, const memory<dlong> ids,
+                      const pinnedMemory<double> q, pinnedMemory<double> gatherq);
+template void extract(const dlong N, const int K, const memory<dlong> ids,
+                      const pinnedMemory<int> q, pinnedMemory<int> gatherq);
+template void extract(const dlong N, const int K, const memory<dlong> ids,
+                      const pinnedMemory<long long int> q, pinnedMemory<long long int> gatherq);
 
 } //namespace ogs
 

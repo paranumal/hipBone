@@ -27,28 +27,11 @@ SOFTWARE.
 #ifndef CORE_HPP
 #define CORE_HPP
 
-#include <mpi.h>
-#include <occa.h>
-#include <string>
-#include <cstring>
-#include <algorithm>
-#include <cmath>
 #include "utils.hpp"
 #include "memory.hpp"
+#include "comm.hpp"
 
 namespace libp {
-
-void matrixRightSolve(int NrowsA, int NcolsA, double *A, int NrowsB, int NcolsB, double *B, double *C);
-void matrixRightSolve(int NrowsA, int NcolsA, float *A, int NrowsB, int NcolsB, float *B, float *C);
-
-void matrixEigenVectors(int N, double *A, double *VR, double *WR, double *WI);
-void matrixEigenVectors(int N, float *A, float *VR, float *WR, float *WI);
-
-void matrixEigenValues(int N, double *A, double *WR, double *WI);
-void matrixEigenValues(int N, float *A, float *WR, float *WI);
-
-void matrixInverse(int N, double *A);
-void matrixInverse(int N, float *A);
 
 void RankDecomp(int  size_x, int  size_y, int  size_z,
                 int &rank_x, int &rank_y, int &rank_z,

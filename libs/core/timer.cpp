@@ -24,29 +24,37 @@ SOFTWARE.
 
 */
 
-#include "hipBone.hpp"
+#include "timer.hpp"
 
-//settings for hipBone solver
-hipBoneSettings_t::hipBoneSettings_t(const int argc, char** argv, comm_t _comm):
-  settings_t(_comm) {
+namespace libp {
 
-  platformAddSettings(*this);
-  meshAddSettings(*this);
-
-  newSetting("-v", "--verbose",
-             "VERBOSE",
-             "FALSE",
-             "Enable verbose output",
-             {"TRUE", "FALSE"});
-
-  parseSettings(argc, argv);
+/* Host time*/
+timePoint_t Time() {
+  return std::chrono::high_resolution_clock::now();
 }
 
-void hipBoneSettings_t::report() {
-
-  if (comm.rank()==0) {
-    std::cout << "Settings:\n\n";
-    platformReportSettings(*this);
-    meshReportSettings(*this);
-  }
+/* Host time after global sync*/
+timePoint_t GlobalTime(comm_t comm) {
+  comm.Barrier();
+  return Time();
 }
+
+/* Host time after platform sync*/
+timePoint_t PlatformTime(platform_t &platform) {
+  platform.finish();
+  return Time();
+}
+
+/* Host time after platform sync*/
+timePoint_t GlobalPlatformTime(platform_t &platform) {
+  platform.finish();
+  platform.comm.Barrier();
+  return Time();
+}
+
+/*Time between time points, in seconds*/
+double ElapsedTime(const timePoint_t start, const timePoint_t end) {
+  return std::chrono::duration_cast<std::chrono::microseconds>(end-start).count()/(1.0e6);
+}
+
+} //namespace libp

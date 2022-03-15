@@ -34,172 +34,329 @@ namespace libp {
 namespace ogs {
 
 /********************************
- * Exchange
+ * Device Exchange
  ********************************/
-void halo_t::Exchange(occa::memory& o_v,
-                      const int k,
-                      const Type type) {
-  ExchangeStart (o_v, k, type);
-  ExchangeFinish(o_v, k, type);
+template<typename T>
+void halo_t::Exchange(deviceMemory<T> o_v, const int k) {
+  ExchangeStart (o_v, k);
+  ExchangeFinish(o_v, k);
 }
 
-void halo_t::ExchangeStart(occa::memory& o_v,
-                           const int k,
-                           const Type type){
-  exchange->AllocBuffer(k*Sizeof(type));
+template<typename T>
+void halo_t::ExchangeStart(deviceMemory<T> o_v, const int k){
+  exchange->AllocBuffer(k*sizeof(T));
 
-  //collect halo buffer
-  if (gathered_halo) {
-    //if this halo was build from a gathered ogs the halo nodes are at the end
-    if (NhaloP)
-      exchange->o_haloBuf.copyFrom(o_v + k*NlocalT*Sizeof(type),
-                                   k*NhaloP*Sizeof(type), 0, 0, "async: true");
+  deviceMemory<T> o_haloBuf = exchange->o_workspace;
+
+  if (exchange->gpu_aware) {
+    if (gathered_halo) {
+      //if this halo was build from a gathered ogs the halo nodes are at the end
+      o_haloBuf.copyFrom(o_v + k*NlocalT, k*NhaloP,
+                         0, "async: true");
+    } else {
+      //collect halo buffer
+      gatherHalo->Gather(o_haloBuf, o_v, k, Add, NoTrans);
+    }
+
+    //prepare MPI exchange
+    exchange->Start(o_haloBuf, k, Add, NoTrans);
+
   } else {
-    gatherHalo->Gather(exchange->o_haloBuf, o_v,
-                        k, type, Add, NoTrans);
-  }
+    //get current stream
+    device_t &device = platform.device;
+    stream_t currentStream = device.getStream();
 
-  //prepare MPI exchange
-  exchange->Start(k, type, Add, NoTrans);
+    //if not using gpu-aware mpi move the halo buffer to the host
+    pinnedMemory<T> haloBuf = exchange->h_workspace;
+
+    if (gathered_halo) {
+      //wait for o_v to be ready
+      device.finish();
+
+      //queue copy to host
+      device.setStream(dataStream);
+      haloBuf.copyFrom(o_v + k*NlocalT, NhaloP*k,
+                       0, "async: true");
+      device.setStream(currentStream);
+    } else {
+      //collect halo buffer
+      gatherHalo->Gather(o_haloBuf, o_v, k, Add, NoTrans);
+
+      //wait for o_haloBuf to be ready
+      device.finish();
+
+      //queue copy to host
+      device.setStream(dataStream);
+      haloBuf.copyFrom(o_haloBuf, NhaloP*k,
+                       0, "async: true");
+      device.setStream(currentStream);
+    }
+  }
 }
 
-void halo_t::ExchangeFinish(occa::memory& o_v,
-                            const int k,
-                            const Type type){
+template<typename T>
+void halo_t::ExchangeFinish(deviceMemory<T> o_v, const int k){
 
-  //finish MPI exchange
-  exchange->Finish(k, type, Add, NoTrans);
+  deviceMemory<T> o_haloBuf = exchange->o_workspace;
 
   //write exchanged halo buffer back to vector
-  if (gathered_halo) {
-    //if this halo was build from a gathered ogs the halo nodes are at the end
-    if (NhaloP)
-      exchange->o_haloBuf.copyTo(o_v + k*(NlocalT+NhaloP)*Sizeof(type),
-                                 k*Nhalo*Sizeof(type),
-                                 0, k*NhaloP*Sizeof(type), "async: true");
+  if (exchange->gpu_aware) {
+    //finish MPI exchange
+    exchange->Finish(o_haloBuf, k, Add, NoTrans);
+
+    if (gathered_halo) {
+      o_haloBuf.copyTo(o_v + k*(NlocalT+NhaloP), k*Nhalo,
+                       k*NhaloP, "async: true");
+    } else {
+      gatherHalo->Scatter(o_v, o_haloBuf, k, NoTrans);
+    }
   } else {
-    gatherHalo->Scatter(o_v, exchange->o_haloBuf,
-                        k, type, Add, NoTrans);
+    pinnedMemory<T> haloBuf = exchange->h_workspace;
+
+    //get current stream
+    device_t &device = platform.device;
+    stream_t currentStream = device.getStream();
+
+    //synchronize data stream to ensure the buffer is on the host
+    device.setStream(dataStream);
+    device.finish();
+
+    /*MPI exchange of host buffer*/
+    exchange->Start (haloBuf, k, Add, NoTrans);
+    exchange->Finish(haloBuf, k, Add, NoTrans);
+
+    // copy recv back to device
+    if (gathered_halo) {
+      haloBuf.copyTo(o_v + k*(NlocalT+NhaloP), k*Nhalo,
+                     k*NhaloP, "async: true");
+      device.finish(); //wait for transfer to finish
+      device.setStream(currentStream);
+    } else {
+      haloBuf.copyTo(o_haloBuf+k*NhaloP, k*Nhalo,
+                     k*NhaloP, "async: true");
+      device.finish(); //wait for transfer to finish
+      device.setStream(currentStream);
+
+      gatherHalo->Scatter(o_v, o_haloBuf, k, NoTrans);
+    }
   }
 }
+
+template void halo_t::Exchange(deviceMemory<float> o_v, const int k);
+template void halo_t::Exchange(deviceMemory<double> o_v, const int k);
+template void halo_t::Exchange(deviceMemory<int> o_v, const int k);
+template void halo_t::Exchange(deviceMemory<long long int> o_v, const int k);
 
 //host version
-void halo_t::Exchange(void* v,
-                      const int k,
-                      const Type type) {
-  exchange->AllocBuffer(k*Sizeof(type));
+template<typename T>
+void halo_t::Exchange(memory<T> v, const int k) {
+  ExchangeStart (v, k);
+  ExchangeFinish(v, k);
+}
+
+template<typename T>
+void halo_t::ExchangeStart(memory<T> v, const int k) {
+  exchange->AllocBuffer(k*sizeof(T));
+
+  pinnedMemory<T> haloBuf = exchange->h_workspace;
 
   //collect halo buffer
   if (gathered_halo) {
     //if this halo was build from a gathered ogs the halo nodes are at the end
-    std::memcpy(exchange->haloBuf,
-                static_cast<char*>(v) + k*NlocalT*Sizeof(type),
-                k*NhaloP*Sizeof(type));
+    haloBuf.copyFrom(v + k*NlocalT, k*NhaloP);
   } else {
-    gatherHalo->Gather(exchange->haloBuf, v,
-                       k, type, Add, NoTrans);
+    gatherHalo->Gather(haloBuf, v, k, Add, NoTrans);
   }
 
-  //MPI exchange
-  exchange->Start (k, type, Add, NoTrans, true);
-  exchange->Finish(k, type, Add, NoTrans, true);
+  //Prepare MPI exchange
+  exchange->Start(haloBuf, k, Add, NoTrans);
+}
+
+template<typename T>
+void halo_t::ExchangeFinish(memory<T> v, const int k) {
+
+  pinnedMemory<T> haloBuf = exchange->h_workspace;
+
+  //finish MPI exchange
+  exchange->Finish(haloBuf, k, Add, NoTrans);
 
   //write exchanged halo buffer back to vector
   if (gathered_halo) {
     //if this halo was build from a gathered ogs the halo nodes are at the end
-    std::memcpy(static_cast<char*>(v) + k*(NlocalT+NhaloP)*Sizeof(type),
-                static_cast<char*>(exchange->haloBuf)
-                                + k*NhaloP*Sizeof(type),
-                k*Nhalo*Sizeof(type));
+    haloBuf.copyTo(v + k*(NlocalT+NhaloP),
+                   k*Nhalo,
+                   k*NhaloP);
   } else {
-    gatherHalo->Scatter(v, exchange->haloBuf,
-                        k, type, Add, NoTrans);
+    gatherHalo->Scatter(v, haloBuf, k, NoTrans);
   }
 }
+
+template void halo_t::Exchange(memory<float> v, const int k);
+template void halo_t::Exchange(memory<double> v, const int k);
+template void halo_t::Exchange(memory<int> v, const int k);
+template void halo_t::Exchange(memory<long long int> v, const int k);
 
 /********************************
  * Combine
  ********************************/
-void halo_t::Combine(occa::memory& o_v,
-                     const int k,
-                     const Type type) {
-  CombineStart (o_v, k, type);
-  CombineFinish(o_v, k, type);
+template<typename T>
+void halo_t::Combine(deviceMemory<T> o_v, const int k) {
+  CombineStart (o_v, k);
+  CombineFinish(o_v, k);
 }
 
-void halo_t::CombineStart(occa::memory& o_v,
-                          const int k,
-                          const Type type){
-  exchange->AllocBuffer(k*Sizeof(type));
+template<typename T>
+void halo_t::CombineStart(deviceMemory<T> o_v, const int k){
+  exchange->AllocBuffer(k*sizeof(T));
 
-  //collect halo buffer
-  if (gathered_halo) {
-    //if this halo was build from a gathered ogs the halo nodes are at the end
-    if (NhaloT)
-      exchange->o_haloBuf.copyFrom(o_v + k*NlocalT*Sizeof(type),
-                                   k*NhaloT*Sizeof(type), 0, 0, "async: true");
+  deviceMemory<T> o_haloBuf = exchange->o_workspace;
+
+  if (exchange->gpu_aware) {
+    if (gathered_halo) {
+      //if this halo was build from a gathered ogs the halo nodes are at the end
+      o_haloBuf.copyFrom(o_v + k*NlocalT, k*NhaloT,
+                         0, "async: true");
+    } else {
+      //collect halo buffer
+      gatherHalo->Gather(o_haloBuf, o_v, k, Add, Trans);
+    }
+
+    //prepare MPI exchange
+    exchange->Start(o_haloBuf, k, Add, Trans);
   } else {
-    gatherHalo->Gather(exchange->o_haloBuf, o_v,
-                       k, type, Add, Trans);
-  }
+    //get current stream
+    device_t &device = platform.device;
+    stream_t currentStream = device.getStream();
 
-  //prepare MPI exchange
-  exchange->Start(k, type, Add, Trans);
+    //if not using gpu-aware mpi move the halo buffer to the host
+    pinnedMemory<T> haloBuf = exchange->h_workspace;
+
+    if (gathered_halo) {
+      //wait for o_v to be ready
+      device.finish();
+
+      //queue copy to host
+      device.setStream(dataStream);
+      haloBuf.copyFrom(o_v + k*NlocalT, NhaloT*k,
+                       0, "async: true");
+      device.setStream(currentStream);
+    } else {
+      //collect halo buffer
+      gatherHalo->Gather(o_haloBuf, o_v, k, Add, Trans);
+
+      //wait for o_haloBuf to be ready
+      device.finish();
+
+      //queue copy to host
+      device.setStream(dataStream);
+      haloBuf.copyFrom(o_haloBuf, NhaloT*k,
+                       0, "async: true");
+      device.setStream(currentStream);
+    }
+  }
 }
 
+template<typename T>
+void halo_t::CombineFinish(deviceMemory<T> o_v, const int k){
 
-void halo_t::CombineFinish(occa::memory& o_v,
-                           const int k,
-                           const Type type){
-
-  //finish MPI exchange
-  exchange->Finish(k, type, Add, Trans);
+  deviceMemory<T> o_haloBuf = exchange->o_workspace;
 
   //write exchanged halo buffer back to vector
-  if (gathered_halo) {
-    //if this halo was build from a gathered ogs the halo nodes are at the end
-    if (NhaloP)
-      exchange->o_haloBuf.copyTo(o_v + k*NlocalT*Sizeof(type),
-                                 k*NhaloP*Sizeof(type),
-                                 0, 0, "async: true");
+  if (exchange->gpu_aware) {
+    //finish MPI exchange
+    exchange->Finish(o_haloBuf, k, Add, Trans);
+
+    if (gathered_halo) {
+      //if this halo was build from a gathered ogs the halo nodes are at the end
+      o_haloBuf.copyTo(o_v + k*NlocalT, k*NhaloP,
+                       0, "async: true");
+    } else {
+      gatherHalo->Scatter(o_v, o_haloBuf, k, Trans);
+    }
   } else {
-    gatherHalo->Scatter(o_v, exchange->o_haloBuf,
-                        k, type, Add, Trans);
+    pinnedMemory<T> haloBuf = exchange->h_workspace;
+
+    //get current stream
+    device_t &device = platform.device;
+    stream_t currentStream = device.getStream();
+
+    //synchronize data stream to ensure the buffer is on the host
+    device.setStream(dataStream);
+    device.finish();
+
+    /*MPI exchange of host buffer*/
+    exchange->Start (haloBuf, k, Add, Trans);
+    exchange->Finish(haloBuf, k, Add, Trans);
+
+    if (gathered_halo) {
+      // copy recv back to device
+      haloBuf.copyTo(o_v + k*NlocalT, NhaloP*k,
+                     0, "async: true");
+      device.finish(); //wait for transfer to finish
+      device.setStream(currentStream);
+    } else {
+      haloBuf.copyTo(o_haloBuf, NhaloP*k,
+                     0, "async: true");
+      device.finish(); //wait for transfer to finish
+      device.setStream(currentStream);
+
+      gatherHalo->Scatter(o_v, o_haloBuf, k, Trans);
+    }
   }
 }
+
+template void halo_t::Combine(deviceMemory<float> o_v, const int k);
+template void halo_t::Combine(deviceMemory<double> o_v, const int k);
+template void halo_t::Combine(deviceMemory<int> o_v, const int k);
+template void halo_t::Combine(deviceMemory<long long int> o_v, const int k);
 
 //host version
-void halo_t::Combine(void* v,
-                     const int k,
-                     const Type type) {
-  exchange->AllocBuffer(k*Sizeof(type));
+template<typename T>
+void halo_t::Combine(memory<T> v, const int k) {
+  CombineStart (v, k);
+  CombineFinish(v, k);
+}
+
+template<typename T>
+void halo_t::CombineStart(memory<T> v, const int k) {
+  exchange->AllocBuffer(k*sizeof(T));
+
+  pinnedMemory<T> haloBuf = exchange->h_workspace;
 
   //collect halo buffer
   if (gathered_halo) {
     //if this halo was build from a gathered ogs the halo nodes are at the end
-    std::memcpy(exchange->haloBuf,
-                static_cast<char*>(v) + k*NlocalT*Sizeof(type),
-                k*NhaloT*Sizeof(type));
+    haloBuf.copyFrom(v + k*NlocalT, k*NhaloT);
   } else {
-    gatherHalo->Gather(exchange->haloBuf, v,
-                       k, type, Add, Trans);
+    gatherHalo->Gather(haloBuf, v, k, Add, Trans);
   }
 
-  //MPI exchange
-  exchange->Start (k, type, Add, Trans, true);
-  exchange->Finish(k, type, Add, Trans, true);
+  //Prepare MPI exchange
+  exchange->Start(haloBuf, k, Add, Trans);
+}
+
+
+template<typename T>
+void halo_t::CombineFinish(memory<T> v, const int k) {
+
+  pinnedMemory<T> haloBuf = exchange->h_workspace;
+
+  //finish MPI exchange
+  exchange->Finish(haloBuf, k, Add, Trans);
 
   //write exchanged halo buffer back to vector
   if (gathered_halo) {
     //if this halo was build from a gathered ogs the halo nodes are at the end
-    std::memcpy(static_cast<char*>(v) + k*NlocalT*Sizeof(type),
-                exchange->haloBuf,
-                k*NhaloP*Sizeof(type));
+    haloBuf.copyTo(v + k*NlocalT, k*NhaloP);
   } else {
-    gatherHalo->Scatter(v, exchange->haloBuf,
-                        k, type, Add, Trans);
+    gatherHalo->Scatter(v, haloBuf, k, Trans);
   }
 }
+
+template void halo_t::Combine(memory<float> v, const int k);
+template void halo_t::Combine(memory<double> v, const int k);
+template void halo_t::Combine(memory<int> v, const int k);
+template void halo_t::Combine(memory<long long int> v, const int k);
 
 } //namespace ogs
 

@@ -33,7 +33,7 @@ void mesh_t::ConnectFaceVertices(){
 
   //allocate and fill a halo region in element-to-vertex mapping
   EToV.realloc((Nelements+totalHaloPairs)*Nverts);
-  halo.Exchange(EToV.ptr(), Nverts, ogs::Hlong);
+  halo.Exchange(EToV, Nverts);
 
   /* volume indices of the interior and exterior face vertices for each element */
   VmapM.malloc(NfaceVertices*Nfaces*Nelements);

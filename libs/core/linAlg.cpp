@@ -35,37 +35,43 @@ namespace libp {
 /*********************/
 
 // o_x[n] = alpha
-void linAlg_t::set(const dlong N, const dfloat alpha, occa::memory& o_x) {
+void linAlg_t::set(const dlong N, const dfloat alpha,
+                   deviceMemory<dfloat> o_x) {
   setKernel(N, alpha, o_x);
 }
 
 // o_y[n] = beta*o_y[n] + alpha*o_x[n]
-void linAlg_t::axpy(const dlong N, const dfloat alpha, occa::memory& o_x,
-                    const dfloat beta,  occa::memory& o_y) {
+void linAlg_t::axpy(const dlong N,
+                    const dfloat alpha,
+                    deviceMemory<dfloat> o_x,
+                    const dfloat beta,
+                    deviceMemory<dfloat> o_y) {
   axpyKernel(N, alpha, o_x, beta, o_y);
 }
 
 // ||o_a||_2
-dfloat linAlg_t::norm2(const dlong N, occa::memory& o_a, MPI_Comm comm) {
-  //TODO, maybe complete reduction on device with second kernel?
+dfloat linAlg_t::norm2(const dlong N,
+                       deviceMemory<dfloat> o_a, comm_t comm) {
   int Nblock = (N+blocksize-1)/blocksize;
   Nblock = (Nblock>blocksize) ? blocksize : Nblock; //limit to blocksize entries
 
   norm2Kernel1(Nblock, N, o_a, o_scratch);
   norm2Kernel2(Nblock, o_scratch);
 
-  o_scratch.copyTo(scratch, 1*sizeof(dfloat), 0, "async: true");
-  platform->device.finish();
+  h_scratch.copyFrom(o_scratch, 1, 0, "async: true");
+  platform->finish();
 
-  dfloat norm = 0;
-  MPI_Allreduce(scratch, &norm, 1, MPI_DFLOAT, MPI_SUM, comm);
+  dfloat norm = h_scratch[0];
+  comm.Allreduce(norm);
 
   return sqrt(norm);
 }
 
 // o_x.o_y
-dfloat linAlg_t::innerProd(const dlong N, occa::memory& o_x, occa::memory& o_y,
-                           MPI_Comm comm) {
+dfloat linAlg_t::innerProd(const dlong N,
+                           deviceMemory<dfloat> o_x,
+                           deviceMemory<dfloat> o_y,
+                           comm_t comm) {
 
   int Nblock = (N+blocksize-1)/blocksize;
   Nblock = (Nblock>blocksize) ? blocksize : Nblock; //limit to blocksize entries
@@ -73,11 +79,11 @@ dfloat linAlg_t::innerProd(const dlong N, occa::memory& o_x, occa::memory& o_y,
   innerProdKernel1(Nblock, N, o_x, o_y, o_scratch);
   innerProdKernel2(Nblock, o_scratch);
 
-  o_scratch.copyTo(scratch, 1*sizeof(dfloat), 0, "async: true");
-  platform->device.finish();
+  h_scratch.copyFrom(o_scratch, 1, 0, "async: true");
+  platform->finish();
 
-  dfloat dot = 0;
-  MPI_Allreduce(scratch, &dot, 1, MPI_DFLOAT, MPI_SUM, comm);
+  dfloat dot = h_scratch[0];
+  comm.Allreduce(dot);
 
   return dot;
 }

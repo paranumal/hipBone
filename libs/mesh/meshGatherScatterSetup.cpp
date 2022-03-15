@@ -32,25 +32,25 @@ void mesh_t::GatherScatterSetup() {
 
   dlong Ntotal = Nverts*(Nelements+totalHaloPairs);
 
-  libp::memory<int> minRank(Ntotal);
-  libp::memory<int> maxRank(Ntotal);
+  memory<int> minRank(Ntotal);
+  memory<int> maxRank(Ntotal);
 
   for (dlong i=0;i<Ntotal;i++) {
     minRank[i] = rank;
     maxRank[i] = rank;
   }
 
-  hlong localChange = 0, gatherChange = 1;
+  hlong gatherChange = 1;
 
   // keep comparing numbers on positive and negative traces until convergence
   while(gatherChange>0){
 
     // reset change counter
-    localChange = 0;
+    gatherChange = 0;
 
     // send halo data and recv into extension of buffer
-    halo.Exchange(minRank.ptr(), Nverts, ogs::Int32);
-    halo.Exchange(maxRank.ptr(), Nverts, ogs::Int32);
+    halo.Exchange(minRank, Nverts);
+    halo.Exchange(maxRank, Nverts);
 
     // compare trace vertices
     #pragma omp parallel for collapse(2)
@@ -67,19 +67,19 @@ void mesh_t::GatherScatterSetup() {
         int maxRankP = maxRank[idP];
 
         if(minRankP<minRankM){
-          localChange=1;
+          gatherChange=1;
           minRank[idM] = minRankP;
         }
 
         if(maxRankP>maxRankM){
-          localChange=1;
+          gatherChange=1;
           maxRank[idM] = maxRankP;
         }
       }
     }
 
     // sum up changes
-    MPI_Allreduce(&localChange, &gatherChange, 1, MPI_HLONG, MPI_MAX, comm);
+    comm.Allreduce(gatherChange);
   }
 
   // count elements that contribute to global C0 gather-scatter
@@ -152,14 +152,14 @@ void mesh_t::GatherScatterSetup() {
   //use the masked ids to make another gs handle (signed so the gather is defined)
   bool verbose = platform.settings().compareSetting("VERBOSE", "TRUE");
   bool unique = true; //flag a unique node in every gather node
-  ogsMasked.Setup(Nelements*Np, maskedGlobalIds.ptr(),
+  ogsMasked.Setup(Nelements*Np, maskedGlobalIds,
                   comm, ogs::Signed, ogs::Auto,
                   unique, verbose, platform);
 
   gHalo.SetupFromGather(ogsMasked);
 
   GlobalToLocal.malloc(Nelements*Np);
-  ogsMasked.SetupGlobalToLocalMapping(GlobalToLocal.ptr());
+  ogsMasked.SetupGlobalToLocalMapping(GlobalToLocal);
 
   o_GlobalToLocal = platform.malloc(GlobalToLocal);
 
@@ -175,30 +175,30 @@ void mesh_t::GatherScatterSetup() {
   #pragma omp parallel for
   for(dlong n=0;n<Ntotal;++n) weight[n] = 1.0;
 
-  ogsMasked.Gather(weightG.ptr(), weight.ptr(), 1, ogs::Dfloat, ogs::Add, ogs::Trans);
+  ogsMasked.Gather(weightG, weight, 1, ogs::Add, ogs::Trans);
 
   #pragma omp parallel for
   for(dlong n=0;n<ogsMasked.Ngather;++n)
     if (weightG[n]) weightG[n] = 1./weightG[n];
 
-  ogsMasked.Scatter(weight.ptr(), weightG.ptr(), 1, ogs::Dfloat, ogs::Add, ogs::NoTrans);
+  ogsMasked.Scatter(weight, weightG, 1, ogs::NoTrans);
 
   // o_weight  = device.malloc(Ntotal*sizeof(dfloat), weight);
   // o_weightG = device.malloc(ogsMasked.Ngather*sizeof(dfloat), weightG);
 
   // create a global numbering system
-  libp::memory<hlong> newglobalIds(Ngather);
+  memory<hlong> newglobalIds(Ngather);
 
   // every gathered degree of freedom has its own global id
-  libp::memory<hlong> globalStarts(size+1, 0);
-  MPI_Allgather(&Ngather, 1, MPI_HLONG, globalStarts.ptr()+1, 1, MPI_HLONG, comm);
-  for(int rr=0;rr<size;++rr)
-    globalStarts[rr+1] = globalStarts[rr] + globalStarts[rr+1];
+  hlong localNgather = Ngather;
+  hlong gatherOffset = localNgather;
+  comm.Scan(localNgather, gatherOffset);
+  gatherOffset -= localNgather;
 
   //use the offsets to set a consecutive global numbering
   #pragma omp parallel for
   for (dlong n =0;n<ogsMasked.Ngather;n++) {
-    newglobalIds[n] = n + globalStarts[rank];
+    newglobalIds[n] = n + gatherOffset;
   }
 
   //scatter this numbering to the original nodes
@@ -207,7 +207,7 @@ void mesh_t::GatherScatterSetup() {
   #pragma omp parallel for
   for (dlong n=0;n<Ntotal;n++) maskedGlobalNumbering[n] = -1;
 
-  ogsMasked.Scatter(maskedGlobalNumbering.ptr(), newglobalIds.ptr(), 1, ogs::Hlong, ogs::Add, ogs::NoTrans);
+  ogsMasked.Scatter(maskedGlobalNumbering, newglobalIds, 1, ogs::NoTrans);
 }
 
 } //namespace libp

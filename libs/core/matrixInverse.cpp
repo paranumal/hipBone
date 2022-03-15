@@ -24,7 +24,7 @@ SOFTWARE.
 
 */
 
-#include "core.hpp"
+#include "linAlg.hpp"
 
 extern "C" {
   void dgetrf_(int* M, int *N, double* A, int* lda, int* IPIV, int* INFO);
@@ -36,7 +36,7 @@ extern "C" {
 
 namespace libp {
 
-void matrixInverse(int N, double *A){
+void linAlg_t::matrixInverse(int N, double *A){
   int lwork = N*N;
   int info;
 
@@ -46,25 +46,19 @@ void matrixInverse(int N, double *A){
 
   dgetrf_ (&N, &N, A, &N, ipiv, &info);
 
-  if(info) {
-    std::stringstream ss;
-    ss << "dgetrf_ reports info = " << info;
-    HIPBONE_ABORT(ss.str());
-  }
+  LIBP_ABORT("dgetrf_ reports info = " << info,
+                info);
 
   dgetri_ (&N, A, &N, ipiv, work, &lwork, &info);
 
-  if(info) {
-    std::stringstream ss;
-    ss << "dgetri_ reports info = " << info;
-    HIPBONE_ABORT(ss.str());
-  }
+  LIBP_ABORT("dgetri_ reports info = " << info,
+                info);
 
   free(work);
   free(ipiv);
 }
 
-void matrixInverse(int N, float *A){
+void linAlg_t::matrixInverse(int N, float *A){
   int lwork = N*N;
   int info;
 
@@ -74,19 +68,13 @@ void matrixInverse(int N, float *A){
 
   sgetrf_ (&N, &N, A, &N, ipiv, &info);
 
-  if(info) {
-    std::stringstream ss;
-    ss << "sgetrf_ reports info = " << info;
-    HIPBONE_ABORT(ss.str());
-  }
+  LIBP_ABORT("sgetrf_ reports info = " << info,
+                info);
 
   sgetri_ (&N, A, &N, ipiv, work, &lwork, &info);
 
-  if(info) {
-    std::stringstream ss;
-    ss << "sgetri_ reports info = " << info;
-    HIPBONE_ABORT(ss.str());
-  }
+  LIBP_ABORT("sgetri_ reports info = " << info,
+                info);
 
   free(work);
   free(ipiv);
