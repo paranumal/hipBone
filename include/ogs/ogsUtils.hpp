@@ -33,11 +33,6 @@ namespace libp {
 
 namespace ogs {
 
-extern MPI_Datatype MPI_PARALLELNODE_T;
-
-void InitMPIType();
-void DestroyMPIType();
-
 struct parallelNode_t{
 
   dlong localId;    // local node id
@@ -51,13 +46,28 @@ struct parallelNode_t{
 
 };
 
-size_t Sizeof(const Type type);
-MPI_Datatype MPI_Type(const Type type);
+template<typename T>
+struct ogsType {
+  static constexpr Type get();
+};
+
+template<> struct ogsType<float> {
+  static constexpr Type get() { return Float; }
+};
+template<> struct ogsType<double> {
+  static constexpr Type get() { return Double; }
+};
+template<> struct ogsType<int> {
+  static constexpr Type get() { return Int32; }
+};
+template<> struct ogsType<long long int> {
+  static constexpr Type get() { return Int64; }
+};
 
 //permute an array A, according to the ordering returned by P
 // i.e. for all n, A[P(n)] <- A[n]
 template<typename T, class Order>
-void permute(const dlong N, libp::memory<T> A, Order P) {
+void permute(const dlong N, memory<T> A, Order P) {
 
   for(dlong n=0;n<N;++n) {
     //get what index A[n] should move to

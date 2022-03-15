@@ -30,12 +30,10 @@ namespace libp {
 
 void mesh_t::OccaSetup(){
 
-  o_internalElementIds = platform.malloc(internalElementIds);
-  o_haloElementIds = platform.malloc(haloElementIds);
-  o_globalGatherElementList = platform.malloc(globalGatherElementList);
-  o_localGatherElementList = platform.malloc(localGatherElementList);
-
-  defaultStream = platform.device.getStream();
+  o_internalElementIds = platform.malloc<dlong>(internalElementIds);
+  o_haloElementIds = platform.malloc<dlong>(haloElementIds);
+  o_globalGatherElementList = platform.malloc<dlong>(globalGatherElementList);
+  o_localGatherElementList = platform.malloc<dlong>(localGatherElementList);
 
   props = platform.props(); //copy platform props
 
@@ -56,9 +54,8 @@ void mesh_t::OccaSetup(){
   props["defines/" "p_G22ID"]= G22ID;
   props["defines/" "p_GWJID"]= GWJID;
 
-  o_D = platform.malloc(D);
-
-  o_ggeo = platform.malloc(ggeo);
+  o_D = platform.malloc<dfloat>(D);
+  o_ggeo = platform.malloc<dfloat>(ggeo);
 }
 
 } //namespace libp

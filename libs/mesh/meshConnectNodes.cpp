@@ -31,18 +31,10 @@ namespace libp {
 // uniquely label each node with a global index, used for gatherScatter
 void mesh_t::ConnectNodes(){
 
-  dlong localNodeCount = Np*Nelements;
-  libp::memory<dlong> allLocalNodeCounts(platform.size);
-
-  MPI_Allgather(&localNodeCount,    1, MPI_DLONG,
-                allLocalNodeCounts.ptr(), 1, MPI_DLONG,
-                comm);
-
-  hlong gatherNodeStart = 0;
-  for(int rr=0;rr<rank;++rr)
-    gatherNodeStart += allLocalNodeCounts[rr];
-
-  allLocalNodeCounts.free();
+  hlong localNnodes = Np*Nelements;
+  hlong gatherNodeStart = localNnodes;
+  comm.Scan(localNnodes, gatherNodeStart);
+  gatherNodeStart -= localNnodes;
 
   // form continuous node numbering (local=>virtual gather)
   globalIds.malloc((totalHaloPairs+Nelements)*Np);
@@ -56,16 +48,16 @@ void mesh_t::ConnectNodes(){
     }
   }
 
-  hlong localChange = 0, gatherChange = 1;
+  hlong gatherChange = 1;
 
   // keep comparing numbers on positive and negative traces until convergence
   while(gatherChange>0){
 
     // reset change counter
-    localChange = 0;
+    gatherChange = 0;
 
     // send halo data and recv into extension of buffer
-    halo.Exchange(globalIds.ptr(), Np, ogs::Hlong);
+    halo.Exchange(globalIds, Np);
 
     // compare trace nodes
     #pragma omp parallel for collapse(2)
@@ -78,14 +70,14 @@ void mesh_t::ConnectNodes(){
         hlong gidP = globalIds[idP];
 
         if(gidP<gidM){
-          ++localChange;
+          ++gatherChange;
           globalIds[idM] = gidP;
         }
       }
     }
 
     // sum up changes
-    MPI_Allreduce(&localChange, &gatherChange, 1, MPI_HLONG, MPI_SUM, comm);
+    comm.Allreduce(gatherChange);
   }
 }
 

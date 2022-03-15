@@ -54,9 +54,7 @@ void platformReportSettings(settings_t& settings) {
   if (settings.compareSetting("THREAD MODEL","OpenCL"))
     settings.reportSetting("PLATFORM NUMBER");
 
-  int size;
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
-  if ((size==1)
+  if ((settings.comm.size()==1)
     &&(settings.compareSetting("THREAD MODEL","CUDA")
         ||settings.compareSetting("THREAD MODEL","HIP")
         ||settings.compareSetting("THREAD MODEL","OpenCL") ))

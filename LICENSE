@@ -1,8 +1,8 @@
-/*
+MIT License
 
-The MIT License (MIT)
+Copyright (c) 2019-2021 Parallel Numerical Algorithms Group @VT
 
-Copyright (c) 2020 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Contributors: Noel Chalmers, Tim Warburton, Abhishek Mishra, Damon McDougall
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,32 +21,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-*/
-
-#include "hipBone.hpp"
-
-//settings for hipBone solver
-hipBoneSettings_t::hipBoneSettings_t(const int argc, char** argv, comm_t _comm):
-  settings_t(_comm) {
-
-  platformAddSettings(*this);
-  meshAddSettings(*this);
-
-  newSetting("-v", "--verbose",
-             "VERBOSE",
-             "FALSE",
-             "Enable verbose output",
-             {"TRUE", "FALSE"});
-
-  parseSettings(argc, argv);
-}
-
-void hipBoneSettings_t::report() {
-
-  if (comm.rank()==0) {
-    std::cout << "Settings:\n\n";
-    platformReportSettings(*this);
-    meshReportSettings(*this);
-  }
-}

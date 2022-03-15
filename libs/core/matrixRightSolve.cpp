@@ -24,7 +24,7 @@ SOFTWARE.
 
 */
 
-#include "core.hpp"
+#include "linAlg.hpp"
 
 extern "C" {
   void dgesv_ ( int     *N, int     *NRHS, double  *A,
@@ -46,7 +46,7 @@ namespace libp {
 
 // C = A/B  = trans(trans(B)\trans(A))
 // assume row major
-void matrixRightSolve(int NrowsA, int NcolsA, double *A, int NrowsB, int NcolsB, double *B, double *C){
+void linAlg_t::matrixRightSolve(int NrowsA, int NcolsA, double *A, int NrowsB, int NcolsB, double *B, double *C){
 
   int info;
 
@@ -75,11 +75,8 @@ void matrixRightSolve(int NrowsA, int NcolsA, double *A, int NrowsB, int NcolsB,
 
   dgesv_(&NrowsX, &NcolsY, tmpX, &NrowsX, ipiv, tmpY, &NrowsY, &info); // ?
 
-  if(info) {
-    std::stringstream ss;
-    ss << "dgesv_ reports info = " << info;
-    HIPBONE_ABORT(ss.str());
-  }
+  LIBP_ABORT("dgesv_ reports info = " << info,
+                info);
 
   for(int n=0;n<NrowsY*NcolsY;++n){
     C[n] = tmpY[n];
@@ -93,7 +90,7 @@ void matrixRightSolve(int NrowsA, int NcolsA, double *A, int NrowsB, int NcolsB,
 
 // C = A/B  = trans(trans(B)\trans(A))
 // assume row major
-void matrixRightSolve(int NrowsA, int NcolsA, float *A, int NrowsB, int NcolsB, float *B, float *C){
+void linAlg_t::matrixRightSolve(int NrowsA, int NcolsA, float *A, int NrowsB, int NcolsB, float *B, float *C){
 
   int info;
 
@@ -122,11 +119,8 @@ void matrixRightSolve(int NrowsA, int NcolsA, float *A, int NrowsB, int NcolsB, 
 
   sgesv_(&NrowsX, &NcolsY, tmpX, &NrowsX, ipiv, tmpY, &NrowsY, &info); // ?
 
-  if(info) {
-    std::stringstream ss;
-    ss << "sgesv_ reports info = " << info;
-    HIPBONE_ABORT(ss.str());
-  }
+  LIBP_ABORT("sgesv_ reports info = " << info,
+                info);
 
   for(int n=0;n<NrowsY*NcolsY;++n){
     C[n] = tmpY[n];

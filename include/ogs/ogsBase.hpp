@@ -45,7 +45,7 @@ class halo_t;
 class ogsBase_t {
 public:
   platform_t platform;
-  MPI_Comm comm;
+  comm_t comm;
 
   dlong         N=0;
   dlong         Ngather=0;        //  total number of local positive gather nodes
@@ -61,13 +61,14 @@ public:
   bool unique=false;
   bool gather_defined=false;
 
+  static stream_t dataStream;
+
   ogsBase_t()=default;
-  ogsBase_t(platform_t& _platform);
   virtual ~ogsBase_t()=default;
 
   virtual void Setup(const dlong _N,
-                      hlong *ids,
-                      MPI_Comm _comm,
+                      memory<hlong> ids,
+                      comm_t _comm,
                       const Kind _kind,
                       const Method method,
                       const bool _unique,
@@ -84,22 +85,22 @@ protected:
 
 private:
   void FindSharedNodes(const dlong Nids,
-                       libp::memory<parallelNode_t> &nodes,
+                       memory<parallelNode_t> &nodes,
                        const int verbose);
 
   void ConstructSharedNodes(const dlong Nids,
-                           libp::memory<parallelNode_t> &nodes,
+                           memory<parallelNode_t> &nodes,
                            dlong &Nshared,
-                           libp::memory<parallelNode_t> &sharedNodes);
+                           memory<parallelNode_t> &sharedNodes);
 
-  void LocalSignedSetup(const dlong Nids, libp::memory<parallelNode_t> &nodes);
-  void LocalUnsignedSetup(const dlong Nids, libp::memory<parallelNode_t> &nodes);
-  void LocalHaloSetup(const dlong Nids, libp::memory<parallelNode_t> &nodes);
+  void LocalSignedSetup(const dlong Nids, memory<parallelNode_t> &nodes);
+  void LocalUnsignedSetup(const dlong Nids, memory<parallelNode_t> &nodes);
+  void LocalHaloSetup(const dlong Nids, memory<parallelNode_t> &nodes);
 
   ogsExchange_t* AutoSetup(dlong Nshared,
-                           libp::memory<parallelNode_t> &sharedNodes,
+                           memory<parallelNode_t> &sharedNodes,
                            ogsOperator_t& gatherHalo,
-                           MPI_Comm _comm,
+                           comm_t _comm,
                            platform_t &_platform,
                            const int verbose);
 };

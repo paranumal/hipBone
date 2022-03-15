@@ -39,128 +39,175 @@ namespace libp {
 
 namespace ogs {
 
-void ogsCrystalRouter_t::Start(const int k,
-                               const Type type,
-                               const Op op,
-                               const Transpose trans,
-                               const bool host){
+/**********************************
+* Host exchange
+***********************************/
+template<typename T>
+inline void ogsCrystalRouter_t::Start(pinnedMemory<T> &buf, const int k,
+                               const Op op, const Transpose trans){}
 
-  occa::device &device = platform.device;
+template<typename T>
+inline void ogsCrystalRouter_t::Finish(pinnedMemory<T> &buf, const int k,
+                                const Op op, const Transpose trans){
 
-  //get current stream
-  occa::stream currentStream = device.getStream();
 
-  const dlong N = (trans == NoTrans) ? NhaloP : Nhalo;
+  memory<crLevel> levels;
+  if (trans==NoTrans) {
+    levels = levelsN;
+  } else {
+    levels = levelsT;
+  }
 
-  if (N) {
-    if (!gpu_aware && !host) {
-      //if not using gpu-aware mpi and exchanging device buffers,
-      // move the halo buffer to the host
-      device.setStream(dataStream);
-      const size_t Nbytes = k*Sizeof(type);
-      o_haloBuf.copyTo(haloBuf, N*Nbytes, 0, "async: true");
-      device.setStream(currentStream);
+  pinnedMemory<T> sendBuf = h_sendspace;
+
+  // To start,    buf = h_workspace = h_work[(hbuf_id+0)%2];
+  //          sendBuf = h_sendspace;
+  for (int l=0;l<Nlevels;l++) {
+    pinnedMemory<T> recvBuf = h_workspace;
+
+    //post recvs
+    if (levels[l].Nmsg>0) {
+      comm.Irecv(recvBuf + levels[l].recvOffset*k,
+                 levels[l].partner,
+                 k*levels[l].Nrecv0,
+                 levels[l].partner,
+                 request[1]);
     }
+    if (levels[l].Nmsg==2) {
+      comm.Irecv(recvBuf + levels[l].recvOffset*k + levels[l].Nrecv0*k,
+                rank-1,
+                k*levels[l].Nrecv1,
+                rank-1,
+                request[2]);
+    }
+
+    //assemble send buffer
+    extract(levels[l].Nsend, k, levels[l].sendIds, buf, sendBuf);
+
+    //post send
+    comm.Isend(sendBuf,
+               levels[l].partner,
+               k*levels[l].Nsend,
+               rank,
+               request[0]);
+
+    comm.Waitall(levels[l].Nmsg+1, request);
+
+    //rotate buffers
+    h_workspace = h_work[(hbuf_id+1)%2];
+    hbuf_id = (hbuf_id+1)%2;
+
+    recvBuf = buf;
+    buf     = h_workspace;
+
+    //Gather the recv'd values into the haloBuffer
+    levels[l].gather.Gather(buf, recvBuf, k, op, Trans);
   }
 }
 
+void ogsCrystalRouter_t::Start(pinnedMemory<float> &buf, const int k, const Op op, const Transpose trans) { Start<float>(buf, k, op, trans); }
+void ogsCrystalRouter_t::Start(pinnedMemory<double> &buf, const int k, const Op op, const Transpose trans) { Start<double>(buf, k, op, trans); }
+void ogsCrystalRouter_t::Start(pinnedMemory<int> &buf, const int k, const Op op, const Transpose trans) { Start<int>(buf, k, op, trans); }
+void ogsCrystalRouter_t::Start(pinnedMemory<long long int> &buf, const int k, const Op op, const Transpose trans) { Start<long long int>(buf, k, op, trans); }
+void ogsCrystalRouter_t::Finish(pinnedMemory<float> &buf, const int k, const Op op, const Transpose trans) { Finish<float>(buf, k, op, trans); }
+void ogsCrystalRouter_t::Finish(pinnedMemory<double> &buf, const int k, const Op op, const Transpose trans) { Finish<double>(buf, k, op, trans); }
+void ogsCrystalRouter_t::Finish(pinnedMemory<int> &buf, const int k, const Op op, const Transpose trans) { Finish<int>(buf, k, op, trans); }
+void ogsCrystalRouter_t::Finish(pinnedMemory<long long int> &buf, const int k, const Op op, const Transpose trans) { Finish<long long int>(buf, k, op, trans); }
 
-void ogsCrystalRouter_t::Finish(const int k,
-                                const Type type,
-                                const Op op,
-                                const Transpose trans,
-                                const bool host){
+/**********************************
+* GPU-aware exchange
+***********************************/
+template<typename T>
+inline void ogsCrystalRouter_t::Start(deviceMemory<T> &o_buf,
+                                      const int k,
+                                      const Op op,
+                                      const Transpose trans){
+}
 
-  const size_t Nbytes = k*Sizeof(type);
-  occa::device &device = platform.device;
+template<typename T>
+inline void ogsCrystalRouter_t::Finish(deviceMemory<T> &o_buf,
+                                       const int k,
+                                       const Op op,
+                                       const Transpose trans){
+
+  device_t &device = platform.device;
 
   //get current stream
-  occa::stream currentStream = device.getStream();
+  stream_t currentStream = device.getStream();
 
   //the intermediate kernels are always overlapped with the default stream
   device.setStream(dataStream);
 
-  dlong N = (trans == NoTrans) ? NhaloP : Nhalo;
-
-  if (N && !gpu_aware && !host) {
-    //synchronize data stream to ensure the host buffer is on the host
-    device.finish();
+  memory<crLevel> levels;
+  if (trans==NoTrans) {
+    levels = levelsN;
+  } else {
+    levels = levelsT;
   }
 
-  libp::memory<crLevel> levels;
-  if (trans==NoTrans)
-    levels = levelsN;
-  else
-    levels = levelsT;
+  deviceMemory<T> o_sendBuf = o_sendspace;
 
+  // To start,    o_buf = o_workspace = o_work[(buf_id+0)%2];
+  //          o_sendBuf = o_sendspace
   for (int l=0;l<Nlevels;l++) {
-
-    char *sendPtr, *recvPtr;
-    if (gpu_aware && !host) { //device pointer
-      sendPtr = (char*)o_sendBuf.ptr();
-      recvPtr = (char*)o_haloBuf.ptr() + levels[l].recvOffset*Nbytes;
-    } else { //host pointer
-      sendPtr = sendBuf;
-      recvPtr = haloBuf + levels[l].recvOffset*Nbytes;
-    }
+    deviceMemory<T> o_recvBuf = o_workspace;
 
     //post recvs
     if (levels[l].Nmsg>0) {
-      MPI_Irecv(recvPtr, k*levels[l].Nrecv0, MPI_Type(type),
-                levels[l].partner, levels[l].partner, comm, request+1);
+      comm.Irecv(o_recvBuf + levels[l].recvOffset*k,
+                 levels[l].partner,
+                 k*levels[l].Nrecv0,
+                 levels[l].partner,
+                 request[1]);
     }
     if (levels[l].Nmsg==2) {
-      MPI_Irecv(recvPtr+levels[l].Nrecv0*Nbytes,
-                k*levels[l].Nrecv1, MPI_Type(type),
-                rank-1, rank-1, comm, request+2);
+      comm.Irecv(o_recvBuf + levels[l].recvOffset*k + levels[l].Nrecv0*k,
+                rank-1,
+                k*levels[l].Nrecv1,
+                rank-1,
+                request[2]);
     }
 
     //assemble send buffer
-    if (gpu_aware) {
-      if (levels[l].Nsend) {
-        extractKernel[type](levels[l].Nsend, k,
-                            levels[l].o_sendIds,
-                            o_haloBuf, o_sendBuf);
-        device.finish();
-      }
-    } else {
-      extract(levels[l].Nsend, k, type,
-              levels[l].sendIds.ptr(), haloBuf, sendBuf);
+    if (levels[l].Nsend) {
+      extractKernel[ogsType<T>::get()](levels[l].Nsend, k,
+                                       levels[l].o_sendIds,
+                                       o_buf, o_sendBuf);
+      device.finish();
     }
 
     //post send
-    MPI_Isend(sendPtr, k*levels[l].Nsend, MPI_Type(type),
-              levels[l].partner, rank, comm, request+0);
-    MPI_Waitall(levels[l].Nmsg+1, request, status);
+    comm.Isend(o_sendBuf,
+               levels[l].partner,
+               k*levels[l].Nsend,
+               rank,
+               request[0]);
+
+    comm.Waitall(levels[l].Nmsg+1, request);
 
     //rotate buffers
-    o_recvBuf = o_buf[(buf_id+0)%2];
-    o_haloBuf = o_buf[(buf_id+1)%2];
-    recvBuf = buf[(buf_id+0)%2];
-    haloBuf = buf[(buf_id+1)%2];
+    o_workspace = o_work[(buf_id+1)%2];
     buf_id = (buf_id+1)%2;
 
-    //Gather the recv'd values into the haloBuffer
-    if (gpu_aware) {
-      levels[l].gather.Gather(o_haloBuf, o_recvBuf,
-                               k, type, op, Trans);
-    } else {
-      levels[l].gather.Gather(haloBuf, recvBuf,
-                               k, type, op, Trans);
-    }
-  }
+    o_recvBuf = o_buf;
+    o_buf  = o_workspace;
 
-  N = (trans == Trans) ? NhaloP : Nhalo;
-  if (N) {
-    if (!gpu_aware && !host) {
-      // copy recv back to device
-      o_haloBuf.copyFrom(haloBuf, N*Nbytes, 0, "async: true");
-      device.finish(); //wait for transfer to finish
-    }
+    //Gather the recv'd values into the haloBuffer
+    levels[l].gather.Gather(o_buf, o_recvBuf, k, op, Trans);
   }
 
   device.setStream(currentStream);
 }
+
+void ogsCrystalRouter_t::Start(deviceMemory<float> &buf, const int k, const Op op, const Transpose trans) { Start<float>(buf, k, op, trans); }
+void ogsCrystalRouter_t::Start(deviceMemory<double> &buf, const int k, const Op op, const Transpose trans) { Start<double>(buf, k, op, trans); }
+void ogsCrystalRouter_t::Start(deviceMemory<int> &buf, const int k, const Op op, const Transpose trans) { Start<int>(buf, k, op, trans); }
+void ogsCrystalRouter_t::Start(deviceMemory<long long int> &buf, const int k, const Op op, const Transpose trans) { Start<long long int>(buf, k, op, trans); }
+void ogsCrystalRouter_t::Finish(deviceMemory<float> &buf, const int k, const Op op, const Transpose trans) { Finish<float>(buf, k, op, trans); }
+void ogsCrystalRouter_t::Finish(deviceMemory<double> &buf, const int k, const Op op, const Transpose trans) { Finish<double>(buf, k, op, trans); }
+void ogsCrystalRouter_t::Finish(deviceMemory<int> &buf, const int k, const Op op, const Transpose trans) { Finish<int>(buf, k, op, trans); }
+void ogsCrystalRouter_t::Finish(deviceMemory<long long int> &buf, const int k, const Op op, const Transpose trans) { Finish<long long int>(buf, k, op, trans); }
+
 
 /*
  *Crystal Router performs the needed MPI communcation via recursive
@@ -198,11 +245,12 @@ void ogsCrystalRouter_t::Finish(const int k,
  */
 
 ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
-                                       libp::memory<parallelNode_t> &sharedNodes,
+                                       memory<parallelNode_t> &sharedNodes,
                                        ogsOperator_t& gatherHalo,
-                                       MPI_Comm _comm,
+                                       stream_t _dataStream,
+                                       comm_t _comm,
                                        platform_t &_platform):
-  ogsExchange_t(_platform,_comm) {
+  ogsExchange_t(_platform,_comm,_dataStream) {
 
   NhaloP = gatherHalo.NrowsN;
   Nhalo  = gatherHalo.NrowsT;
@@ -229,6 +277,7 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
   levelsN.malloc(Nlevels);
   levelsT.malloc(Nlevels);
 
+  request.malloc(3);
 
   //Now build the levels
   Nlevels = 0;
@@ -236,7 +285,7 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
   np_offset=0;
 
   dlong N = Nshared + Nhalo;
-  libp::memory<parallelNode_t> nodes(N);
+  memory<parallelNode_t> nodes(N);
 
   //setup is easier if we include copies of the nodes we own
   // in the list of shared nodes
@@ -298,15 +347,15 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
 
     int Nsend=(is_lo) ? Nhi : Nlo;
 
-    MPI_Isend(&Nsend, 1, MPI_INT, partner, rank, comm, request+0);
+    comm.Isend(Nsend, partner, rank, request[0]);
 
     int Nrecv0=0, Nrecv1=0;
     if (Nmsg>0)
-      MPI_Irecv(&Nrecv0, 1, MPI_INT, partner, partner, comm, request+1);
+      comm.Irecv(Nrecv0, partner, partner, request[1]);
     if (Nmsg==2)
-      MPI_Irecv(&Nrecv1, 1, MPI_INT, r_half-1, r_half-1, comm, request+2);
+      comm.Irecv(Nrecv1, r_half-1, r_half-1, request[2]);
 
-    MPI_Waitall(Nmsg+1, request, status);
+    comm.Waitall(Nmsg+1, request);
 
     int Nrecv = Nrecv0+Nrecv1;
 
@@ -315,8 +364,8 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     else       Nhi+=Nrecv;
 
     //split node list in two
-    libp::memory<parallelNode_t> loNodes(Nlo);
-    libp::memory<parallelNode_t> hiNodes(Nhi);
+    memory<parallelNode_t> loNodes(Nlo);
+    memory<parallelNode_t> hiNodes(Nhi);
 
     Nlo=0, Nhi=0;
     for (dlong n=0;n<N;n++) {
@@ -334,7 +383,7 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     N     = is_lo ? Nlo+Nrecv : Nhi+Nrecv;
 
     const int offset = is_lo ? Nlo : Nhi;
-    libp::memory<parallelNode_t> sendNodes = is_lo ? hiNodes : loNodes;
+    memory<parallelNode_t> sendNodes = is_lo ? hiNodes : loNodes;
 
     //count how many entries from the halo buffer we're sending
     int NentriesSendN=0;
@@ -365,29 +414,29 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
     levelsN[Nlevels].o_sendIds = platform.malloc(levelsN[Nlevels].sendIds);
 
     //share the entry count with our partner
-    MPI_Isend(&NentriesSendT, 1, MPI_INT, partner, rank, comm, request+0);
+    comm.Isend(NentriesSendT, partner, rank, request[0]);
 
     int NentriesRecvT0=0, NentriesRecvT1=0;
     if (Nmsg>0)
-      MPI_Irecv(&NentriesRecvT0, 1, MPI_INT, partner, partner, comm, request+1);
+      comm.Irecv(NentriesRecvT0, partner, partner, request[1]);
     if (Nmsg==2)
-      MPI_Irecv(&NentriesRecvT1, 1, MPI_INT, r_half-1, r_half-1, comm, request+2);
+      comm.Irecv(NentriesRecvT1, r_half-1, r_half-1, request[2]);
 
-    MPI_Waitall(Nmsg+1, request, status);
+    comm.Waitall(Nmsg+1, request);
 
     levelsT[Nlevels].Nrecv0 = NentriesRecvT0;
     levelsT[Nlevels].Nrecv1 = NentriesRecvT1;
     levelsT[Nlevels].recvOffset = NhaloExtT;
 
-    MPI_Isend(&NentriesSendN, 1, MPI_INT, partner, rank, comm, request+0);
+    comm.Isend(NentriesSendN, partner, rank, request[0]);
 
     int NentriesRecvN0=0, NentriesRecvN1=0;
     if (Nmsg>0)
-      MPI_Irecv(&NentriesRecvN0, 1, MPI_INT, partner, partner, comm, request+1);
+      comm.Irecv(NentriesRecvN0, partner, partner, request[1]);
     if (Nmsg==2)
-      MPI_Irecv(&NentriesRecvN1, 1, MPI_INT, r_half-1, r_half-1, comm, request+2);
+      comm.Irecv(NentriesRecvN1, r_half-1, r_half-1, request[2]);
 
-    MPI_Waitall(Nmsg+1, request, status);
+    comm.Waitall(Nmsg+1, request);
 
     levelsN[Nlevels].Nrecv0 = NentriesRecvN0;
     levelsN[Nlevels].Nrecv1 = NentriesRecvN1;
@@ -399,18 +448,15 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
 
 
     //send half the list to our partner
-    MPI_Isend(sendNodes.ptr(), Nsend,
-              MPI_PARALLELNODE_T, partner, rank, comm, request+0);
+    comm.Isend(sendNodes, partner, Nsend, rank, request[0]);
 
     //recv new nodes from our partner(s)
     if (Nmsg>0)
-      MPI_Irecv(nodes.ptr()+offset,        Nrecv0,
-                MPI_PARALLELNODE_T, partner, partner, comm, request+1);
+      comm.Irecv(nodes+offset, partner, Nrecv0, partner, request[1]);
     if (Nmsg==2)
-      MPI_Irecv(nodes.ptr()+offset+Nrecv0, Nrecv1,
-                MPI_PARALLELNODE_T, r_half-1, r_half-1, comm, request+2);
+      comm.Irecv(nodes+offset+Nrecv0, r_half-1, Nrecv1, r_half-1, request[2]);
 
-    MPI_Waitall(Nmsg+1, request, status);
+    comm.Waitall(Nmsg+1, request);
 
     sendNodes.free();
 
@@ -459,7 +505,7 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
 
 
     //make an index map to save the original extended halo ids
-    libp::memory<dlong> indexMap(NhaloExtT);
+    memory<dlong> indexMap(NhaloExtT);
 
     //fill newIds of new entries if possible, or give them an index
     NhaloExtT = Nhalo + NhaloExtN;
@@ -702,25 +748,24 @@ ogsCrystalRouter_t::ogsCrystalRouter_t(dlong Nshared,
   }
 
   //make scratch space
-  AllocBuffer(Sizeof(Dfloat));
+  AllocBuffer(sizeof(dfloat));
 }
 
 void ogsCrystalRouter_t::AllocBuffer(size_t Nbytes) {
 
-  if (o_sendBuf.size() < NsendMax*Nbytes) {
-    sendBuf = static_cast<char*>(platform.hostMalloc(NsendMax*Nbytes,  nullptr, h_sendBuf));
-    o_sendBuf = platform.malloc(NsendMax*Nbytes);
+  if (o_sendspace.size() < NsendMax*Nbytes) {
+    h_sendspace = platform.hostMalloc<char>(NsendMax*Nbytes);
+    o_sendspace = platform.malloc<char>(NsendMax*Nbytes);
   }
-  if (o_buf[0].size() < NrecvMax*Nbytes) {
-    buf[0] = static_cast<char*>(platform.hostMalloc(NrecvMax*Nbytes,  nullptr, h_buf[0]));
-    buf[1] = static_cast<char*>(platform.hostMalloc(NrecvMax*Nbytes,  nullptr, h_buf[1]));
-    haloBuf = buf[0];
-    recvBuf = buf[1];
+  if (o_work[0].size() < NrecvMax*Nbytes) {
+    h_work[0] = platform.hostMalloc<char>(NrecvMax*Nbytes);
+    h_work[1] = platform.hostMalloc<char>(NrecvMax*Nbytes);
+    h_workspace = h_work[0];
+    hbuf_id=0;
 
-    o_buf[0] = platform.malloc(NrecvMax*Nbytes);
-    o_buf[1] = platform.malloc(NrecvMax*Nbytes);
-    o_haloBuf = o_buf[0];
-    o_recvBuf = o_buf[1];
+    o_work[0] = platform.malloc<char>(NrecvMax*Nbytes);
+    o_work[1] = platform.malloc<char>(NrecvMax*Nbytes);
+    o_workspace = o_work[0];
     buf_id=0;
   }
 }

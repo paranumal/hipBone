@@ -59,7 +59,7 @@ void mesh_t::Connect(){
    **********************/
 
   /* build list of faces */
-  libp::memory<face_t> faces(Nelements*Nfaces);
+  memory<face_t> faces(Nelements*Nfaces);
 
   #pragma omp parallel for collapse(2)
   for(dlong e=0;e<Nelements;++e){
@@ -133,10 +133,10 @@ void mesh_t::Connect(){
 
   // count # of elements to send to each rank based on
   // minimum {vertex id % size}
-  libp::memory<int> Nsend(size, 0);
-  libp::memory<int> Nrecv(size, 0);
-  libp::memory<int> sendOffsets(size, 0);
-  libp::memory<int> recvOffsets(size, 0);
+  memory<int> Nsend(size, 0);
+  memory<int> Nrecv(size, 0);
+  memory<int> sendOffsets(size, 0);
+  memory<int> recvOffsets(size, 0);
 
   // WARNING: In some corner cases, the number of faces to send may overrun int storage
   int allNsend = 0;
@@ -147,8 +147,8 @@ void mesh_t::Connect(){
         hlong maxv = 0;
         for(int n=0;n<NfaceVertices;++n){
           int nid = faceVertices[f*NfaceVertices+n];
-          dlong id = EToV[e*Nverts + nid];
-          maxv = mymax(maxv, id);
+          hlong id = EToV[e*Nverts + nid];
+          maxv = std::max(maxv, id);
         }
         int destRank = (int) (maxv%size);
 
@@ -168,30 +168,7 @@ void mesh_t::Connect(){
     Nsend[rr] = 0;
 
   // buffer for outgoing data
-  libp::memory<face_t> sendFaces(allNsend);
-
-  // Make the MPI_FACE_T data type
-  MPI_Datatype MPI_FACE_T;
-  MPI_Datatype dtype[7] = {MPI_HLONG, MPI_DLONG, MPI_DLONG, MPI_INT,
-                            MPI_INT, MPI_INT, MPI_INT};
-  int blength[7] = {4, 1, 1, 1, 1, 1, 1};
-  MPI_Aint addr[7], displ[7];
-  MPI_Get_address ( &(sendFaces[0]              ), addr+0);
-  MPI_Get_address ( &(sendFaces[0].element      ), addr+1);
-  MPI_Get_address ( &(sendFaces[0].elementN     ), addr+2);
-  MPI_Get_address ( &(sendFaces[0].face         ), addr+3);
-  MPI_Get_address ( &(sendFaces[0].faceN        ), addr+4);
-  MPI_Get_address ( &(sendFaces[0].rank         ), addr+5);
-  MPI_Get_address ( &(sendFaces[0].rankN        ), addr+6);
-  displ[0] = 0;
-  displ[1] = addr[1] - addr[0];
-  displ[2] = addr[2] - addr[0];
-  displ[3] = addr[3] - addr[0];
-  displ[4] = addr[4] - addr[0];
-  displ[5] = addr[5] - addr[0];
-  displ[6] = addr[6] - addr[0];
-  MPI_Type_create_struct (7, blength, displ, dtype, &MPI_FACE_T);
-  MPI_Type_commit (&MPI_FACE_T);
+  memory<face_t> sendFaces(allNsend);
 
   // pack face data
   for(dlong e=0;e<Nelements;++e){
@@ -203,7 +180,7 @@ void mesh_t::Connect(){
         for(int n=0;n<NfaceVertices;++n){
           int nid = faceVertices[f*NfaceVertices+n];
           hlong id = EToV[e*Nverts + nid];
-          maxv = mymax(maxv, id);
+          maxv = std::max(maxv, id);
         }
         int destRank = (int) (maxv%size);
 
@@ -231,10 +208,8 @@ void mesh_t::Connect(){
     }
   }
 
-  // exchange byte counts
-  MPI_Alltoall(Nsend.ptr(), 1, MPI_INT,
-               Nrecv.ptr(), 1, MPI_INT,
-               comm);
+  // exchange counts
+  comm.Alltoall(Nsend, Nrecv);
 
   // count incoming faces
   int allNrecv = 0;
@@ -243,15 +218,14 @@ void mesh_t::Connect(){
 
   // find offsets for recv data
   for(int rr=1;rr<size;++rr)
-    recvOffsets[rr] = recvOffsets[rr-1] + Nrecv[rr-1]; // byte offsets
+    recvOffsets[rr] = recvOffsets[rr-1] + Nrecv[rr-1]; // offsets
 
   // buffer for incoming face data
-  libp::memory<face_t> recvFaces(allNrecv);
+  memory<face_t> recvFaces(allNrecv);
 
   // exchange parallel faces
-  MPI_Alltoallv(sendFaces.ptr(), Nsend.ptr(), sendOffsets.ptr(), MPI_FACE_T,
-                recvFaces.ptr(), Nrecv.ptr(), recvOffsets.ptr(), MPI_FACE_T,
-                comm);
+  comm.Alltoallv(sendFaces, Nsend, sendOffsets,
+                 recvFaces, Nrecv, recvOffsets);
 
   // local sort allNrecv received faces
   sort(recvFaces.ptr(), recvFaces.ptr()+allNrecv,
@@ -289,9 +263,8 @@ void mesh_t::Connect(){
       });
 
   // send faces back from whence they came
-  MPI_Alltoallv(recvFaces.ptr(), Nrecv.ptr(), recvOffsets.ptr(), MPI_FACE_T,
-                sendFaces.ptr(), Nsend.ptr(), sendOffsets.ptr(), MPI_FACE_T,
-                comm);
+  comm.Alltoallv(recvFaces, Nrecv, recvOffsets,
+                 sendFaces, Nsend, sendOffsets);
 
   // extract connectivity info
   #pragma omp parallel for
@@ -313,13 +286,9 @@ void mesh_t::Connect(){
     }
   }
 
-  MPI_Barrier(comm);
-  MPI_Type_free(&MPI_FACE_T);
-
   //record the number of elements in the whole mesh
-  hlong NelementsLocal = (hlong) Nelements;
-  NelementsGlobal = 0;
-  MPI_Allreduce(&NelementsLocal, &NelementsGlobal, 1, MPI_HLONG, MPI_SUM, comm);
+  NelementsGlobal = Nelements;
+  comm.Allreduce(NelementsGlobal);
 }
 
 } //namespace libp

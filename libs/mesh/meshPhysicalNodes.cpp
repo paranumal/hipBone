@@ -108,9 +108,9 @@ void mesh_t::PhysicalNodes(){
     }
   }
 
-  halo.Exchange(x.ptr(), Np, ogs::Dfloat);
-  halo.Exchange(y.ptr(), Np, ogs::Dfloat);
-  halo.Exchange(z.ptr(), Np, ogs::Dfloat);
+  halo.Exchange(x, Np);
+  halo.Exchange(y, Np);
+  halo.Exchange(z, Np);
 }
 
 } //namespace libp

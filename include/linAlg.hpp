@@ -28,7 +28,7 @@ SOFTWARE.
 #define LINALG_HPP
 
 #include "core.hpp"
-
+#include "memory.hpp"
 
 namespace libp {
 
@@ -39,46 +39,57 @@ class linAlg_t {
 
 public:
   platform_t *platform;
-  occa::properties kernelInfo;
+  properties_t kernelInfo;
 
   int blocksize;
 
   //scratch space for reductions
-  dfloat *scratch;
-  occa::memory h_scratch;
-  occa::memory o_scratch;
+  deviceMemory<dfloat> o_scratch;
+  pinnedMemory<dfloat> h_scratch;
 
   linAlg_t(platform_t *_platform);
 
   //initialize list of kernels
-  void InitKernels(std::vector<std::string> kernels, MPI_Comm comm);
-
-  ~linAlg_t();
+  void InitKernels(std::vector<std::string> kernels);
 
   /*********************/
   /* vector operations */
   /*********************/
 
   // o_x[n] = alpha
-  void set(const dlong N, const dfloat alpha, occa::memory& o_x);
+  void set(const dlong N, const dfloat alpha, deviceMemory<dfloat> o_x);
 
   // o_y[n] = beta*o_y[n] + alpha*o_x[n]
-  void axpy(const dlong N, const dfloat alpha, occa::memory& o_x,
-                           const dfloat beta,  occa::memory& o_y);
+  void axpy(const dlong N, const dfloat alpha, deviceMemory<dfloat> o_x,
+                           const dfloat beta,  deviceMemory<dfloat> o_y);
 
   // ||o_a||_2
-  dfloat norm2(const dlong N, occa::memory& o_a, MPI_Comm comm);
+  dfloat norm2(const dlong N, deviceMemory<dfloat> o_a, comm_t comm);
 
   // o_x.o_y
-  dfloat innerProd(const dlong N, occa::memory& o_x, occa::memory& o_y,
-                    MPI_Comm comm);
+  dfloat innerProd(const dlong N,
+                   deviceMemory<dfloat> o_x,
+                   deviceMemory<dfloat> o_y,
+                   comm_t comm);
 
-  occa::kernel setKernel;
-  occa::kernel axpyKernel;
-  occa::kernel norm2Kernel1;
-  occa::kernel norm2Kernel2;
-  occa::kernel innerProdKernel1;
-  occa::kernel innerProdKernel2;
+  kernel_t setKernel;
+  kernel_t axpyKernel;
+  kernel_t norm2Kernel1;
+  kernel_t norm2Kernel2;
+  kernel_t innerProdKernel1;
+  kernel_t innerProdKernel2;
+
+  static void matrixRightSolve(int NrowsA, int NcolsA, double *A, int NrowsB, int NcolsB, double *B, double *C);
+  static void matrixRightSolve(int NrowsA, int NcolsA, float *A, int NrowsB, int NcolsB, float *B, float *C);
+
+  static void matrixEigenVectors(int N, double *A, double *VR, double *WR, double *WI);
+  static void matrixEigenVectors(int N, float *A, float *VR, float *WR, float *WI);
+
+  static void matrixEigenValues(int N, double *A, double *WR, double *WI);
+  static void matrixEigenValues(int N, float *A, float *WR, float *WI);
+
+  static void matrixInverse(int N, double *A);
+  static void matrixInverse(int N, float *A);
 };
 
 } //namespace libp

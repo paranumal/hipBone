@@ -89,9 +89,4 @@ To clean the `hipBone` build objects:
     $ cd /path/to/hipBone/repo
     $ make realclean
 
-To clean JIT kernel objects:
-
-    $ cd /path/to/hipBone/repo
-    $ rm -r .occa
-
 Please invoke `make help` for more supported options.

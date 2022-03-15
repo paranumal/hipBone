@@ -24,12 +24,18 @@ SOFTWARE.
 
 */
 
-#include "core.hpp"
+#include "memory.hpp"
 
 namespace libp {
-  /*explicit instantiation of common specializations*/
-  template class memory<int>;
-  template class memory<long long int>;
-  template class memory<float>;
-  template class memory<double>;
+/*explicit instantiation of common specializations*/
+template class memory<int>;
+template class memory<long long int>;
+template class memory<float>;
+template class memory<double>;
+
+/*explicit instantiation of common specializations*/
+template class deviceMemory<int>;
+template class deviceMemory<long long int>;
+template class deviceMemory<float>;
+template class deviceMemory<double>;
 } //namespace libp

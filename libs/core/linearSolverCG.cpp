@@ -37,18 +37,17 @@ cg::cg(platform_t& _platform, dlong _N, dlong _Nhalo):
   dlong Ntotal = N + Nhalo;
 
   /*aux variables */
-  dfloat *dummy = (dfloat *) calloc(Ntotal,sizeof(dfloat)); //need this to avoid uninitialized memory warnings
-  o_p  = platform.malloc(Ntotal*sizeof(dfloat),dummy);
-  o_Ap = platform.malloc(Ntotal*sizeof(dfloat),dummy);
-  free(dummy);
+  memory<dfloat> dummy(Ntotal,0.0); //need this to avoid uninitialized memory warnings
+  o_p  = platform.malloc<dfloat>(Ntotal,dummy);
+  o_Ap = platform.malloc<dfloat>(Ntotal,dummy);
+  dummy.free();
 
   //pinned tmp buffer for reductions
-  tmprdotr = (dfloat*) platform.hostMalloc(1*sizeof(dfloat),
-                                          NULL, h_tmprdotr);
-  o_tmprdotr = platform.malloc(1*sizeof(dfloat));
+  h_tmprdotr = platform.hostMalloc<dfloat>(1);
+  o_tmprdotr = platform.malloc<dfloat>(CG_BLOCKSIZE);
 
   /* build kernels */
-  occa::properties kernelInfo = platform.props(); //copy base properties
+  properties_t kernelInfo = platform.props(); //copy base properties
 
   //add defines
   kernelInfo["defines/" "p_blockSize"] = (int)CG_BLOCKSIZE;
@@ -65,10 +64,13 @@ cg::cg(platform_t& _platform, dlong _N, dlong _Nhalo):
 }
 
 int cg::Solve(solver_t& solver,
-               occa::memory &o_x, occa::memory &o_r,
-               const dfloat tol, const int MAXIT, const int verbose) {
+               deviceMemory<dfloat> o_x,
+               deviceMemory<dfloat> o_r,
+               const dfloat tol,
+               const int MAXIT,
+               const int verbose) {
 
-  int rank = platform.rank;
+  int rank = platform.rank();
   linAlg_t &linAlg = platform.linAlg();
 
   // register scalars
@@ -86,7 +88,7 @@ int cg::Solve(solver_t& solver,
   rdotr = linAlg.norm2(N, o_r, comm);
   rdotr = rdotr*rdotr;
 
-  dfloat TOL = mymax(tol*tol*rdotr,tol*tol);
+  dfloat TOL = std::max(tol*tol*rdotr,tol*tol);
 
   if (verbose&&(rank==0))
     printf("CG: initial res norm %12.12f \n", sqrt(rdotr));
@@ -130,7 +132,9 @@ int cg::Solve(solver_t& solver,
   return iter;
 }
 
-dfloat cg::UpdateCG(const dfloat alpha, occa::memory &o_x, occa::memory &o_r){
+dfloat cg::UpdateCG(const dfloat alpha,
+                    deviceMemory<dfloat> o_x,
+                    deviceMemory<dfloat> o_r){
 
   linAlg_t &linAlg = platform.linAlg();
 
@@ -142,7 +146,7 @@ dfloat cg::UpdateCG(const dfloat alpha, occa::memory &o_x, occa::memory &o_r){
   // TODO: replace this with a device memset rather than using a kernel
   linAlg.setKernel(1, 0.0, o_tmprdotr);
   updateCGKernel_r(N, Nblocks, o_Ap, alpha, o_r, o_tmprdotr);
-  o_tmprdotr.copyTo(tmprdotr, 1*sizeof(dfloat), 0, "async: true");
+  h_tmprdotr.copyFrom(o_tmprdotr, 1, 0, "async: true");
 
   occa::streamTag tag = platform.device.tagStream();
 
@@ -152,16 +156,10 @@ dfloat cg::UpdateCG(const dfloat alpha, occa::memory &o_x, occa::memory &o_r){
   platform.device.waitFor(tag);
 
   /*Compute all reduce while axpy is running*/
-  dfloat rdotr1 = 0.0;
-  MPI_Allreduce(tmprdotr, &rdotr1, 1, MPI_DFLOAT, MPI_SUM, comm);
+  dfloat rdotr1 = h_tmprdotr[0];
+  comm.Allreduce(rdotr1);
 
   return rdotr1;
-}
-
-cg::~cg() {
-  updateCGKernel1.free();
-  updateCGKernel2.free();
-  updateCGKernel_r.free();
 }
 
 } //namespace libp

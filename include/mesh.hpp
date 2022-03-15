@@ -28,6 +28,7 @@ SOFTWARE.
 #define MESH_HPP 1
 
 #include "core.hpp"
+#include "comm.hpp"
 #include "settings.hpp"
 #include "ogs.hpp"
 
@@ -37,90 +38,98 @@ class mesh_t {
 
 public:
   platform_t platform;
-  occa::properties props;
+  properties_t props;
 
-  MPI_Comm comm;
+  comm_t comm;
   int rank, size;
 
+  /*************************/
+  /* Element Data          */
+  /*************************/
   int dim;
   int Nverts, Nfaces, NfaceVertices;
 
-  hlong Nnodes; //global number of element vertices
-  libp::memory<dfloat> EX; // coordinates of vertices for each element
-  libp::memory<dfloat> EY;
-  libp::memory<dfloat> EZ;
+  // indices of vertex nodes
+  memory<int> vertexNodes;
+
+  hlong Nnodes=0; //global number of element vertices
+  memory<dfloat> EX; // coordinates of vertices for each element
+  memory<dfloat> EY;
+  memory<dfloat> EZ;
 
   dlong Nelements;       //local element count
   hlong NelementsGlobal; //global element count
-  libp::memory<hlong> EToV; // element-to-vertex connectivity
-  libp::memory<dlong> EToE; // element-to-element connectivity
-  libp::memory<int>   EToF; // element-to-(local)face connectivity
-  libp::memory<int>   EToP; // element-to-partition/process connectivity
+  memory<hlong> EToV;    // element-to-vertex connectivity
+  memory<dlong> EToE;    // element-to-element connectivity
+  memory<int>   EToF;    // element-to-(local)face connectivity
+  memory<int>   EToP;    // element-to-partition/process connectivity
 
-  libp::memory<dlong> VmapM;  // list of vertices on each face
-  libp::memory<dlong> VmapP;  // list of vertices that are paired with face vertices
+  memory<dlong> VmapM;  // list of vertices on each face
+  memory<dlong> VmapP;  // list of vertices that are paired with face vertices
 
+  /*************************/
+  /* FEM Space             */
+  /*************************/
+  int N=0, Np=0;             // N = Polynomial order and Np = Nodes per element
+  memory<dfloat> r, s, t;    // coordinates of local nodes
+
+  int Nq=0;            // N = Polynomial order, Nq=N+1
+  memory<dfloat> gllz; // 1D GLL quadrature nodes
+  memory<dfloat> gllw; // 1D GLL quadrature weights
+  memory<dfloat> D;    // 1D differentiation matrix (for tensor-product)
+  deviceMemory<dfloat> o_D;
+
+  // face node info
+  int Nfp=0;                // number of nodes per face
+  memory<int> faceNodes;    // list of element reference interpolation nodes on element faces
+  memory<dlong> vmapM;      // list of volume nodes that are face nodes
+  memory<dlong> vmapP;      // list of volume nodes that are paired with face nodes
+  memory<int> faceVertices; // list of mesh vertices on each face
+
+  /*************************/
+  /* Physical Space        */
+  /*************************/
+  // volume node info
+  memory<dfloat> x, y, z;    // coordinates of physical nodes
+  // second order volume geometric factors
+  dlong Nggeo;
+  memory<dfloat> ggeo;
+  deviceMemory<dfloat> o_ggeo;
+
+  /*************************/
+  /* MPI Data              */
+  /*************************/
   // MPI halo exchange info
-  ogs::halo_t halo;            // halo exchange pointer
-  dlong NinternalElements; // number of elements that can update without halo exchange
-  dlong NhaloElements;     // number of elements that cannot update without halo exchange
-  dlong  totalHaloPairs;   // number of elements to be received in halo exchange
-  libp::memory<dlong> internalElementIds;  // list of elements that can update without halo exchange
-  libp::memory<dlong> haloElementIds;      // list of elements to be sent in halo exchange
-  occa::memory o_internalElementIds;  // list of elements that can update without halo exchange
-  occa::memory o_haloElementIds;      // list of elements to be sent in halo exchange
+  ogs::halo_t halo;                         // halo exchange pointer
+  dlong NinternalElements;                  // number of elements that can update without halo exchange
+  dlong NhaloElements;                      // number of elements that cannot update without halo exchange
+  dlong totalHaloPairs;                     // number of elements to be received in halo exchange
+  memory<dlong> internalElementIds;         // list of elements that can update without halo exchange
+  memory<dlong> haloElementIds;             // list of elements to be sent in halo exchange
+  deviceMemory<dlong> o_internalElementIds; // list of elements that can update without halo exchange
+  deviceMemory<dlong> o_haloElementIds;     // list of elements to be sent in halo exchange
 
   // CG gather-scatter info
   ogs::ogs_t ogsMasked;
   ogs::halo_t gHalo;
-  libp::memory<hlong> globalIds, maskedGlobalIds, maskedGlobalNumbering;
+  memory<hlong> globalIds, maskedGlobalIds, maskedGlobalNumbering;
   dlong Nmasked;
 
-  libp::memory<dlong> GlobalToLocal;
-  occa::memory o_GlobalToLocal;
+  memory<dlong> GlobalToLocal;
+  deviceMemory<dlong> o_GlobalToLocal;
 
   // list of elements that are needed for global gather-scatter
   dlong NglobalGatherElements;
-  libp::memory<dlong> globalGatherElementList;
-  occa::memory o_globalGatherElementList;
+  memory<dlong> globalGatherElementList;
+  deviceMemory<dlong> o_globalGatherElementList;
 
   // list of elements that are not needed for global gather-scatter
   dlong NlocalGatherElements;
-  libp::memory<dlong> localGatherElementList;
-  occa::memory o_localGatherElementList;
+  memory<dlong> localGatherElementList;
+  deviceMemory<dlong> o_localGatherElementList;
 
-
-  libp::memory<dfloat> weight, weightG;
-  occa::memory o_weight, o_weightG;
-
-  // second order volume geometric factors
-  dlong Nggeo;
-  libp::memory<dfloat> ggeo;
-
-  // volume node info
-  int N, Nq, Np;
-  libp::memory<dfloat> r, s, t;    // coordinates of local nodes
-  libp::memory<dfloat> x, y, z;    // coordinates of physical nodes
-
-  // indices of vertex nodes
-  libp::memory<int> vertexNodes;
-
-  libp::memory<dfloat> D; // 1D differentiation matrix (for tensor-product)
-  libp::memory<dfloat> gllz; // 1D GLL quadrature nodes
-  libp::memory<dfloat> gllw; // 1D GLL quadrature weights
-
-  // face node info
-  int Nfp;        // number of nodes per face
-  libp::memory<int> faceNodes; // list of element reference interpolation nodes on element faces
-  libp::memory<dlong> vmapM;     // list of volume nodes that are face nodes
-  libp::memory<dlong> vmapP;     // list of volume nodes that are paired with face nodes
-  libp::memory<int> faceVertices; // list of mesh vertices on each face
-
-  // occa stuff
-  occa::stream defaultStream;
-
-  occa::memory o_D; // tensor product differentiation matrix (for Hexes)
-  occa::memory o_ggeo; // second order geometric factors
+  memory<dfloat> weight, weightG;
+  deviceMemory<dfloat> o_weight, o_weightG;
 
   mesh_t()=default;
   mesh_t(platform_t& _platform) {
@@ -186,6 +195,8 @@ protected:
   void NodesHex3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[]);
   void FaceNodesHex3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[],  int _faceNodes[]);
   void VertexNodesHex3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[], int _vertexNodes[]);
+  void FaceNodeMatchingHex3D(int _N, dfloat _r[], dfloat _s[], dfloat _t[],
+                             int _faceNodes[], int R[]);
 
   /* offsets for second order geometric factors */
   static constexpr int GWJID=0;

@@ -32,9 +32,9 @@ void mesh_t::Setup(platform_t& _platform) {
 
   platform = _platform;
 
-  comm = platform.comm;
-  MPI_Comm_rank(platform.comm, &rank);
-  MPI_Comm_size(platform.comm, &size);
+  comm = platform.comm.Dup();
+  rank = comm.rank();
+  size = comm.size();
 
   platform.settings().getSetting("POLYNOMIAL DEGREE", N);
 
