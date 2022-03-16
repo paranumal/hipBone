@@ -28,10 +28,10 @@ SOFTWARE.
 #define PLATFORM_HPP
 
 #define HIPBONE_MAJOR_VERSION 1
-#define HIPBONE_MINOR_VERSION 0
+#define HIPBONE_MINOR_VERSION 1
 #define HIPBONE_PATCH_VERSION 0
-#define HIPBONE_VERSION       10000
-#define HIPBONE_VERSION_STR   "1.0.0"
+#define HIPBONE_VERSION       10100
+#define HIPBONE_VERSION_STR   "1.1.0"
 
 #include "core.hpp"
 #include "memory.hpp"
