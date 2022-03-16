@@ -89,9 +89,14 @@ int cg::Solve(solver_t& solver,
   if (verbose&&(rank==0))
     printf("CG: initial res norm %12.12f \n", sqrt(rdotr));
 
+  occa::streamTag *starts = new occa::streamTag[MAXIT+1];
+  
+  
   int iter;
   for(iter=0;iter<MAXIT;++iter){
 
+    starts[iter] = platform.device.tagStream();
+    
     //exit if tolerance is reached
     if(rdotr<=TOL) break;
 
@@ -124,7 +129,14 @@ int cg::Solve(solver_t& solver,
       printf("CG: it %d, r norm %12.12le, alpha = %le \n", iter+1, sqrt(rdotr), alpha);
     }
   }
+  
+  starts[iter] = platform.device.tagStream();
 
+  for(int n=0;n<iter;++n){
+    printf("%d %g %%%% iteration, elapsed, PERITER\n", n, platform.device.timeBetween(starts[n],starts[n+1]));
+  }
+	   
+  
   return iter;
 }
 

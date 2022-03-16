@@ -30,7 +30,7 @@ SOFTWARE.
 
 namespace libp {
 
-constexpr int LINALG_BLOCKSIZE = 256;
+constexpr int LINALG_BLOCKSIZE = 1024;
 
 using std::string;
 using std::stringstream;

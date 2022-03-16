@@ -41,28 +41,44 @@ SOFTWARE.
 #if OCCA_USE_CUDA==1 && p_N>8
 
 //padding for bank conflicts
-#if p_Nq==16
+#if p_Nq==12 || p_Nq==16
 #define p_pad 1
 #else
 #define p_pad 0
 #endif
 
+#if p_Nq==12 
+#define p_Nt 14
+#define p_pad 1
+#elif p_Nq==13
+#define p_Nt 15
+#define p_pad 0
+#elif p_Nq==14
+#define p_Nt 16
+#define p_pad 1
+#elif p_Nq==15
+#define p_Nt 16
+#define p_pad 1
+#else
+#define p_Nt p_Nq
+#endif
+
 /* Base version */
 @kernel void hipBoneAx(const dlong Nelements,
-                        @restrict const  dlong  *  elementList,
-                        @restrict const  dlong  *  GlobalToLocal,
-                        @restrict const  dfloat *  ggeo,
-                        @restrict const  dfloat *  D,
-                        const dfloat lambda,
-                        @restrict const  dfloat *  q,
-                              @restrict dfloat *  Aq){
+		       @restrict const  dlong  *  elementList,
+		       @restrict const  dlong  *  GlobalToLocal,
+		       @restrict const  dfloat *  ggeo,
+		       @restrict const  dfloat *  D,
+		       const dfloat lambda,
+		       @restrict const  dfloat *  q,
+		       @restrict dfloat *  Aq){
 
   for(dlong e=0; e<Nelements; e++; @outer(0)){
 
-    @shared dfloat s_D[p_Nq][p_Nq+p_pad];
-    @shared dfloat s_q[p_Nq][p_Nq+p_pad];
-    @shared dfloat s_v[p_Nq][p_Nq+p_pad];
-    @shared dfloat s_w[p_Nq][p_Nq+p_pad];
+    @shared dfloat s_D[p_Nq][p_Nt+p_pad];
+    @shared dfloat s_q[p_Nq][p_Nt+p_pad];
+    @shared dfloat s_v[p_Nq][p_Nt+p_pad];
+    @shared dfloat s_w[p_Nq][p_Nt+p_pad];
 
     @exclusive dfloat r_GDut, r_Auk;
 
@@ -73,25 +89,27 @@ SOFTWARE.
 
     @exclusive dlong element;
 
-    for(int j=0;j<p_Nq;++j;@inner(1)){
-      for(int i=0;i<p_Nq;++i;@inner(0)){
+    for(int j=0;j<p_Nt;++j;@inner(1)){
+      for(int i=0;i<p_Nt;++i;@inner(0)){
 
         //load D into local memory
         // s_D[i][j] = d \phi_i at node j
-        s_D[j][i] = D[p_Nq*j+i];// D is column major
+	if(i<p_Nq && j<p_Nq)
+	  s_D[j][i] = D[p_Nq*j+i];// D is column major
 
         element = elementList[e];
 
         const dlong base = i + j*p_Nq + element*p_Np;
 
         // load pencil of u into register
-        #pragma unroll p_Nq
-        for (int k=0;k<p_Nq;k++) {
-          const dlong id = GlobalToLocal[base + k*p_Nq*p_Nq];
-          r_u[k] = (id!=-1) ? q[id] : 0.0;
-        }
+	if(i<p_Nq && j<p_Nq)
+#pragma unroll p_Nq
+	  for (int k=0;k<p_Nq;k++) {
+	    const dlong id = GlobalToLocal[base + k*p_Nq*p_Nq];
+	    r_u[k] = (id!=-1) ? q[id] : 0.0;
+	  }
 
-        #pragma unroll p_Nq
+#pragma unroll p_Nq
         for (int k=0;k<p_Nq;k++) {
           r_Au[k] = 0.0;
         }
@@ -105,15 +123,18 @@ SOFTWARE.
 #endif
     for(int k = 0;k < p_Nq; k++){
 
-      for(int j=0;j<p_Nq;++j;@inner(1)){
-        for(int i=0;i<p_Nq;++i;@inner(0)){
-          // share u(:,:,k)
-          s_q[j][i] = r_u[k];
+      for(int j=0;j<p_Nt;++j;@inner(1)){
+        for(int i=0;i<p_Nt;++i;@inner(0)){
+	  if(i<p_Nq && j<p_Nq)	    
+	    // share u(:,:,k)
+	    s_q[j][i] = r_u[k];
         }
       }
 
       for(int j=0;j<p_Nq;++j;@inner(1)){
         for(int i=0;i<p_Nq;++i;@inner(0)){
+	  if(i<p_Nq && j<p_Nq){
+		  
           // prefetch geometric factors
           const dlong gbase = p_Nggeo*(element*p_Np + k*p_Nq*p_Nq + j*p_Nq + i);
           const dfloat r_GwJ = ggeo[gbase+p_GWJID];
@@ -144,11 +165,13 @@ SOFTWARE.
           r_GDut    = (r_G02*ur + r_G12*us + r_G22*ut);
 
           r_Auk = r_GwJ*lambda*r_u[k];
+	  }
         }
       }
 
       for(int j=0;j<p_Nq;++j;@inner(1)){
         for(int i=0;i<p_Nq;++i;@inner(0)){
+	  if(i<p_Nq && j<p_Nq){
 
           #pragma unroll p_Nq
           for (int m=0;m<p_Nq;m++) {
@@ -162,6 +185,7 @@ SOFTWARE.
           }
 
           r_Au[k] += r_Auk;
+	  }
         }
       }
     } //end Layer by layer
@@ -170,11 +194,13 @@ SOFTWARE.
     for(int j=0;j<p_Nq;++j;@inner(1)){
       for(int i=0;i<p_Nq;++i;@inner(0)){
         const dlong id = element*p_Np + j*p_Nq + i;
+	if(i<p_Nq && j<p_Nq){
 
-        #pragma unroll p_Nq
-        for (int k=0;k<p_Nq;k++) {
-          Aq[id+k*p_Nq*p_Nq] = r_Au[k];
-        }
+#pragma unroll p_Nq
+	  for (int k=0;k<p_Nq;k++) {
+	    Aq[id+k*p_Nq*p_Nq] = r_Au[k];
+	  }
+	}
       }
     }
   }
@@ -480,6 +506,7 @@ SOFTWARE.
             const dfloat G22 = ggeo[gbase+p_G22ID];
 
             // #pragma unroll p_Unr
+	    #pragma unroll p_Nq
             for(int m = 0; m < p_Nq; ++m) {
               const dfloat pmji = s_q[es][m][j][i];
               const dfloat Dkm = s_DT[m][k];
@@ -495,6 +522,7 @@ SOFTWARE.
             // 'r' terms
             tmp = 0;
             // #pragma unroll p_Unr
+    	    #pragma unroll p_Nq
             for(int m = 0; m < p_Nq; ++m) {
               const dfloat Dim = s_D[i][m];
               tmp += Dim*s_q[es][k][j][m];
@@ -508,6 +536,7 @@ SOFTWARE.
             // 's' terms
             tmp = 0;
             // #pragma unroll p_Unr
+#pragma unroll p_Nq
             for(int m = 0; m < p_Nq; ++m) {
               const dfloat Djm = s_D[j][m];
               tmp += Djm*s_q[es][k][m][i];
@@ -530,6 +559,7 @@ SOFTWARE.
 
             // use same matrix for both slices
             // #pragma unroll p_Unr
+#pragma unroll p_Nq
             for(int m=0;m<p_Nq;++m){
               const dfloat Dmi = s_D[m][i];
               const dfloat Dmj = s_D[m][j];
@@ -539,6 +569,7 @@ SOFTWARE.
             }
 
             // #pragma unroll p_Unr
+#pragma unroll p_Nq
             for(int m=0;m<p_Nq;++m){
               const dfloat Gpt = s_Gqt[es][m][j][i];
               const dfloat Dmk = s_D[m][k];

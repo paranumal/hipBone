@@ -42,20 +42,29 @@ void hipBone_t::Run(){
   deviceMemory<dfloat> o_r = platform.malloc<dfloat>(Nall);
   deviceMemory<dfloat> o_x = platform.malloc<dfloat>(Nall);
 
+  deviceMemory<dfloat> o_rwarm = platform.malloc<dfloat>(Nall);
+  deviceMemory<dfloat> o_xwarm = platform.malloc<dfloat>(Nall);
+
   //set x =0
   platform.linAlg().set(Nall, 0.0, o_x);
+  platform.linAlg().set(Nall, 0.0, o_xwarm);
 
   //NekBone-like RHS
   forcingKernel(N, o_r);
+  forcingKernel(N, o_rwarm);
 
-  int maxIter = 100;
+  dfloat tol = 0.0;
+  int maxIter = 1000;
   int verbose = platform.settings().compareSetting("VERBOSE", "TRUE") ? 1 : 0;
 
+  // load kernels
+  int warmIter = 200;
+  int Niter = linearSolver.Solve(*this, o_xwarm, o_rwarm, tol, warmIter, verbose);
+  
   timePoint_t startTime = GlobalPlatformTime(platform);
 
   //call the solver
-  dfloat tol = 0.0;
-  int Niter = linearSolver.Solve(*this, o_x, o_r, tol, maxIter, verbose);
+  Niter = linearSolver.Solve(*this, o_x, o_r, tol, maxIter, verbose);
 
   timePoint_t endTime = GlobalPlatformTime(platform);
   double elapsedTime = ElapsedTime(startTime, endTime);

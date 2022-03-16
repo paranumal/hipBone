@@ -91,6 +91,7 @@ SOFTWARE.
                    @restrict const     T *q,
                    @restrict           T *gatherq){
 
+#if 0
   for(dlong k=0;k<K;++k;@outer(1)){
     for(dlong b=0;b<Nblocks;++b;@outer(0)){
       @exclusive dlong blockStart, blockEnd, start;
@@ -119,6 +120,41 @@ SOFTWARE.
       }
     }
   }
+#else
+  for(dlong k=0;k<K;++k;@outer(1)){
+    for(dlong b=0;b<Nblocks;++b;@outer(0)){
+      @exclusive dlong blockStart, blockEnd, start, end, gid;
+      @shared T temp[p_gatherNodesPerBlock];
+      
+      for(dlong n=0;n<p_gatherNodesPerBlock;++n;@inner(0)){
+        blockStart = blockStarts[b];
+        blockEnd   = blockStarts[b+1];
+        start = gatherStarts[blockStart];
+	end = gatherStarts[blockEnd];
+	
+	gid = -1;
+	if(start+n<end){
+	  gid = k+gatherIds[start+n]*K;
+          temp[n] = q[gid];
+        }
+      }
+
+      for(dlong n=0;n<p_gatherNodesPerBlock;++n;@inner(0)){
+	dlong row = blockStart+n;
+	if(row<blockEnd){
+          const dlong rowStart = gatherStarts[row]  -start;
+          const dlong rowEnd   = gatherStarts[row+1]-start;
+          T gq = OGS_OP_INIT;
+          for (dlong i=rowStart;i<rowEnd;i++) {
+            OGS_OP(gq,temp[i]);
+          }
+          gatherq[k+row*K] = gq;
+        }
+      }
+    }
+  }
+#endif
+  
 }
 
 /*------------------------------------------------------------------------------

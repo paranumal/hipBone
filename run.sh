@@ -39,21 +39,22 @@ make -j `nproc`
 
 echo "Running hipBone..."
 
-mpirun -np $np ./hipBone -m $mode -nx 126 -ny 126 -nz 126 -p 1
-mpirun -np $np ./hipBone -m $mode -nx  63 -ny  63 -nz  63 -p 2
-mpirun -np $np ./hipBone -m $mode -nx  42 -ny  42 -nz  42 -p 3
-mpirun -np $np ./hipBone -m $mode -nx  32 -ny  32 -nz  32 -p 4
-mpirun -np $np ./hipBone -m $mode -nx  26 -ny  26 -nz  26 -p 5
-mpirun -np $np ./hipBone -m $mode -nx  21 -ny  21 -nz  21 -p 6
-mpirun -np $np ./hipBone -m $mode -nx  18 -ny  18 -nz  18 -p 7
-mpirun -np $np ./hipBone -m $mode -nx  16 -ny  16 -nz  16 -p 8
-mpirun -np $np ./hipBone -m $mode -nx  14 -ny  14 -nz  14 -p 9
-mpirun -np $np ./hipBone -m $mode -nx  13 -ny  13 -nz  13 -p 10
-mpirun -np $np ./hipBone -m $mode -nx  12 -ny  12 -nz  12 -p 11
-mpirun -np $np ./hipBone -m $mode -nx  11 -ny  11 -nz  11 -p 12
-mpirun -np $np ./hipBone -m $mode -nx  10 -ny  10 -nz  10 -p 13
-mpirun -np $np ./hipBone -m $mode -nx   9 -ny   9 -nz   9 -p 14
-mpirun -np $np ./hipBone -m $mode -nx   9 -ny   9 -nz   9 -p 15
+
+mpirun -np $np ./hipBone -m $mode -nx 126 -ny 126 -nz 252 -p 1
+mpirun -np $np ./hipBone -m $mode -nx  63 -ny  63 -nz 252 -p 2
+mpirun -np $np ./hipBone -m $mode -nx  42 -ny  42 -nz 168 -p 3
+mpirun -np $np ./hipBone -m $mode -nx  32 -ny  32 -nz 128 -p 4
+mpirun -np $np ./hipBone -m $mode -nx  26 -ny  26 -nz 104 -p 5
+mpirun -np $np ./hipBone -m $mode -nx  21 -ny  21 -nz  84 -p 6
+mpirun -np $np ./hipBone -m $mode -nx  18 -ny  18 -nz  72 -p 7
+mpirun -np $np ./hipBone -m $mode -nx  16 -ny  16 -nz  64 -p 8
+mpirun -np $np ./hipBone -m $mode -nx  14 -ny  14 -nz  56 -p 9
+mpirun -np $np ./hipBone -m $mode -nx  13 -ny  13 -nz  52 -p 10
+mpirun -np $np ./hipBone -m $mode -nx  12 -ny  12 -nz  48 -p 11
+mpirun -np $np ./hipBone -m $mode -nx  11 -ny  11 -nz  44 -p 12
+mpirun -np $np ./hipBone -m $mode -nx  10 -ny  10 -nz  40 -p 13
+mpirun -np $np ./hipBone -m $mode -nx   9 -ny   9 -nz  36 -p 14
+mpirun -np $np ./hipBone -m $mode -nx   9 -ny   9 -nz  36 -p 15
 
 #
 # Noel Chalmers

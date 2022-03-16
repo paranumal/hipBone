@@ -119,7 +119,7 @@ private:
                      const Transpose trans);
 
   //NC: Hard code these for now. Should be sufficient for GPU devices, but needs attention for CPU
-  static constexpr int blockSize = 256;
+  static constexpr int blockSize = 512;
   static constexpr int gatherNodesPerBlock = 512; //should be a multiple of blockSize for good unrolling
 
   //4 types - Float, Double, Int32, Int64

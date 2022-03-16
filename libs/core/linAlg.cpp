@@ -54,7 +54,7 @@ dfloat linAlg_t::norm2(const dlong N,
                        deviceMemory<dfloat> o_a, comm_t comm) {
   int Nblock = (N+blocksize-1)/blocksize;
   Nblock = (Nblock>blocksize) ? blocksize : Nblock; //limit to blocksize entries
-
+  printf("N=%d, Nblock=%d, loads per block=%g\n", N, Nblock, (double)N/(blocksize*Nblock));
   norm2Kernel1(Nblock, N, o_a, o_scratch);
   norm2Kernel2(Nblock, o_scratch);
 
