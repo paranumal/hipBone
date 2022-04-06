@@ -177,7 +177,7 @@ extern "C" __global__ __launch_bounds__(256) void hipBoneAx_mfma(const dlong Nel
 
     #pragma unroll p_Nq
     for (int k=0;k<p_Nq;k++) {
-      Aq[id+k*p_Nq*p_Nq] = r_Aq[k];
+      __builtin_nontemporal_store(r_Aq[k], &(Aq[id+k*p_Nq*p_Nq]));
     }
   }
 }
