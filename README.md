@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/364327074.svg)](https://zenodo.org/badge/latestdoi/364327074)
+
 hipBone
 =======
 
@@ -90,3 +92,20 @@ To clean the `hipBone` build objects:
     $ make realclean
 
 Please invoke `make help` for more supported options.
+
+References
+----------
+
+HipBone: A performance-portable GPU-accelerated C++ version of the NekBone benchmark: [arXiv version](https://arxiv.org/abs/2202.12477): `Chalmers N., Mishra A., McDougall D., Warburton T., 2022. HipBone: A performance-portable GPU-accelerated C++ version of the NekBone benchmark.`
+
+To cite this repo directly:
+<pre>
+@MISC{ChalmersMishraMcDougallWarburtonHipBone2022,
+      author = "Chalmers, N. and Mishra, A. and McDougall, D. and Warburton, T.",
+      title = "{HipBone}: a performance-portable GPU-accelerated C++ version of the NekBone benchmark",
+      year = "2022",
+      url = "https://github.com/paranumal/hipBone",
+      doi = "10.5281/zenodo.6362839",
+      note = "Release 1.1.0"
+      }
+</pre>
