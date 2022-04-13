@@ -371,7 +371,11 @@ SOFTWARE.
 
             #pragma unroll p_Nq
             for (int k=0;k<p_Nq;k++) {
+              #if OCCA_USE_HIP==1
+              __builtin_nontemporal_store(r_Au[k], &(Aq[id+k*p_Nq*p_Nq]));
+              #else
               Aq[id+k*p_Nq*p_Nq] = r_Au[k];
+              #endif
             }
           }
         }
