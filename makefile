@@ -91,6 +91,10 @@ HB_CXXFLAGS=${HIPBONE_CXXFLAGS} ${DEFINES} ${INCLUDES}
 LIBS=-L${HIPBONE_LIBS_DIR} -lmesh -logs -lcore \
      ${HIPBONE_LIBS}
 
+ifeq (true,${with-roctx})
+  LIBS+= -L${ROCM_PATH}/lib -lroctx64
+endif
+
 #link flags
 LFLAGS=${HB_CXXFLAGS} ${LIBS}
 

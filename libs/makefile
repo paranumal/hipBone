@@ -45,6 +45,11 @@ LIBCORE_DEFINES=${HIPBONE_DEFINES}
 LIBMESH_DEFINES=${HIPBONE_DEFINES}
 LIBOGS_DEFINES=${HIPBONE_DEFINES}
 
+ifeq (true,${with-roctx})
+  LIBCORE_DEFINES+= -DWITH_ROCTX
+  LIBCORE_INCLUDES= -I${ROCM_PATH}/include
+endif
+
 ifeq (true,${gpu-aware-mpi})
   LIBOGS_DEFINES+= -DGPU_AWARE_MPI
 endif
@@ -123,10 +128,10 @@ endif
 
 core/%.o: core/%.cpp $(LIB_DEPS)
 ifneq (,${verbose})
-	$(HIPBONE_CXX) -o $@ -c $< ${LIBCORE_DEFINES} $(LIB_CXXFLAGS)
+	$(HIPBONE_CXX) -o $@ -c $< ${LIBCORE_DEFINES} $(LIB_CXXFLAGS) $(LIBCORE_INCLUDES)
 else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(HIPBONE_CXX) -o $@ -c $< ${LIBCORE_DEFINES} $(LIB_CXXFLAGS)
+	@$(HIPBONE_CXX) -o $@ -c $< ${LIBCORE_DEFINES} $(LIB_CXXFLAGS) $(LIBCORE_INCLUDES)
 endif
 
 mesh/%.o: mesh/%.cpp $(LIB_DEPS) | libogs.a
