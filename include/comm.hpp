@@ -295,7 +295,69 @@ class comm_t {
                        T& rcv,
                  const op_t op = Sum) const {
     MPI_Datatype type = mpiType<T>::getMpiType();
-    MPI_Allreduce(&snd, &rcv, 1, type, op, comm());
+    // MPI_Allreduce(&snd, &rcv, 1, type, op, comm());
+
+    if (_size==1) {
+      rcv = snd;
+      return;
+    }
+
+    uint stride = 1;
+    uint mask = 0;
+    const uint np = static_cast<uint>(_size);
+
+    T val = snd; //running partial
+    T rBuf; //temp
+
+    while (stride < np) {
+      if ( !(_rank & mask) ) {
+        const int partner = _rank ^ stride;
+
+        if (partner < _size) {
+          if (_rank & stride) {
+            MPI_Send(&val, 1, type, partner, _rank, comm());
+          } else {
+            MPI_Recv(&rBuf, 1, type, partner, partner, comm(), MPI_STATUS_IGNORE);
+
+            if (op == Sum) {
+              val += rBuf;
+            } else if (op == Prod) {
+              val *= rBuf;
+            } else if (op == Min) {
+              val = std::min(val,rBuf);
+            } else if (op == Max) {
+              val = std::max(val,rBuf);
+            } else {
+              std::exit(-1);
+            }
+          }
+        }
+      }
+      mask = (mask<<1) + 1;
+      stride <<= 1;
+    }
+
+    mask >>= 1;
+    stride >>= 1;
+
+    while (stride > 0) {
+      if ( !(_rank & mask) ) {
+        const int partner = _rank ^ stride;
+
+        if (partner < _size) {
+          if (_rank & stride) {
+            MPI_Recv(&val, 1, type, partner, partner, comm(), MPI_STATUS_IGNORE);
+          } else {
+            MPI_Send(&val, 1, type, partner, _rank, comm());
+          }
+        }
+      }
+      mask >>= 1;
+      stride >>= 1;
+    }
+
+    rcv = val;
+
     mpiType<T>::freeMpiType(type);
   }
   template <typename T>
