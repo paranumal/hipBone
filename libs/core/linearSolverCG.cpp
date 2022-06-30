@@ -142,7 +142,7 @@ dfloat cg::UpdateCG(const dfloat alpha,
   updateCGKernel1(N, Nblocks, o_Ap, alpha, o_r, o_tmprdotr);
   updateCGKernel2(Nblocks, o_tmprdotr);
 
-  h_tmprdotr.copyFrom(o_tmprdotr, 1, 0, "async: true");
+  h_tmprdotr.copyFrom(o_tmprdotr, 1, 0, properties_t("async", true));
   platform.finish();
 
   // x <= x + alpha*p
