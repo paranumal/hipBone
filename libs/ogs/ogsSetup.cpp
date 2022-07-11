@@ -94,6 +94,9 @@ void ogsBase_t::Setup(const dlong _N,
   rank = comm.rank();
   size = comm.size();
 
+  // Seed RNG
+  srand(rank);
+
   //sanity check options
   LIBP_ABORT("Invalid ogs setup requested",
              (kind==Unsigned && unique==true)
