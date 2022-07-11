@@ -122,6 +122,9 @@ inline void ogsCrystalRouter_t::Start(deviceMemory<T> &o_buf,
                                       const int k,
                                       const Op op,
                                       const Transpose trans){
+  //wait for kernel to finish on default stream
+  device_t &device = platform.device;
+  device.finish();
 }
 
 template<typename T>
@@ -196,6 +199,7 @@ inline void ogsCrystalRouter_t::Finish(deviceMemory<T> &o_buf,
     levels[l].gather.Gather(o_buf, o_recvBuf, k, op, Trans);
   }
 
+  device.finish();
   device.setStream(currentStream);
 }
 
