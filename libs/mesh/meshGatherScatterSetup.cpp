@@ -152,8 +152,44 @@ void mesh_t::GatherScatterSetup() {
   //use the masked ids to make another gs handle (signed so the gather is defined)
   bool verbose = platform.settings().compareSetting("VERBOSE", "TRUE");
   bool unique = true; //flag a unique node in every gather node
+
+  // Figure out if the user specified an ogs method, and pefer that over auto-tuning
+  char * ogs_method_var = std::getenv("HIPBONE_OGS_METHOD");
+  std::string ogs_method_str;
+  ogs::Method method;
+
+  if (ogs_method_var == nullptr) {  // User did not set it
+    method = ogs::Auto;
+  }
+  else {  // User set it
+    ogs_method_str = ogs_method_var;
+
+    // Make sure to use the default if the user set it to the empty string
+    // Options are Pairwise, CrystalRouter, AllToAll, and Auto
+    if (ogs_method_str.size() == 0) {
+      method = ogs::Auto;
+    }
+    else if (ogs_method_str == std::string("pairwise")) {
+      method = ogs::Pairwise;
+    }
+    else if (ogs_method_str == std::string("alltoall")) {
+      method = ogs::AllToAll;
+    }
+    else if (ogs_method_str == std::string("crystalrouter")) {
+      method = ogs::CrystalRouter;
+    }
+    else if (ogs_method_str == std::string("auto")) {
+      method = ogs::Auto;
+    }
+    else {
+      std::cerr << "Invalid OGS method requested: " << ogs_method_str << std::endl;
+      std::cerr << "Valid options are: pairwise, alltoall, crystalrouter, auto" << std::endl;
+      std::abort();
+    }
+  }
+
   ogsMasked.Setup(Nelements*Np, maskedGlobalIds,
-                  comm, ogs::Signed, ogs::Auto,
+                  comm, ogs::Signed, method,
                   unique, verbose, platform);
 
   gHalo.SetupFromGather(ogsMasked);
