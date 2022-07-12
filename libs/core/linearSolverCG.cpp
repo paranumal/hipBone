@@ -146,7 +146,7 @@ dfloat cg::UpdateCG(const dfloat alpha,
   // TODO: replace this with a device memset rather than using a kernel
   linAlg.setKernel(1, 0.0, o_tmprdotr);
   updateCGKernel_r(N, Nblocks, o_Ap, alpha, o_r, o_tmprdotr);
-  h_tmprdotr.copyFrom(o_tmprdotr, 1, 0, "async: true");
+  h_tmprdotr.copyFrom(o_tmprdotr, 1, 0, properties_t("async: true"));
 
   occa::streamTag tag = platform.device.tagStream();
 

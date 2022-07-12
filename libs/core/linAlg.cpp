@@ -58,7 +58,7 @@ dfloat linAlg_t::norm2(const dlong N,
   norm2Kernel1(Nblock, N, o_a, o_scratch);
   norm2Kernel2(Nblock, o_scratch);
 
-  h_scratch.copyFrom(o_scratch, 1, 0, "async: true");
+  h_scratch.copyFrom(o_scratch, 1, 0, properties_t("async", true));
   platform->finish();
 
   dfloat norm = h_scratch[0];
@@ -79,7 +79,7 @@ dfloat linAlg_t::innerProd(const dlong N,
   innerProdKernel1(Nblock, N, o_x, o_y, o_scratch);
   innerProdKernel2(Nblock, o_scratch);
 
-  h_scratch.copyFrom(o_scratch, 1, 0, "async: true");
+  h_scratch.copyFrom(o_scratch, 1, 0, properties_t("async", true));
   platform->finish();
 
   dfloat dot = h_scratch[0];
