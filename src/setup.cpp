@@ -49,12 +49,17 @@ void hipBone_t::Setup(platform_t& _platform, mesh_t& _mesh){
                                    "hipBoneRhs", kernelInfo);
 
   // Ax kernels
-  // Use the non-MFMA operator kernel for all orders except 15 and use the MFMA
-  // kernels at only order 15
+  // Use the non-MFMA operator kernel for all orders except 1[45] and use the MFMA
+  // kernels at only order 1[45]
   if (mesh.Nq == 16) {
     kernelInfo["okl/enabled"] = false;
     operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx_mfma.cpp",
                                      "hipBoneAx_mfma", kernelInfo);
+  }
+  else if (mesh.Nq == 15) {
+    kernelInfo["okl/enabled"] = false;
+    operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx_p14_mfma.cpp",
+                                     "hipBoneAx_p14_mfma", kernelInfo);
   }
   else {
     operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx.okl",
