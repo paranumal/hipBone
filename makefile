@@ -139,7 +139,7 @@ else
 endif
 
 install:
-	${MAKE} -C ${HIPBONE_LIBS_DIR} install PREFIX=${PREFIX}
+	@${MAKE} -C ${HIPBONE_LIBS_DIR} install PREFIX=${PREFIX} --no-print-directory
 	@install -d ${PREFIX}/okl -v
 	@install -m 750 okl/*.okl -t ${PREFIX}/okl/ -v
 	@install -m 750 hipBone ${PREFIX}/hipBone -v
