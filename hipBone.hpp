@@ -33,8 +33,6 @@ SOFTWARE.
 #include "linAlg.hpp"
 #include "linearSolver.hpp"
 
-#define DHIPBONE HIPBONE_DIR
-
 using namespace libp;
 
 class hipBoneSettings_t: public settings_t {

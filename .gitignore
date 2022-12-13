@@ -27,3 +27,4 @@
 *.nvprof
 
 .occa/
+install/

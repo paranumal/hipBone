@@ -38,13 +38,13 @@ kernel_t platform_t::buildKernel(std::string fileName,
 
   //build on root first
   if (!rank())
-    kernel = device.buildKernel(fileName, kernelName, kernelInfo);
+    kernel = device.buildKernel(exePath() + fileName, kernelName, kernelInfo);
 
   comm.Barrier();
 
   //remaining ranks find the cached version (ideally)
   if (rank())
-    kernel = device.buildKernel(fileName, kernelName, kernelInfo);
+    kernel = device.buildKernel(exePath() + fileName, kernelName, kernelInfo);
 
   comm.Barrier();
 

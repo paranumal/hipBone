@@ -46,10 +46,10 @@ void hipBone_t::Setup(platform_t& _platform, mesh_t& _mesh){
   properties_t kernelInfo = mesh.props; //copy mesh occa properties
 
   // Ax kernel
-  operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx.okl",
+  operatorKernel = platform.buildKernel("okl/hipBoneAx.okl",
                                    "hipBoneAx", kernelInfo);
 
-  forcingKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneRhs.okl",
+  forcingKernel = platform.buildKernel("okl/hipBoneRhs.okl",
                                    "hipBoneRhs", kernelInfo);
 }
 

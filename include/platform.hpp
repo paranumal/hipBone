@@ -38,6 +38,7 @@ SOFTWARE.
 #include "comm.hpp"
 #include "settings.hpp"
 #include "linAlg.hpp"
+#include <filesystem>
 
 namespace libp {
 
@@ -50,9 +51,12 @@ class iplatform_t {
 public:
   settings_t settings;
   properties_t props;
+  std::string exePath;
 
   iplatform_t(settings_t& _settings):
     settings(_settings) {
+    exePath = std::filesystem::read_symlink("/proc/self/exe").parent_path();
+    exePath += std::filesystem::path::preferred_separator;
   }
 };
 
@@ -156,6 +160,11 @@ class platform_t {
   properties_t& props() {
     assertInitialized();
     return iplatform->props;
+  }
+
+  const std::string& exePath() {
+    assertInitialized();
+    return iplatform->exePath;
   }
 
   void finish() {
