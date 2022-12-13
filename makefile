@@ -33,6 +33,7 @@ hipBone makefile targets:
    make clean-libs
    make clean-kernels
    make realclean
+   make install
    make info
    make help
 
@@ -48,6 +49,8 @@ make clean-kernels
    In addition to "make clean-libs", also cleans the cached OCCA kernels.
 make realclean
    In addition to "make clean-kernels", also clean 3rd party libraries.
+make install PREFIX=<path>
+   Install hipBone and okl files to PREFIX location (default hipBone/install).
 make info
    List directories and compiler flags in use.
 make help
@@ -58,7 +61,7 @@ Can use "make verbose=true" for verbose output.
 endef
 
 ifeq (,$(filter hipBone clean clean-libs clean-kernels \
-                realclean info help,$(MAKECMDGOALS)))
+                realclean install info help,$(MAKECMDGOALS)))
 ifneq (,$(MAKECMDGOALS))
 $(error ${HIPBONE_HELP_MSG})
 endif
@@ -79,8 +82,7 @@ INCLUDES=${HIPBONE_INCLUDES} \
 
 
 #defines
-DEFINES =${HIPBONE_DEFINES} \
-         -DHIPBONE_DIR='"${HIPBONE_DIR}"'
+DEFINES =${HIPBONE_DEFINES}
 
 #.cpp compilation flags
 HB_CXXFLAGS=${HIPBONE_CXXFLAGS} ${DEFINES} ${INCLUDES}
@@ -101,8 +103,11 @@ SRC =$(wildcard src/*.cpp)
 
 OBJS=$(SRC:.cpp=.o)
 
-.PHONY: all clean clean-libs \
-		clean-kernels realclean help info hipBone
+#install prefix
+PREFIX ?= ${HIPBONE_DIR}/install
+
+.PHONY: all clean clean-libs clean-kernels realclean \
+	     install help info hipBone
 
 all: hipBone
 
@@ -132,6 +137,12 @@ else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
 	@$(HIPBONE_CXX) -o $*.o -c $*.cpp $(HB_CXXFLAGS)
 endif
+
+install:
+	@${MAKE} -C ${HIPBONE_LIBS_DIR} install PREFIX=${PREFIX} --no-print-directory
+	@install -d ${PREFIX}/okl -v
+	@install -m 750 okl/*.okl -t ${PREFIX}/okl/ -v
+	@install -m 750 hipBone ${PREFIX}/hipBone -v
 
 #cleanup
 clean:
