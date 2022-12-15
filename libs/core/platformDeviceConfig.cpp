@@ -163,7 +163,7 @@ void platform_t::DeviceConfig(){
   char * cacheEnvVar = std::getenv("HIPBONE_CACHE_DIR");
   if (cacheEnvVar == nullptr) {
     // Environment variable is not set
-    cacheDir = HIPBONE_DIR "/.occa";
+    cacheDir = exePath() + ".occa";
   }
   else {
     // Environmet variable is set, but could be empty string
@@ -171,7 +171,7 @@ void platform_t::DeviceConfig(){
 
     if (cacheDir.size() == 0) {
       // Environment variable is set but equal to empty string
-      cacheDir = HIPBONE_DIR "/.occa";
+      cacheDir = exePath() + ".occa";
     }
   }
   setCacheDir(cacheDir);

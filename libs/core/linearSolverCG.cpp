@@ -53,13 +53,13 @@ cg::cg(platform_t& _platform, dlong _N, dlong _Nhalo):
   kernelInfo["defines/" "p_blockSize"] = (int)CG_BLOCKSIZE;
 
   // combined CG update and r.r kernel
-  updateCGKernel1 = platform.buildKernel(HIPBONE_DIR "/libs/core/okl/linearSolverUpdateCG.okl",
+  updateCGKernel1 = platform.buildKernel("libs/core/okl/linearSolverUpdateCG.okl",
                                 "updateCG_1", kernelInfo);
-  updateCGKernel2 = platform.buildKernel(HIPBONE_DIR "/libs/core/okl/linearSolverUpdateCG.okl",
+  updateCGKernel2 = platform.buildKernel("libs/core/okl/linearSolverUpdateCG.okl",
                                 "updateCG_2", kernelInfo);
 
   // separate kernels for 1. fused residual update with norm calculation and; 2. solution update
-  updateCGKernel_r = platform.buildKernel(HIPBONE_DIR "/libs/core/okl/linearSolverUpdateCG.okl",
+  updateCGKernel_r = platform.buildKernel("libs/core/okl/linearSolverUpdateCG.okl",
                                  "updateCG_r_atomic", kernelInfo);
 }
 

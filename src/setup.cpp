@@ -45,7 +45,7 @@ void hipBone_t::Setup(platform_t& _platform, mesh_t& _mesh){
   // OCCA build stuff
   properties_t kernelInfo = mesh.props; //copy mesh occa properties
 
-  forcingKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneRhs.okl",
+  forcingKernel = platform.buildKernel("okl/hipBoneRhs.okl",
                                    "hipBoneRhs", kernelInfo);
 
   // Ax kernels
@@ -53,16 +53,16 @@ void hipBone_t::Setup(platform_t& _platform, mesh_t& _mesh){
   // kernels at only order 1[45]
   if (mesh.Nq == 16) {
     kernelInfo["okl/enabled"] = false;
-    operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx_mfma.cpp",
+    operatorKernel = platform.buildKernel("okl/hipBoneAx_mfma.cpp",
                                      "hipBoneAx_mfma", kernelInfo);
   }
   else if (mesh.Nq == 15) {
     kernelInfo["okl/enabled"] = false;
-    operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx_p14_mfma.cpp",
+    operatorKernel = platform.buildKernel("okl/hipBoneAx_p14_mfma.cpp",
                                      "hipBoneAx_p14_mfma", kernelInfo);
   }
   else {
-    operatorKernel = platform.buildKernel(DHIPBONE "/okl/hipBoneAx.okl",
+    operatorKernel = platform.buildKernel("okl/hipBoneAx.okl",
                                      "hipBoneAx", kernelInfo);
   }
 }
