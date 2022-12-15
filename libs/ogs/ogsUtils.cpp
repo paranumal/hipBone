@@ -102,22 +102,22 @@ void InitializeKernels(platform_t& platform, const Type type, const Op op) {
       case Max: kernelInfo["defines/OGS_OP(a,b)"] = "if(b>a) a=b"; break;
     }
 
-    ogsOperator_t::gatherScatterKernel[type][op] = platform.buildKernel(OGS_DIR "/okl/ogsKernels.okl",
+    ogsOperator_t::gatherScatterKernel[type][op] = platform.buildKernel("libs/ogs/okl/ogsKernels.okl",
                                                          "gatherScatter",
                                                          kernelInfo);
 
 
-    ogsOperator_t::gatherKernel[type][op] = platform.buildKernel(OGS_DIR "/okl/ogsKernels.okl",
+    ogsOperator_t::gatherKernel[type][op] = platform.buildKernel("libs/ogs/okl/ogsKernels.okl",
                                                 "gather",
                                                 kernelInfo);
 
     if (!ogsOperator_t::scatterKernel[type].isInitialized()) {
-      ogsOperator_t::scatterKernel[type] = platform.buildKernel(OGS_DIR "/okl/ogsKernels.okl",
+      ogsOperator_t::scatterKernel[type] = platform.buildKernel("libs/ogs/okl/ogsKernels.okl",
                                                  "scatter",
                                                  kernelInfo);
 
-      ogsExchange_t::extractKernel[type] = platform.buildKernel(OGS_DIR "/okl/ogsKernels.okl",
-                                                "extract", kernelInfo);\
+      ogsExchange_t::extractKernel[type] = platform.buildKernel("libs/ogs/okl/ogsKernels.okl",
+                                                "extract", kernelInfo);
     }
   }
 }

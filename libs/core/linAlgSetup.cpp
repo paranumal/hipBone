@@ -55,37 +55,37 @@ void linAlg_t::InitKernels(std::vector<string> kernels) {
     string name = kernels[i];
     if (name=="set") {
       if (setKernel.isInitialized()==false)
-        setKernel = platform->buildKernel(HIPBONE_DIR "/libs/core/okl/"
+        setKernel = platform->buildKernel("libs/core/okl/"
                                         "linAlgSet.okl",
                                         "set",
                                         kernelInfo);
     } else if (name=="axpy") {
       if (axpyKernel.isInitialized()==false)
-        axpyKernel = platform->buildKernel(HIPBONE_DIR "/libs/core/okl/"
+        axpyKernel = platform->buildKernel("libs/core/okl/"
                                         "linAlgAXPY.okl",
                                         "axpy",
                                         kernelInfo);
     } else if (name=="norm2") {
       if (norm2Kernel1.isInitialized()==false)
-        norm2Kernel1 = platform->buildKernel(HIPBONE_DIR "/libs/core/okl/"
+        norm2Kernel1 = platform->buildKernel("libs/core/okl/"
                                         "linAlgNorm2.okl",
                                         "norm2_1",
                                         kernelInfo);
 
       if (norm2Kernel2.isInitialized()==false)
-        norm2Kernel2 = platform->buildKernel(HIPBONE_DIR "/libs/core/okl/"
+        norm2Kernel2 = platform->buildKernel("libs/core/okl/"
                                         "linAlgNorm2.okl",
                                         "norm2_2",
                                         kernelInfo);
     } else if (name=="innerProd") {
       if (innerProdKernel1.isInitialized()==false)
-        innerProdKernel1 = platform->buildKernel(HIPBONE_DIR "/libs/core/okl/"
+        innerProdKernel1 = platform->buildKernel("libs/core/okl/"
                                         "linAlgInnerProd.okl",
                                         "innerProd_1",
                                         kernelInfo);
 
       if (innerProdKernel2.isInitialized()==false)
-        innerProdKernel2 = platform->buildKernel(HIPBONE_DIR "/libs/core/okl/"
+        innerProdKernel2 = platform->buildKernel("libs/core/okl/"
                                         "linAlgInnerProd.okl",
                                         "innerProd_2",
                                         kernelInfo);

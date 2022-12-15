@@ -39,12 +39,11 @@ LIBOGS_DIR=${HIPBONE_LIBS_DIR}/ogs
 
 #includes
 INCLUDES=${HIPBONE_INCLUDES}
-LIBOGS_INCLUDES= -I${HIPBONE_INCLUDES}/ogs
 
 #defines
-LIBCORE_DEFINES=${HIPBONE_DEFINES} -DHIPBONE_DIR='"${HIPBONE_DIR}"'
-LIBMESH_DEFINES=${HIPBONE_DEFINES} -DMESH_DIR='"${LIBMESH_DIR}"'
-LIBOGS_DEFINES=${HIPBONE_DEFINES} -DHIPBONE_DIR='"${HIPBONE_DIR}"'  -DOGS_DIR='"${LIBOGS_DIR}"'
+LIBCORE_DEFINES=${HIPBONE_DEFINES}
+LIBMESH_DEFINES=${HIPBONE_DEFINES}
+LIBOGS_DEFINES=${HIPBONE_DEFINES}
 
 ifeq (true,${gpu-aware-mpi})
   LIBOGS_DEFINES+= -DGPU_AWARE_MPI
@@ -66,6 +65,9 @@ LIBOGS_SRC =$(wildcard ogs/*.cpp)
 LIBCORE_OBJS=$(LIBCORE_SRC:.cpp=.o)
 LIBMESH_OBJS=$(LIBMESH_SRC:.cpp=.o)
 LIBOGS_OBJS=$(LIBOGS_SRC:.cpp=.o)
+
+#install prefix
+PREFIX ?= ${HIPBONE_DIR}/install
 
 .PHONY: all core mesh ogs \
         clean realclean silentUpdate-core  \
@@ -137,11 +139,18 @@ endif
 
 ogs/%.o: ogs/%.cpp $(LIBOGS_DEPS) | libcore.a
 ifneq (,${verbose})
-	$(HIPBONE_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS) $(LIBOGS_INCLUDES)
+	$(HIPBONE_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS)
 else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
-	@$(HIPBONE_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS) $(LIBOGS_INCLUDES)
+	@$(HIPBONE_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS)
 endif
+
+install:
+	@install -d ${PREFIX}/libs -v
+	@install -d ${PREFIX}/libs/core/okl -v
+	@install -d ${PREFIX}/libs/ogs/okl -v
+	@install -m 750 core/okl/*.okl -t ${PREFIX}/libs/core/okl/ -v
+	@install -m 750 ogs/okl/*.okl -t ${PREFIX}/libs/ogs/okl/ -v
 
 #cleanup
 clean:
