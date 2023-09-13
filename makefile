@@ -88,7 +88,7 @@ DEFINES =${HIPBONE_DEFINES}
 HB_CXXFLAGS=${HIPBONE_CXXFLAGS} ${DEFINES} ${INCLUDES}
 
 #link libraries
-LIBS=-L${HIPBONE_LIBS_DIR} -lmesh -logs -lcore \
+LIBS=-L${HIPBONE_LIBS_DIR} -lmesh -logs -lprim -lcore \
      ${HIPBONE_LIBS}
 
 #link flags
@@ -121,9 +121,9 @@ endif
 
 hipbone_libs: ${OCCA_DIR}/lib/libocca.so
 ifneq (,${verbose})
-	${MAKE} -C ${HIPBONE_LIBS_DIR} mesh ogs core verbose=${verbose}
+	${MAKE} -C ${HIPBONE_LIBS_DIR} mesh ogs core prim verbose=${verbose}
 else
-	@${MAKE} -C ${HIPBONE_LIBS_DIR} mesh ogs core --no-print-directory
+	@${MAKE} -C ${HIPBONE_LIBS_DIR} mesh ogs core prim --no-print-directory
 endif
 
 ${OCCA_DIR}/lib/libocca.so:

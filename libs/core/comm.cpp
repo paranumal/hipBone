@@ -103,6 +103,10 @@ void comm_t::Waitall(const int count, memory<request_t> &requests) const {
   MPI_Waitall(count, requests.ptr(), MPI_STATUSES_IGNORE);
 }
 
+void comm_t::Waitall(const int count, request_t* requests) const {
+  MPI_Waitall(count, requests, MPI_STATUSES_IGNORE);
+}
+
 void comm_t::Barrier() const {
   MPI_Barrier(comm());
 }

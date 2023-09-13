@@ -28,6 +28,7 @@ SOFTWARE.
 #include "ogs.hpp"
 #include "ogs/ogsUtils.hpp"
 #include "ogs/ogsOperator.hpp"
+#include "primitives.hpp"
 
 namespace libp {
 
@@ -444,71 +445,175 @@ template
 void ogsOperator_t::GatherScatter(deviceMemory<long long int> v,const int k,
                                   const Op op, const Transpose trans);
 
-void ogsOperator_t::setupRowBlocks() {
+/*
+Binary search for the first entry between v[start] and v[end]
+which is >= val. Returns end if no such index exist
+*/
+static dlong upperBound(dlong first,
+                        dlong last,
+                        const dlong *v,
+                        const dlong val) {
 
-  dlong blockSumN=0, blockSumT=0;
-  NrowBlocksN=0, NrowBlocksT=0;
+  dlong count = last - first;
 
-  if (NrowsN) NrowBlocksN++;
-  if (NrowsT) NrowBlocksT++;
+  while (count > 0) {
+    const dlong step = count / 2;
+    const dlong mid = first + step;
 
-  for (dlong i=0;i<NrowsT;i++) {
-    const dlong rowSizeN  = rowStartsN[i+1]-rowStartsN[i];
-    const dlong rowSizeT  = rowStartsT[i+1]-rowStartsT[i];
-
-    //this row is pathalogically big. We can't currently run this
-    LIBP_ABORT("Multiplicity of global node id: " << i
-               << " in ogsOperator_t::setupRowBlocks is too large.",
-               rowSizeN > gatherNodesPerBlock);
-    LIBP_ABORT("Multiplicity of global node id: " << i
-               << " in ogsOperator_t::setupRowBlocks is too large.",
-               rowSizeT > gatherNodesPerBlock);
-
-    if (blockSumN+rowSizeN > gatherNodesPerBlock) { //adding this row will exceed the nnz per block
-      NrowBlocksN++; //count the previous block
-      blockSumN=rowSizeN; //start a new row block
+    if (v[mid] < val) {
+      first = mid + 1;
+      count -= step + 1;
     } else {
-      blockSumN+=rowSizeN; //add this row to the block
-    }
-
-    if (blockSumT+rowSizeT > gatherNodesPerBlock) { //adding this row will exceed the nnz per block
-      NrowBlocksT++; //count the previous block
-      blockSumT=rowSizeT; //start a new row block
-    } else {
-      blockSumT+=rowSizeT; //add this row to the block
+      count = step;
     }
   }
 
-  blockRowStartsN.calloc(NrowBlocksN+1);
-  blockRowStartsT.calloc(NrowBlocksT+1);
+  return first;
+}
 
-  blockSumN=0, blockSumT=0;
-  NrowBlocksN=0, NrowBlocksT=0;
-  if (NrowsN) NrowBlocksN++;
-  if (NrowsT) NrowBlocksT++;
+static void blockRows(const dlong Nrows,
+                      const memory<dlong> rowStarts,
+                      dlong& Nblocks,
+                      memory<dlong>& blockStarts) {
 
-  for (dlong i=0;i<NrowsT;i++) {
-    const dlong rowSizeN  = rowStartsN[i+1]-rowStartsN[i];
-    const dlong rowSizeT  = rowStartsT[i+1]-rowStartsT[i];
+  if (!Nrows) return;
 
-    if (blockSumN+rowSizeN > gatherNodesPerBlock) { //adding this row will exceed the nnz per block
-      blockRowStartsN[NrowBlocksN++] = i; //mark the previous block
-      blockSumN=rowSizeN; //start a new row block
-    } else {
-      blockSumN+=rowSizeN; //add this row to the block
+  //Check for a pathalogically big row. We can't currently run this
+  memory<dlong> rowSizes(Nrows+1);
+  prim::adjacentDifference(Nrows+1, rowStarts, rowSizes);
+  dlong maxRowSize = prim::max(Nrows, rowSizes);
+  rowSizes.free();
+
+  LIBP_ABORT("Multiplicity of a global node in ogsOperator_t::setupRowBlocks is too large.",
+             maxRowSize > gatherNodesPerBlock);
+
+  // We're going to resursively bisect the list of rows into blocks,
+  //  so we need the scratch space to be some power of 2.
+  //  Worst case is every block as only one row,
+  //  so scratch space is at most Nrows blocks
+  dlong maxNblocks = 1;
+  while (maxNblocks < Nrows) { maxNblocks *= 2; }
+
+  memory<dlong> blockStartsOld(maxNblocks+1);
+  memory<dlong> blockStartsNew(maxNblocks+1);
+  memory<dlong> blockSizes(maxNblocks);
+
+  Nblocks = 1;
+  blockStartsOld[0] = 0;
+  blockStartsOld[1] = Nrows;
+  blockStartsNew[0] = 0;
+
+  blockSizes[0] = rowStarts[Nrows];
+  dlong maxSize = blockSizes[0];
+
+  while (maxSize > gatherNodesPerBlock) {
+    blockStartsNew[2*Nblocks] = Nrows;
+    /*Recursively bisect the list of rows until the max block size is < gatherNodesPerBlock*/
+    #pragma omp parallel for
+    for (dlong n=0;n<Nblocks;++n) {
+      const dlong start = blockStartsOld[n];
+      const dlong end   = blockStartsOld[n+1];
+      const dlong rowBlockSize = rowStarts[end] - rowStarts[start];
+
+      if (rowBlockSize > gatherNodesPerBlock) {
+        //Find the index ~middle of this block
+        const dlong midSize = rowStarts[start] + (rowBlockSize + 1)/2;
+        dlong mid = upperBound(start, end, rowStarts.ptr(), midSize);
+        if (mid == end) --mid; // need at least one row in the right block
+        blockStartsNew[2*n] = start;
+        blockStartsNew[2*n+1] = mid;
+        blockSizes[2*n] = rowStarts[mid] - rowStarts[start];
+        blockSizes[2*n+1] = rowStarts[end] - rowStarts[mid];
+      } else {
+        blockStartsNew[2*n] = start;
+        blockStartsNew[2*n+1] = end;
+        blockSizes[2*n] = rowBlockSize;
+        blockSizes[2*n+1] = 0;
+      }
     }
-    if (blockSumT+rowSizeT > gatherNodesPerBlock) { //adding this row will exceed the nnz per block
-      blockRowStartsT[NrowBlocksT++] = i; //mark the previous block
-      blockSumT=rowSizeT; //start a new row block
-    } else {
-      blockSumT+=rowSizeT; //add this row to the block
-    }
+
+    //swap blockStarts arrays
+    blockStartsOld.swap(blockStartsNew);
+
+    //Check if we're done bisecting
+    Nblocks *= 2;
+    maxSize = prim::max(Nblocks, blockSizes);
   }
-  blockRowStartsN[NrowBlocksN] = NrowsN;
-  blockRowStartsT[NrowBlocksT] = NrowsT;
 
-  o_blockRowStartsN = platform.malloc(blockRowStartsN);
+  dlong Nunique=0;
+  prim::unique(Nblocks+1, blockStartsOld, Nunique, blockStarts);
+  Nblocks = Nunique-1;
+}
+
+//Make gather operator using nodes list. List of non-zeros must be sorted by row index
+ogsOperator_t::ogsOperator_t(platform_t &platform_,
+                             Kind kind_,
+                             const dlong NrowsN_,
+                             const dlong NrowsT_,
+                             const dlong Ncols_,
+                             const dlong Nids,
+                             memory<hlong> baseIds,
+                             memory<dlong> rows,
+                             memory<dlong> cols):
+  platform(platform_),
+  Ncols(Ncols_),
+  NrowsN(NrowsN_),
+  NrowsT(NrowsT_),
+  kind(kind_)
+{
+  nnzT = Nids;
+  rowStartsT.malloc(NrowsT+1);
+  prim::runLengthEncodeConsecutive(nnzT, rows, NrowsT, rowStartsT);
+
+  colIdsT = cols;
+
+  o_rowStartsT = platform.malloc(rowStartsT);
+  o_colIdsT = platform.malloc(colIdsT);
+
+  if (kind == Signed) {
+    memory<int> flags(Nids);
+
+    #pragma omp parallel for
+    for (dlong n=0;n<Nids;++n) {
+      flags[n] = (baseIds[n]>0) ? 1 : 0;
+    }
+
+    nnzN = prim::count(Nids, flags, 1);
+    memory<dlong> idsN(nnzN);
+    prim::select(Nids, flags, 1, idsN);
+
+    memory<dlong> rowsN(nnzN);
+    prim::transformGather(nnzN, idsN, rows, rowsN);
+
+    rowStartsN.malloc(NrowsN+1);
+    prim::runLengthEncodeConsecutive(nnzN, rowsN, NrowsN, rowStartsN);
+
+    colIdsN.malloc(nnzN);
+    prim::transformGather(nnzN, idsN, cols, colIdsN);
+
+    o_rowStartsN = platform.malloc(rowStartsN);
+    o_colIdsN = platform.malloc(colIdsN);
+  } else {
+    nnzN = nnzT;
+    rowStartsN = rowStartsT;
+    colIdsN = colIdsT;
+    o_rowStartsN = o_rowStartsT;
+    o_colIdsN = o_colIdsT;
+  }
+
+  //divide the list of colIds into roughly equal sized blocks so that each
+  // threadblock loads approximately an equal amount of data
+  blockRows(NrowsT, rowStartsT, NrowBlocksT, blockRowStartsT);
   o_blockRowStartsT = platform.malloc(blockRowStartsT);
+
+  if (kind==Signed) {
+    blockRows(NrowsN, rowStartsN, NrowBlocksN, blockRowStartsN);
+    o_blockRowStartsN = platform.malloc(blockRowStartsN);
+  } else {
+    NrowBlocksN = NrowBlocksT;
+    blockRowStartsN = blockRowStartsT;
+    o_blockRowStartsN = o_blockRowStartsT;
+  }
 }
 
 void ogsOperator_t::Free() {

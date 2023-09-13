@@ -548,6 +548,7 @@ class comm_t {
 
   void Wait(request_t &request) const;
   void Waitall(const int count, memory<request_t> &requests) const;
+  void Waitall(const int count, request_t* requests) const;
   void Barrier() const;
 
   static void GetProcessorName(char* name, int &namelen) {
