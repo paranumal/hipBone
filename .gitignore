@@ -5,6 +5,7 @@
 !*/*/makefile
 !*/*/Makefile
 !LICENSE
+!hipBone_poly
 
 *.o
 *.a
