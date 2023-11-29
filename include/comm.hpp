@@ -100,13 +100,13 @@ class comm_t {
 
   /*Predefined ops*/
   using op_t = MPI_Op;
-  static constexpr op_t Max  = MPI_MAX;
-  static constexpr op_t Min  = MPI_MIN;
-  static constexpr op_t Sum  = MPI_SUM;
-  static constexpr op_t Prod = MPI_PROD;
-  static constexpr op_t And  = MPI_LAND;
-  static constexpr op_t Or   = MPI_LOR;
-  static constexpr op_t Xor  = MPI_LXOR;
+  inline static const op_t Max  = MPI_MAX;
+  inline static const op_t Min  = MPI_MIN;
+  inline static const op_t Sum  = MPI_SUM;
+  inline static const op_t Prod = MPI_PROD;
+  inline static const op_t And  = MPI_LAND;
+  inline static const op_t Or   = MPI_LOR;
+  inline static const op_t Xor  = MPI_LXOR;
 
   /*libp::memory send*/
   template <template<typename> class mem, typename T>
@@ -548,6 +548,7 @@ class comm_t {
 
   void Wait(request_t &request) const;
   void Waitall(const int count, memory<request_t> &requests) const;
+  void Waitall(const int count, request_t* requests) const;
   void Barrier() const;
 
   static void GetProcessorName(char* name, int &namelen) {

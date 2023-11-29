@@ -42,8 +42,6 @@ static void DeviceExchangeTest(ogsExchange_t* exchange, double time[3]) {
   comm_t& comm = exchange->comm;
   int size = comm.size();
 
-  pinnedMemory<dfloat>   buf = exchange->h_workspace;
-  deviceMemory<dfloat> o_buf = exchange->o_workspace;
 
   device_t &device = exchange->platform.device;
 
@@ -51,21 +49,26 @@ static void DeviceExchangeTest(ogsExchange_t* exchange, double time[3]) {
   for (int n=0;n<Ncold;++n) {
     if (exchange->gpu_aware) {
       /*GPU-aware exchange*/
-      exchange->Start (o_buf, 1, Add, Sym);
-      exchange->Finish(o_buf, 1, Add, Sym);
+      exchange->DeviceStart (Dfloat, 1, Add, Sym);
+      exchange->DeviceFinish(Dfloat, 1, Add, Sym);
     } else {
+      pinnedMemory<dfloat>   sendBuf = exchange->getHostSendBuffer();
+      deviceMemory<dfloat> o_sendBuf = exchange->getDeviceSendBuffer();
       //if not using gpu-aware mpi move the halo buffer to the host
-      o_buf.copyTo(buf, exchange->Nhalo,
-                   0, properties_t("async", true));
+      o_sendBuf.copyTo(sendBuf, exchange->Nhalo,
+                       0, properties_t("async", true));
       device.finish();
 
       /*MPI exchange of host buffer*/
-      exchange->Start (buf, 1, Add, Sym);
-      exchange->Finish(buf, 1, Add, Sym);
+      exchange->HostStart (Dfloat, 1, Add, Sym);
+      exchange->HostFinish(Dfloat, 1, Add, Sym);
+
+      pinnedMemory<dfloat>   recvBuf = exchange->getHostRecvBuffer();
+      deviceMemory<dfloat> o_recvBuf = exchange->getDeviceRecvBuffer();
 
       // copy recv back to device
-      o_buf.copyFrom(buf, exchange->Nhalo,
-                     0, properties_t("async", true));
+      o_recvBuf.copyFrom(recvBuf, exchange->Nhalo,
+                         0, properties_t("async", true));
       device.finish(); //wait for transfer to finish
     }
   }
@@ -75,21 +78,26 @@ static void DeviceExchangeTest(ogsExchange_t* exchange, double time[3]) {
   for (int n=0;n<Nhot;++n) {
     if (exchange->gpu_aware) {
       /*GPU-aware exchange*/
-      exchange->Start (o_buf, 1, Add, Sym);
-      exchange->Finish(o_buf, 1, Add, Sym);
+      exchange->DeviceStart (Dfloat, 1, Add, Sym);
+      exchange->DeviceFinish(Dfloat, 1, Add, Sym);
     } else {
+      pinnedMemory<dfloat>   sendBuf = exchange->getHostSendBuffer();
+      deviceMemory<dfloat> o_sendBuf = exchange->getDeviceSendBuffer();
       //if not using gpu-aware mpi move the halo buffer to the host
-      o_buf.copyTo(buf, exchange->Nhalo,
-                   0, properties_t("async", true));
+      o_sendBuf.copyTo(sendBuf, exchange->Nhalo,
+                       0, properties_t("async", true));
       device.finish();
 
       /*MPI exchange of host buffer*/
-      exchange->Start (buf, 1, Add, Sym);
-      exchange->Finish(buf, 1, Add, Sym);
+      exchange->HostStart (Dfloat, 1, Add, Sym);
+      exchange->HostFinish(Dfloat, 1, Add, Sym);
+
+      pinnedMemory<dfloat>   recvBuf = exchange->getHostRecvBuffer();
+      deviceMemory<dfloat> o_recvBuf = exchange->getDeviceRecvBuffer();
 
       // copy recv back to device
-      o_buf.copyFrom(buf, exchange->Nhalo,
-                     0, properties_t("async", true));
+      o_recvBuf.copyFrom(recvBuf, exchange->Nhalo,
+                         0, properties_t("async", true));
       device.finish(); //wait for transfer to finish
     }
   }
@@ -100,8 +108,8 @@ static void DeviceExchangeTest(ogsExchange_t* exchange, double time[3]) {
   comm.Allreduce(localTime, maxTime, comm_t::Max);
   comm.Allreduce(localTime, minTime, comm_t::Min);
 
-  time[0] = sumTime/size; //avg
-  time[1] = minTime;      //min
+  time[0] = minTime;      //min
+  time[1] = sumTime/size; //avg
   time[2] = maxTime;      //max
 }
 
@@ -113,19 +121,17 @@ static void HostExchangeTest(ogsExchange_t* exchange, double time[3]) {
   comm_t& comm = exchange->comm;
   int size = comm.size();
 
-  pinnedMemory<dfloat> buf = exchange->h_workspace;
-
   //dry run
   for (int n=0;n<Ncold;++n) {
-    exchange->Start (buf, 1, Add, Sym);
-    exchange->Finish(buf, 1, Add, Sym);
+    exchange->HostStart (Dfloat, 1, Add, Sym);
+    exchange->HostFinish(Dfloat, 1, Add, Sym);
   }
 
   //hot runs
   timePoint_t start = Time();
   for (int n=0;n<Nhot;++n) {
-    exchange->Start (buf, 1, Add, Sym);
-    exchange->Finish(buf, 1, Add, Sym);
+    exchange->HostStart (Dfloat, 1, Add, Sym);
+    exchange->HostFinish(Dfloat, 1, Add, Sym);
   }
   timePoint_t end = Time();
 
@@ -134,13 +140,18 @@ static void HostExchangeTest(ogsExchange_t* exchange, double time[3]) {
   comm.Allreduce(localTime, maxTime, comm_t::Max);
   comm.Allreduce(localTime, minTime, comm_t::Min);
 
-  time[0] = sumTime/size; //avg
-  time[1] = minTime;      //min
+  time[0] = minTime;      //min
+  time[1] = sumTime/size; //avg
   time[2] = maxTime;      //max
 }
 
-ogsExchange_t* ogsBase_t::AutoSetup(dlong Nshared,
-                                    memory<parallelNode_t> &sharedNodes,
+ogsExchange_t* ogsBase_t::AutoSetup(const dlong Nshared,
+                                    const memory<int>   sharedRemoteRanks,
+                                    const memory<dlong> sharedLocalRows,
+                                    const memory<dlong> sharedRemoteRows,
+                                    const memory<hlong> sharedLocalBaseIds,
+                                    const memory<hlong> sharedRemoteBaseIds,
+                                    const memory<hlong> haloBaseIds,
                                     ogsOperator_t& _gatherHalo,
                                     comm_t _comm,
                                     platform_t &_platform,
@@ -150,9 +161,19 @@ ogsExchange_t* ogsBase_t::AutoSetup(dlong Nshared,
   rank = comm.rank();
   size = comm.size();
 
-  if (size==1) return new ogsPairwise_t(Nshared, sharedNodes,
-                                        _gatherHalo, dataStream,
-                                        comm, platform);
+  Kind knd = (kind == Unsigned) ? Unsigned : Signed;
+
+  if (size==1) return new ogsPairwise_t(knd,
+                                        Nshared,
+                                        sharedRemoteRanks,
+                                        sharedLocalRows,
+                                        sharedRemoteRows,
+                                        sharedLocalBaseIds,
+                                        sharedRemoteBaseIds,
+                                        _gatherHalo,
+                                        dataStream,
+                                        comm,
+                                        platform);
 
   ogsExchange_t* bestExchange;
   Method method;
@@ -160,10 +181,10 @@ ogsExchange_t* ogsBase_t::AutoSetup(dlong Nshared,
 
 #ifdef GPU_AWARE_MPI
   if (rank==0 && verbose)
-    printf("   Method         Device Exchange (avg, min, max)  Device Exchange (GPU-aware)      Host Exchange \n");
+    printf("   Method         Device Exchange (min, avg, max)  Device Exchange (GPU-aware)      Host Exchange \n");
 #else
   if (rank==0 && verbose)
-    printf("   Method         Device Exchange (avg, min, max)  Host Exchange \n");
+    printf("   Method         Device Exchange (min, avg, max)  Host Exchange \n");
 #endif
 
   //Trigger JIT kernel builds
@@ -172,9 +193,17 @@ ogsExchange_t* ogsBase_t::AutoSetup(dlong Nshared,
   /********************************
    * Pairwise
    ********************************/
-  ogsExchange_t* pairwise = new ogsPairwise_t(Nshared, sharedNodes,
-                                              _gatherHalo, dataStream,
-                                              comm, platform);
+  ogsExchange_t* pairwise = new ogsPairwise_t(knd,
+                                              Nshared,
+                                              sharedRemoteRanks,
+                                              sharedLocalRows,
+                                              sharedRemoteRows,
+                                              sharedLocalBaseIds,
+                                              sharedRemoteBaseIds,
+                                              _gatherHalo,
+                                              dataStream,
+                                              comm,
+                                              platform);
 
   //standard copy to host - exchange - copy back to device
   pairwise->gpu_aware=false;
@@ -221,9 +250,17 @@ ogsExchange_t* ogsBase_t::AutoSetup(dlong Nshared,
   /********************************
    * All-to-All
    ********************************/
-  ogsExchange_t* alltoall = new ogsAllToAll_t(Nshared, sharedNodes,
-                                           _gatherHalo, dataStream,
-                                           comm, platform);
+  ogsExchange_t* alltoall = new ogsAllToAll_t(knd,
+                                              Nshared,
+                                              sharedRemoteRanks,
+                                              sharedLocalRows,
+                                              sharedRemoteRows,
+                                              sharedLocalBaseIds,
+                                              sharedRemoteBaseIds,
+                                              _gatherHalo,
+                                              dataStream,
+                                              comm,
+                                              platform);
   //standard copy to host - exchange - copy back to device
   alltoall->gpu_aware=false;
 
@@ -274,9 +311,18 @@ ogsExchange_t* ogsBase_t::AutoSetup(dlong Nshared,
   /********************************
    * Crystal Router
    ********************************/
-  ogsExchange_t* crystal = new ogsCrystalRouter_t(Nshared, sharedNodes,
-                                                 _gatherHalo, dataStream,
-                                                 comm, platform);
+  ogsExchange_t* crystal = new ogsCrystalRouter_t(knd,
+                                                  Nshared,
+                                                  sharedRemoteRanks,
+                                                  sharedLocalRows,
+                                                  sharedRemoteRows,
+                                                  sharedLocalBaseIds,
+                                                  sharedRemoteBaseIds,
+                                                  haloBaseIds,
+                                                  _gatherHalo,
+                                                  dataStream,
+                                                  comm,
+                                                  platform);
 
   //standard copy to host - exchange - copy back to device
   crystal->gpu_aware=false;

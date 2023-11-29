@@ -36,6 +36,7 @@ endif
 LIBCORE_DIR=${HIPBONE_LIBS_DIR}/core
 LIBMESH_DIR=${HIPBONE_LIBS_DIR}/mesh
 LIBOGS_DIR=${HIPBONE_LIBS_DIR}/ogs
+LIBPRIM_DIR=${HIPBONE_LIBS_DIR}/primitives
 
 #includes
 INCLUDES=${HIPBONE_INCLUDES}
@@ -44,6 +45,7 @@ INCLUDES=${HIPBONE_INCLUDES}
 LIBCORE_DEFINES=${HIPBONE_DEFINES}
 LIBMESH_DEFINES=${HIPBONE_DEFINES}
 LIBOGS_DEFINES=${HIPBONE_DEFINES}
+LIBPRIM_DEFINES=${HIPBONE_DEFINES}
 
 ifeq (true,${gpu-aware-mpi})
   LIBOGS_DEFINES+= -DGPU_AWARE_MPI
@@ -61,21 +63,25 @@ LIBOGS_DEPS=${LIB_DEPS} \
 LIBCORE_SRC =$(wildcard core/*.cpp)
 LIBMESH_SRC =$(wildcard mesh/*.cpp)
 LIBOGS_SRC =$(wildcard ogs/*.cpp)
+LIBPRIM_SRC =$(wildcard primitives/*.cpp)
 
 LIBCORE_OBJS=$(LIBCORE_SRC:.cpp=.o)
 LIBMESH_OBJS=$(LIBMESH_SRC:.cpp=.o)
 LIBOGS_OBJS=$(LIBOGS_SRC:.cpp=.o)
+LIBPRIM_OBJS=$(LIBPRIM_SRC:.cpp=.o)
 
 #install prefix
 PREFIX ?= ${HIPBONE_DIR}/install
 
-.PHONY: all core mesh ogs \
+.PHONY: all core prim mesh ogs \
         clean realclean silentUpdate-core  \
-        silentUpdate-ogs silentUpdate-mesh
+        silentUpdate-ogs silentUpdate-mesh \
+        silentUpdate-prim
 
-all: core mesh ogs
+all: core prim mesh ogs
 
 core: libcore.a silentUpdate-core
+prim: libprim.a silentUpdate-prim
 mesh: libmesh.a silentUpdate-mesh
 ogs: libogs.a silentUpdate-ogs
 
@@ -87,7 +93,15 @@ else
 	@ar -cr libcore.a $(LIBCORE_OBJS)
 endif
 
-libogs.a: $(LIBOGS_OBJS) | libcore.a
+libprim.a: $(LIBPRIM_OBJS) | libcore.a
+ifneq (,${verbose})
+	ar -cr libprim.a $(LIBPRIM_OBJS)
+else
+	@printf "%b" "$(LIB_COLOR)Building library $(@F)$(NO_COLOR)\n";
+	@ar -cr libprim.a $(LIBPRIM_OBJS)
+endif
+
+libogs.a: $(LIBOGS_OBJS) | libprim.a
 ifneq (,${verbose})
 	ar -cr libogs.a $(LIBOGS_OBJS)
 else
@@ -104,6 +118,9 @@ else
 endif
 
 silentUpdate-core:
+	@true
+
+silentUpdate-prim:
 	@true
 
 silentUpdate-ogs:
@@ -137,12 +154,20 @@ else
 	@$(HIPBONE_CXX) -o $@ -c $< ${LIBMESH_DEFINES} $(LIB_CXXFLAGS)
 endif
 
-ogs/%.o: ogs/%.cpp $(LIBOGS_DEPS) | libcore.a
+ogs/%.o: ogs/%.cpp $(LIBOGS_DEPS) | libprim.a
 ifneq (,${verbose})
 	$(HIPBONE_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS)
 else
 	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
 	@$(HIPBONE_CXX) -o $@ -c $< ${LIBOGS_DEFINES} $(LIB_CXXFLAGS)
+endif
+
+primitives/%.o: primitives/%.cpp $(LIBOGS_DEPS) | libcore.a
+ifneq (,${verbose})
+	$(HIPBONE_CXX) -o $@ -c $< ${LIBPRIM_DEFINES} $(LIB_CXXFLAGS)
+else
+	@printf "%b" "$(OBJ_COLOR)Compiling $(@F)$(NO_COLOR)\n";
+	@$(HIPBONE_CXX) -o $@ -c $< ${LIBPRIM_DEFINES} $(LIB_CXXFLAGS)
 endif
 
 install:
@@ -154,4 +179,4 @@ install:
 
 #cleanup
 clean:
-	rm -f core/*.o mesh/*.o ogs/*.o *.a
+	rm -f core/*.o primitives/*.o mesh/*.o ogs/*.o *.a

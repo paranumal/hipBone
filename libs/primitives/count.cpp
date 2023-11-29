@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2017-2022 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
+Copyright (c) 2017-2023 Tim Warburton, Noel Chalmers, Jesse Chan, Ali Karakus
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -24,35 +24,32 @@ SOFTWARE.
 
 */
 
-#ifndef OGS_UTILS_HPP
-#define OGS_UTILS_HPP
-
-#include "ogs.hpp"
+#include "primitives.hpp"
 
 namespace libp {
 
-namespace ogs {
+namespace prim {
+
 
 template<typename T>
-struct ogsType {
-  static constexpr Type get();
-};
+dlong count(const dlong N, const memory<T> v, const T& value) {
 
-template<> struct ogsType<float> {
-  static constexpr Type get() { return Float; }
-};
-template<> struct ogsType<double> {
-  static constexpr Type get() { return Double; }
-};
-template<> struct ogsType<int> {
-  static constexpr Type get() { return Int32; }
-};
-template<> struct ogsType<long long int> {
-  static constexpr Type get() { return Int64; }
-};
+  if (N<=0) return 0;
 
-} //namespace ogs
+  dlong cnt = 0;
+  #pragma omp parallel for reduction(+:cnt)
+  for (dlong n=0; n<N; ++n) {
+    cnt += (v[n] == value) ? 1 : 0;
+  }
+
+  return cnt;
+}
+
+template dlong count(const dlong N, const memory<int> v, const int& value);
+template dlong count(const dlong N, const memory<long long int> v, const long long int& value);
+template dlong count(const dlong N, const memory<float> v, const float& value);
+template dlong count(const dlong N, const memory<double> v, const double& value);
+
+} //namespace prim
 
 } //namespace libp
-
-#endif

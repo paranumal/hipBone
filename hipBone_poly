@@ -1,0 +1,33 @@
+#!/bin/bash
+set -eo pipefail
+
+nonpoly_args=()
+poly_args=""
+
+while [[ $# -gt 0 ]]
+do
+  case $1 in
+    -p)
+      poly_args="$2"
+      shift
+      shift
+      ;;
+    -v)  # -v doesn't take a value, handle separately
+      nonpoly_args+=("$1")
+      shift
+      ;;
+    *)
+      nonpoly_args+=("$1")
+      nonpoly_args+=("$2")
+      shift
+      shift
+      ;;
+  esac
+done
+
+OLD_IFS=$IFS
+IFS=,
+for p in ${poly_args}  # comma is the delimiter
+do
+  ./hipBone -p $p ${nonpoly_args[@]}
+done
