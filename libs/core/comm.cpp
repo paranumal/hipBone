@@ -96,11 +96,15 @@ MPI_Comm comm_t::comm() const {
 }
 
 void comm_t::Wait(request_t &request) const {
+  roctxRangePush("comm_t::Wait");
   MPI_Wait(&request, MPI_STATUS_IGNORE);
+  roctxRangePop();
 }
 
 void comm_t::Waitall(const int count, memory<request_t> &requests) const {
+  roctxRangePush("comm_t::Waitall");
   MPI_Waitall(count, requests.ptr(), MPI_STATUSES_IGNORE);
+  roctxRangePop();
 }
 
 void comm_t::Waitall(const int count, request_t* requests) const {
@@ -108,7 +112,9 @@ void comm_t::Waitall(const int count, request_t* requests) const {
 }
 
 void comm_t::Barrier() const {
+  roctxRangePush("comm_t::Barrier");
   MPI_Barrier(comm());
+  roctxRangePop();
 }
 
 } //namespace libp

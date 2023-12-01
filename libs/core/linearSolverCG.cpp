@@ -25,6 +25,7 @@ SOFTWARE.
 */
 
 #include "linearSolver.hpp"
+#include <roctracer/roctx.h>
 
 namespace libp {
 
@@ -65,6 +66,7 @@ int cg::Solve(solver_t& solver,
                const dfloat tol,
                const int MAXIT,
                const int verbose) {
+  if (MAXIT <= 100) roctxRangePush("cg::Solve");
 
   int rank = platform.rank();
   linAlg_t &linAlg = platform.linAlg();
@@ -115,7 +117,9 @@ int cg::Solve(solver_t& solver,
     //  x <= x + alpha*p
     //  r <= r - alpha*A*p
     //  dot(r,r)
+    if (MAXIT <= 100) roctxRangePush("cg::UpdateCG");
     rdotr = UpdateCG(alpha, o_x, o_r);
+    if (MAXIT <= 100) roctxRangePop();
 
     if (verbose&&(rank==0)) {
       if(rdotr<0)
@@ -125,13 +129,13 @@ int cg::Solve(solver_t& solver,
     }
   }
 
+  if (MAXIT <= 100) roctxRangePop();
   return iter;
 }
 
 dfloat cg::UpdateCG(const dfloat alpha,
                     deviceMemory<dfloat> o_x,
                     deviceMemory<dfloat> o_r){
-
   linAlg_t &linAlg = platform.linAlg();
 
   // r <= r - alpha*A*p
@@ -150,6 +154,7 @@ dfloat cg::UpdateCG(const dfloat alpha,
 
   /*Compute all reduce while axpy is running*/
   dfloat rdotr1 = h_tmprdotr[0];
+
   comm.Allreduce(rdotr1);
 
   return rdotr1;

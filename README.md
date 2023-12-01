@@ -31,6 +31,12 @@ To build `hipBone` manually:
     $ export OPENBLAS_DIR=/path/to/openblas
     $ make -j `nproc`
 
+To build with `roctx` support, make sure that the `ROCM_PATH` environment
+variable is set and build with `make with-roctx=true`.
+
+To build with support for GPU-aware MPI, make sure your MPI stack supports
+handling device buffers and build with `make gpu-aware-mpi=true`.
+
 How to run `hipBone`
 --------------------
 

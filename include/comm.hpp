@@ -30,6 +30,15 @@ SOFTWARE.
 #include <mpi.h>
 #include "core.hpp"
 
+#ifdef WITH_ROCTX
+  #include <roctracer/roctx.h>
+  #define ROCTX_PUSH(string) roctxRangePush(string)
+  #define ROCTX_POP() roctxRangePop()
+#else
+  #define ROCTX_PUSH(string)
+  #define ROCTX_POP()
+#endif
+
 namespace libp {
 
 #define MAX_PROCESSOR_NAME MPI_MAX_PROCESSOR_NAME
@@ -114,10 +123,12 @@ class comm_t {
             const int dest,
             const int count=-1,
             const int tag=0) const {
+    ROCTX_PUSH("comm_t::Send(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
     MPI_Send(m.ptr(), cnt, type, dest, tag, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory recv*/
@@ -126,10 +137,12 @@ class comm_t {
             const int source,
             const int count=-1,
             const int tag=0) const {
+    ROCTX_PUSH("comm_t::Recv(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
     MPI_Recv(m.ptr(), cnt, type, source, tag, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*scalar send*/
@@ -137,9 +150,11 @@ class comm_t {
   void Send(T& val,
             const int dest,
             const int tag=0) const {
+    ROCTX_PUSH("comm_t::Send(T)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Send(&val, 1, type, dest, tag, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*scalar recv*/
@@ -147,9 +162,11 @@ class comm_t {
   void Recv(T& val,
             const int source,
             const int tag=0) const {
+    ROCTX_PUSH("comm_t::Recv(T)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Recv(&val, 1, type, source, tag, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory non-blocking send*/
@@ -159,9 +176,11 @@ class comm_t {
              const int count,
              const int tag,
              request_t &request) const {
+    ROCTX_PUSH("comm_t::Isend(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Isend(m.ptr(), count, type, dest, tag, comm(), &request);
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory non-blocking recv*/
@@ -171,9 +190,11 @@ class comm_t {
              const int count,
              const int tag,
              request_t &request) const {
+    ROCTX_PUSH("comm_t::Irecv(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Irecv(m.ptr(), count, type, source, tag, comm(), &request);
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*scalar non-blocking send*/
@@ -182,9 +203,11 @@ class comm_t {
              const int dest,
              const int tag,
              request_t &request) const {
+    ROCTX_PUSH("comm_t::Isend(T)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Isend(&val, 1, type, dest, tag, comm(), &request);
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*scalar non-blocking recv*/
@@ -193,9 +216,11 @@ class comm_t {
              const int source,
              const int tag,
              request_t &request) const {
+    ROCTX_PUSH("comm_t::Irecv(T)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Irecv(&val, 1, type, source, tag, comm(), &request);
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory broadcast*/
@@ -203,19 +228,23 @@ class comm_t {
   void Bcast(mem<T> m,
              const int root,
              const int count=-1) const {
+    ROCTX_PUSH("comm_t::Bcast(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
     MPI_Bcast(m.ptr(), cnt, type, root, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*scalar broadcast*/
   template <typename T>
   void Bcast(T& val,
              const int root) const {
+    ROCTX_PUSH("comm_t::Bcast(T)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Bcast(&val, 1, type, root, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory reduce*/
@@ -225,10 +254,12 @@ class comm_t {
               const int root,
               const op_t op = Sum,
               const int count=-1) const {
+    ROCTX_PUSH("comm_t::Reduce(mem<T>, mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(snd.length()) : count;
     MPI_Reduce(snd.ptr(), rcv.ptr(), cnt, type, op, root, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory in-place reduce*/
@@ -237,6 +268,7 @@ class comm_t {
               const int root,
               const op_t op = Sum,
               const int count=-1) const {
+    ROCTX_PUSH("comm_t::Reduce(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
     if (_rank==root) {
@@ -245,6 +277,7 @@ class comm_t {
       MPI_Reduce(m.ptr(), nullptr, cnt, type, op, root, comm());
     }
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*scalar reduce*/
@@ -253,9 +286,11 @@ class comm_t {
                     T& rcv,
               const int root,
               const op_t op = Sum) const {
+    ROCTX_PUSH("comm_t::Reduce(T, T)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Reduce(&snd, &rcv, 1, type, op, root, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
   template <typename T>
   void Reduce(T& val,
@@ -272,10 +307,12 @@ class comm_t {
                        mem<T> rcv,
                  const op_t op = Sum,
                  const int count=-1) const {
+    ROCTX_PUSH("comm_t::Allreduce(mem<T>, mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(snd.length()) : count;
     MPI_Allreduce(snd.ptr(), rcv.ptr(), cnt, type, op, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory in-place allreduce*/
@@ -283,10 +320,12 @@ class comm_t {
   void Allreduce(mem<T> m,
                  const op_t op = Sum,
                  const int count=-1) const {
+    ROCTX_PUSH("comm_t::Allreduce(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
     MPI_Allreduce(MPI_IN_PLACE, m.ptr(), cnt, type, op, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*scalar allreduce*/
@@ -294,9 +333,11 @@ class comm_t {
   void Allreduce(const T& snd,
                        T& rcv,
                  const op_t op = Sum) const {
+    ROCTX_PUSH("comm_t::Allreduce(T, T)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Allreduce(&snd, &rcv, 1, type, op, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
   template <typename T>
   void Allreduce(T& val,
@@ -313,9 +354,11 @@ class comm_t {
                   const op_t op,
                   const int count,
                   request_t &request) const {
+    ROCTX_PUSH("comm_t::Iallreduce(mem<T>, mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Iallreduce(snd.ptr(), rcv.ptr(), count, type, op, comm(), &request);
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory non-blocking in-place allreduce*/
@@ -325,9 +368,11 @@ class comm_t {
                   const op_t op,
                   const int count,
                   request_t &request) const {
+    ROCTX_PUSH("comm_t::Iallreduce(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Iallreduce(MPI_IN_PLACE, m.ptr(), count, type, op, comm(), &request);
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*scalar non-blocking allreduce*/
@@ -336,18 +381,22 @@ class comm_t {
                         T& rcv,
                   const op_t op,
                   request_t &request) const {
+    ROCTX_PUSH("comm_t::Iallreduce(T, T)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Iallreduce(&snd, &rcv, 1, type, op, comm(), &request);
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
   /*scalar non-blocking in-place allreduce*/
   template <template<typename> class mem, typename T>
   void Iallreduce(T& val,
                   const op_t op,
                   request_t &request) const {
+    ROCTX_PUSH("comm_t::Iallreduce(T)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Iallreduce(MPI_IN_PLACE, &val, 1, type, op, comm(), &request);
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory scan*/
@@ -356,10 +405,12 @@ class comm_t {
                   mem<T> rcv,
             const op_t op = Sum,
             const int count=-1) const {
+    ROCTX_PUSH("comm_t::Scan(mem<T>, mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(snd.length()) : count;
     MPI_Scan(snd.ptr(), rcv.ptr(), cnt, type, op, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory in-place scan*/
@@ -367,10 +418,12 @@ class comm_t {
   void Scan(mem<T> m,
             const op_t op = Sum,
             const int count=-1) const {
+    ROCTX_PUSH("comm_t::Scan(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(m.length()) : count;
     MPI_Scan(MPI_IN_PLACE, m.ptr(), cnt, type, op, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*scalar scan*/
@@ -378,9 +431,11 @@ class comm_t {
   void Scan(const T& snd,
                   T& rcv,
             const op_t op = Sum) const {
+    ROCTX_PUSH("comm_t::Scan(T, T)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Scan(&snd, &rcv, 1, type, op, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory gather*/
@@ -389,11 +444,13 @@ class comm_t {
                     mem<T> rcv,
               const int root,
               const int sendCount=-1) const {
+    ROCTX_PUSH("comm_t::Gather(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (sendCount==-1) ? static_cast<int>(snd.length()) : sendCount;
     MPI_Gather(snd.ptr(), cnt, type,
                rcv.ptr(), cnt, type, root, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory gatherv*/
@@ -404,11 +461,13 @@ class comm_t {
                const memory<int> recvCounts,
                const memory<int> recvOffsets,
                const int root) const {
+    ROCTX_PUSH("comm_t::Gatherv(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Gatherv(snd.ptr(), sendcount, type,
                 rcv.ptr(), recvCounts.ptr(), recvOffsets.ptr(), type,
                 root, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*scalar gather*/
@@ -416,10 +475,12 @@ class comm_t {
   void Gather(const T& snd,
                     mem<T> rcv,
               const int root) const {
+    ROCTX_PUSH("comm_t::Gather(T)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Gather(&snd,      1, type,
                rcv.ptr(), 1, type, root, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory scatter*/
@@ -428,11 +489,13 @@ class comm_t {
                      mem<T> rcv,
                const int root,
                const int count=-1) const {
+    ROCTX_PUSH("comm_t::Scatter(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (count==-1) ? static_cast<int>(rcv.length()) : count;
     MPI_Scatter(snd.ptr(), cnt, type,
                 rcv.ptr(), cnt, type, root, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory scatterv*/
@@ -443,11 +506,13 @@ class comm_t {
                       mem<T> rcv,
                 const int recvcount,
                 const int root) const {
+    ROCTX_PUSH("comm_t::Scatterv(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Scatterv(snd.ptr(), sendCounts.ptr(), sendOffsets.ptr(), type,
                  rcv.ptr(), recvcount, type,
                  root, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*scalar scatter*/
@@ -455,10 +520,12 @@ class comm_t {
   void Scatter(T& rcv,
                const mem<T> snd,
                const int root) const {
+    ROCTX_PUSH("comm_t::Scatter(T)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Scatter(snd.ptr,   1, type,
                 &rcv,      1, type, root, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory allgather*/
@@ -466,19 +533,23 @@ class comm_t {
   void Allgather(const mem<T> snd,
                        mem<T> rcv,
                  const int sendCount=-1) const {
+    ROCTX_PUSH("comm_t::Allgather(mem<T>, mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     const int cnt = (sendCount==-1) ? static_cast<int>(snd.length()) : sendCount;
     MPI_Allgather(snd.ptr(), cnt, type,
                   rcv.ptr(), cnt, type, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
   template <template<typename> class mem, typename T>
   void Allgather(mem<T> m,
                  const int cnt) const {
+    ROCTX_PUSH("comm_t::Allgather(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Allgather(MPI_IN_PLACE, cnt, type,
                   m.ptr(),      cnt, type, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory allgatherv*/
@@ -488,21 +559,25 @@ class comm_t {
                         mem<T> rcv,
                   const memory<int> recvCounts,
                   const memory<int> recvOffsets) const {
+    ROCTX_PUSH("comm_t::Allgatherv(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Allgatherv(snd.ptr(), sendcount, type,
                    rcv.ptr(), recvCounts.ptr(), recvOffsets.ptr(), type,
                    comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*scalar allgather*/
   template <template<typename> class mem, typename T>
   void Allgather(const T& snd,
                        mem<T> rcv) const {
+    ROCTX_PUSH("comm_t::Allgather(T)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Allgather(&snd,      1, type,
                   rcv.ptr(), 1, type, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory alltoall*/
@@ -510,10 +585,12 @@ class comm_t {
   void Alltoall(const mem<T> snd,
                       mem<T> rcv,
                 const int cnt=1) const {
+    ROCTX_PUSH("comm_t::Alltoall(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Alltoall(snd.ptr(), cnt, type,
                  rcv.ptr(), cnt, type, comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   /*libp::memory alltoallv*/
@@ -524,11 +601,13 @@ class comm_t {
                        mem<T> rcv,
                  const memory<int> recvCounts,
                  const memory<int> recvOffsets) const {
+    ROCTX_PUSH("comm_t::Alltoallv(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Alltoallv(snd.ptr(), sendCounts.ptr(), sendOffsets.ptr(), type,
                   rcv.ptr(), recvCounts.ptr(), recvOffsets.ptr(), type,
                   comm());
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   template <template<typename> class mem, typename T>
@@ -539,11 +618,13 @@ class comm_t {
                   const memory<int> recvCounts,
                   const memory<int> recvOffsets,
                   request_t &request) const {
+    ROCTX_PUSH("comm_t::Ialltoallv(mem<T>)");
     MPI_Datatype type = mpiType<T>::getMpiType();
     MPI_Ialltoallv(snd.ptr(), sendCounts.ptr(), sendOffsets.ptr(), type,
                   rcv.ptr(), recvCounts.ptr(), recvOffsets.ptr(), type,
                   comm(), &request);
     mpiType<T>::freeMpiType(type);
+    ROCTX_POP();
   }
 
   void Wait(request_t &request) const;
