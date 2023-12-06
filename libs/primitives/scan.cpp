@@ -30,6 +30,10 @@ namespace libp {
 
 namespace prim {
 
+// Check if compiler supports the OMP v5.0 'scan' feature
+#if (__GNUC__ >= 10) || (__clang_major__ >= 11) //gcc-10 or higher, or clang-11 or higher
+#define HAS_OMP_SCAN
+#endif
 
 template<typename T>
 void exclusiveScan(const dlong N, memory<T> v) {
@@ -38,10 +42,11 @@ void exclusiveScan(const dlong N, memory<T> v) {
 
   T scan_v{0};
 
-#if defined(_OPENMP) && !defined(LIBP_DEBUG)
+#if defined(HAS_OMP_SCAN) && defined(_OPENMP) && !defined(LIBP_DEBUG) && !defined(__clang__)
   /*This looks totally wrong, but is the only way OpenMP will compile
   it, and suprisingly does the right thing. Without OpenMP enabled, however
   this *is* totally wrong*/
+  /* NC: Also clang currently has a bug with this type of reduction and fails to compile */
   #pragma omp parallel for reduction(inscan, +:scan_v)
   for(int n = 0; n < N; ++n){
     v[n] = scan_v;
@@ -70,12 +75,21 @@ void exclusiveScan(const dlong N, const memory<T> v, memory<T> w) {
   if (N<=0) return;
 
   T scan_v{0};
+
+#ifdef HAS_OMP_SCAN
   #pragma omp parallel for reduction(inscan, +:scan_v)
   for(int n = 0; n < N; ++n){
     w[n] = scan_v;
     #pragma omp scan exclusive(scan_v)
     scan_v += v[n];
   }
+#else
+  for(int n = 0; n < N; ++n){
+    w[n] = scan_v;
+    scan_v += v[n];
+  }
+#endif
+
 }
 
 template void exclusiveScan(const dlong N, const memory<int> v, memory<int> w);
@@ -89,12 +103,20 @@ void inclusiveScan(const dlong N, memory<T> v) {
   if (N<=0) return;
 
   T scan_v{0};
+
+#ifdef HAS_OMP_SCAN
   #pragma omp parallel for reduction(inscan, +:scan_v)
   for(int n = 0; n < N; ++n){
     scan_v += v[n];
     #pragma omp scan inclusive(scan_v)
     v[n] = scan_v;
   }
+#else
+  for(int n = 0; n < N; ++n){
+    scan_v += v[n];
+    v[n] = scan_v;
+  }
+#endif
 }
 
 template void inclusiveScan(const dlong N, memory<int> v);
@@ -109,12 +131,20 @@ void inclusiveScan(const dlong N, const memory<T> v, memory<T> w) {
   if (N<=0) return;
 
   T scan_v{0};
+
+#ifdef HAS_OMP_SCAN
   #pragma omp parallel for reduction(inscan, +:scan_v)
   for(int n = 0; n < N; ++n){
     scan_v += v[n];
     #pragma omp scan inclusive(scan_v)
     w[n] = scan_v;
   }
+#else
+  for(int n = 0; n < N; ++n){
+    scan_v += v[n];
+    w[n] = scan_v;
+  }
+#endif
 }
 
 template void inclusiveScan(const dlong N, const memory<int> v, memory<int> w);
