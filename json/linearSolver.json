@@ -1,0 +1,15 @@
+//Default
+{"Name":"linearSolverCG.okl","keys":{},"props":{"AXPYDOT_BLOCKSIZE":256}}
+
+//HIP mode, tuned on MI200 (gfx90a)
+{"Name":"linearSolverCG.okl","keys":{"mode":"HIP","dfloat":"double"},"props":{"AXPYDOT_BLOCKSIZE":256}}
+{"Name":"linearSolverCG.okl","keys":{"mode":"HIP","dfloat":"float"},"props":{"AXPYDOT_BLOCKSIZE":832}}
+
+//HIP mode, MI300
+{"Name":"linearSolverCG.okl","keys":{"mode":"HIP","arch":"gfx940,gfx941,gfx942","dfloat":"double"},"props":{"AXPYDOT_BLOCKSIZE":384}}
+{"Name":"linearSolverCG.okl","keys":{"mode":"HIP","arch":"gfx940,gfx941,gfx942","dfloat":"float"},"props":{"AXPYDOT_BLOCKSIZE":896}}
+
+//CUDA mode, tuned on A100 (sm_80)
+{"Name":"linearSolverCG.okl","keys":{"mode":"CUDA","dfloat":"double"},"props":{"AXPYDOT_BLOCKSIZE":864}}
+{"Name":"linearSolverCG.okl","keys":{"mode":"CUDA","dfloat":"float"},"props":{"AXPYDOT_BLOCKSIZE":1024}}
+

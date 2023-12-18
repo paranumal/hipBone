@@ -24,13 +24,31 @@ SOFTWARE.
 
 */
 
-@kernel void axpy(const dlong N,
-                  const dfloat alpha,
-                  @restrict const dfloat *x,
-                  const dfloat beta,
-                  @restrict dfloat *y){
+#ifndef PARAMETERS_HPP
+#define PARAMETERS_HPP
 
-  for(dlong n=0;n<N;++n;@tile(AXPY_BLOCKSIZE,@outer,@inner)){
-    y[n] = alpha*x[n] + beta*y[n];
-  }
-}
+#include "core.hpp"
+#include "comm.hpp"
+
+namespace libp {
+
+// Class for loading a list of tuning parameters from a .json file and
+// finding a best match for a given set of user-provided runtime options
+class parameters_t {
+ public:
+  // Load a list of kernel parameters from a .json file
+  void load(std::string filename, comm_t& comm);
+
+  // Find best match for a set of keys in list of loaded parameters
+  properties_t findProperties(std::string name, properties_t& keys);
+
+  //Convert a property to a single line string
+  std::string toString(properties_t& prop);
+
+ private:
+  std::vector<properties_t> dataBase;
+};
+
+} //namespace libp
+
+#endif

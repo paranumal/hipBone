@@ -24,7 +24,7 @@ SOFTWARE.
 
 */
 
-@kernel void norm2_1(const dlong Nblocks,
+@kernel void norm2(const dlong Nblocks,
                    const dlong N,
                   @restrict const  dfloat *x,
                   @restrict        dfloat *norm){
@@ -32,65 +32,62 @@ SOFTWARE.
 
   for(dlong b=0;b<Nblocks;++b;@outer(0)){
 
-    @shared dfloat s_norm[p_blockSize];
+    @shared dfloat s_norm[NORM_BLOCKSIZE];
 
-    for(int t=0;t<p_blockSize;++t;@inner(0)){
-      dlong id = t + b*p_blockSize;
-
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)){
+      dlong id = t + b*NORM_BLOCKSIZE;
       dfloat r_norm = 0.0;
       while (id<N) {
         r_norm += x[id]*x[id];
-        id += p_blockSize*Nblocks;
+        id += NORM_BLOCKSIZE*Nblocks;
       }
       s_norm[t] = r_norm;
     }
 
-#if p_blockSize>512
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<512) s_norm[t] += s_norm[t+512];
+#if NORM_BLOCKSIZE>512
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<512 && t+512<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+512];
 #endif
-#if p_blockSize>256
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<256) s_norm[t] += s_norm[t+256];
+#if NORM_BLOCKSIZE>256
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<256 && t+256<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+256];
 #endif
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<128) s_norm[t] += s_norm[t+128];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 64) s_norm[t] += s_norm[t+ 64];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 32) s_norm[t] += s_norm[t+ 32];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 16) s_norm[t] += s_norm[t+ 16];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  8) s_norm[t] += s_norm[t+  8];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  4) s_norm[t] += s_norm[t+  4];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  2) s_norm[t] += s_norm[t+  2];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  1) norm[b] = s_norm[0] + s_norm[1];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<128 && t+128<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+128];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 64 && t+ 64<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+ 64];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 32 && t+ 32<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+ 32];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 16 && t+ 16<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+ 16];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  8 && t+  8<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+  8];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  4 && t+  4<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+  4];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  2 && t+  2<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+  2];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  1 && t+  1<NORM_BLOCKSIZE) norm[b] = s_norm[0] + s_norm[1];
   }
-}
 
-@kernel void norm2_2(const dlong Nblocks, @restrict  dfloat *norm){
 
   for(dlong b=0;b<1;++b;@outer(0)){
 
-    @shared dfloat s_norm[p_blockSize];
+    @shared dfloat s_norm[NORM_BLOCKSIZE];
 
-    for(int t=0;t<p_blockSize;++t;@inner(0)){
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)){
       dlong id = t;
       dfloat r_norm = 0.0;
       while (id<Nblocks) {
         r_norm += norm[id];
-        id += p_blockSize;
+        id += NORM_BLOCKSIZE;
       }
       s_norm[t] = r_norm;
     }
 
-#if p_blockSize>512
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<512) s_norm[t] += s_norm[t+512];
+#if NORM_BLOCKSIZE>512
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<512 && t+512<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+512];
 #endif
-#if p_blockSize>256
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<256) s_norm[t] += s_norm[t+256];
+#if NORM_BLOCKSIZE>256
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<256 && t+256<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+256];
 #endif
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<128) s_norm[t] += s_norm[t+128];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 64) s_norm[t] += s_norm[t+ 64];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 32) s_norm[t] += s_norm[t+ 32];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 16) s_norm[t] += s_norm[t+ 16];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  8) s_norm[t] += s_norm[t+  8];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  4) s_norm[t] += s_norm[t+  4];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  2) s_norm[t] += s_norm[t+  2];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  1) norm[0] = s_norm[0] + s_norm[1];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<128 && t+128<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+128];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 64 && t+ 64<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+ 64];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 32 && t+ 32<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+ 32];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t< 16 && t+ 16<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+ 16];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  8 && t+  8<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+  8];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  4 && t+  4<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+  4];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  2 && t+  2<NORM_BLOCKSIZE) s_norm[t] += s_norm[t+  2];
+    for(int t=0;t<NORM_BLOCKSIZE;++t;@inner(0)) if(t<  1 && t+  1<NORM_BLOCKSIZE) norm[0] = s_norm[0] + s_norm[1];
   }
 }

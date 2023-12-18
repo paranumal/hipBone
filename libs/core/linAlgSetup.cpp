@@ -27,25 +27,46 @@ SOFTWARE.
 #include "core.hpp"
 #include "linAlg.hpp"
 #include "platform.hpp"
+#include "parameters.hpp"
 
 namespace libp {
-
-constexpr int LINALG_BLOCKSIZE = 256;
 
 using std::string;
 using std::stringstream;
 
-linAlg_t::linAlg_t(platform_t *_platform): blocksize(LINALG_BLOCKSIZE) {
+linAlg_t::linAlg_t(platform_t *_platform) {
 
   platform = _platform;
   kernelInfo = platform->props();
 
+  parameters_t tuningParameters;
+  std::string filename = platform->exePath() + "/json/linAlg.json";
+
+  properties_t keys;
+  keys["dfloat"] = (sizeof(dfloat)==4) ? "float" : "double";
+  keys["mode"] = platform->device.mode();
+
+  std::string arch = platform->device.arch();
+  if (platform->device.mode()=="HIP") {
+    arch = arch.substr(0,arch.find(":")); //For HIP mode, remove the stuff after the :
+  }
+  keys["arch"] = arch;
+
+  std::string name = "linAlg.okl";
+  tuningParameters.load(filename, platform->comm);
+  properties_t matchProps = tuningParameters.findProperties(name, keys);
+
   //add defines
-  kernelInfo["defines/" "p_blockSize"] = (int)LINALG_BLOCKSIZE;
+  kernelInfo["defines"] += matchProps["props"];
+
+  /*Read blocksizes from properties*/
+  normBlockSize = static_cast<int>(matchProps["props/NORM_BLOCKSIZE"]);
+  innerProdBlockSize = static_cast<int>(matchProps["props/DOT_BLOCKSIZE"]);
 
   //pinned scratch buffer
-  h_scratch = platform->hostMalloc<dfloat>(LINALG_BLOCKSIZE);
-  o_scratch = platform->malloc<dfloat>(LINALG_BLOCKSIZE);
+  const int maxBlockSize = 1024;
+  h_scratch = platform->hostMalloc<dfloat>(maxBlockSize);
+  o_scratch = platform->malloc<dfloat>(maxBlockSize);
 }
 
 //initialize list of kernels
@@ -66,28 +87,16 @@ void linAlg_t::InitKernels(std::vector<string> kernels) {
                                         "axpy",
                                         kernelInfo);
     } else if (name=="norm2") {
-      if (norm2Kernel1.isInitialized()==false)
-        norm2Kernel1 = platform->buildKernel("libs/core/okl/"
+      if (norm2Kernel.isInitialized()==false)
+        norm2Kernel = platform->buildKernel("libs/core/okl/"
                                         "linAlgNorm2.okl",
-                                        "norm2_1",
-                                        kernelInfo);
-
-      if (norm2Kernel2.isInitialized()==false)
-        norm2Kernel2 = platform->buildKernel("libs/core/okl/"
-                                        "linAlgNorm2.okl",
-                                        "norm2_2",
+                                        "norm2",
                                         kernelInfo);
     } else if (name=="innerProd") {
-      if (innerProdKernel1.isInitialized()==false)
-        innerProdKernel1 = platform->buildKernel("libs/core/okl/"
+      if (innerProdKernel.isInitialized()==false)
+        innerProdKernel = platform->buildKernel("libs/core/okl/"
                                         "linAlgInnerProd.okl",
-                                        "innerProd_1",
-                                        kernelInfo);
-
-      if (innerProdKernel2.isInitialized()==false)
-        innerProdKernel2 = platform->buildKernel("libs/core/okl/"
-                                        "linAlgInnerProd.okl",
-                                        "innerProd_2",
+                                        "innerProd",
                                         kernelInfo);
     } else {
       LIBP_FORCE_ABORT("Requested linAlg routine \"" << name << "\" not found");

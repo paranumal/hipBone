@@ -52,11 +52,10 @@ void linAlg_t::axpy(const dlong N,
 // ||o_a||_2
 dfloat linAlg_t::norm2(const dlong N,
                        deviceMemory<dfloat> o_a, comm_t comm) {
-  int Nblock = (N+blocksize-1)/blocksize;
-  Nblock = (Nblock>blocksize) ? blocksize : Nblock; //limit to blocksize entries
+  int Nblock = (N+normBlockSize-1)/normBlockSize;
+  Nblock = (Nblock>normBlockSize) ? normBlockSize : Nblock; //limit to normBlockSize entries
 
-  norm2Kernel1(Nblock, N, o_a, o_scratch);
-  norm2Kernel2(Nblock, o_scratch);
+  norm2Kernel(Nblock, N, o_a, o_scratch);
 
   h_scratch.copyFrom(o_scratch, 1, 0, properties_t("async", true));
   platform->finish();
@@ -73,11 +72,10 @@ dfloat linAlg_t::innerProd(const dlong N,
                            deviceMemory<dfloat> o_y,
                            comm_t comm) {
 
-  int Nblock = (N+blocksize-1)/blocksize;
-  Nblock = (Nblock>blocksize) ? blocksize : Nblock; //limit to blocksize entries
+  int Nblock = (N+innerProdBlockSize-1)/innerProdBlockSize;
+  Nblock = (Nblock>innerProdBlockSize) ? innerProdBlockSize : Nblock; //limit to innerProdBlockSize entries
 
-  innerProdKernel1(Nblock, N, o_x, o_y, o_scratch);
-  innerProdKernel2(Nblock, o_scratch);
+  innerProdKernel(Nblock, N, o_x, o_y, o_scratch);
 
   h_scratch.copyFrom(o_scratch, 1, 0, properties_t("async", true));
   platform->finish();

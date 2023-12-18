@@ -62,8 +62,9 @@ private:
   deviceMemory<dfloat> o_tmprdotr;
   pinnedMemory<dfloat> h_tmprdotr;
 
-  kernel_t updateCGKernel1;
-  kernel_t updateCGKernel2;
+  int cgBlockSize;
+
+  kernel_t updateCGKernel;
 
   dfloat UpdateCG(const dfloat alpha,
                   deviceMemory<dfloat> o_x,
