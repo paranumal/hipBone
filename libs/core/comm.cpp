@@ -55,6 +55,7 @@ comm_t comm_t::Dup() const {
   MPI_Comm_dup(comm(), c.comm_ptr.get());
   MPI_Comm_rank(c.comm(), &(c._rank));
   MPI_Comm_size(c.comm(), &(c._size));
+  c.setGpuAware(gpuAware());
   return c;
 }
 void comm_t::Free() {
@@ -93,6 +94,16 @@ MPI_Comm comm_t::comm() const {
   } else {
     return *comm_ptr;
   }
+}
+
+/*GPU-aware setter*/
+void comm_t::setGpuAware(const bool flag) {
+  _gpuAware = flag;
+}
+
+/*GPU-aware getter*/
+const bool comm_t::gpuAware() const {
+  return _gpuAware;
 }
 
 void comm_t::Wait(request_t &request) const {

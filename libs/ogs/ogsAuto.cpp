@@ -179,13 +179,13 @@ ogsExchange_t* ogsBase_t::AutoSetup(const dlong Nshared,
   Method method;
   double bestTime;
 
-#ifdef GPU_AWARE_MPI
-  if (rank==0 && verbose)
-    printf("   Method         Device Exchange (min, avg, max)  Device Exchange (GPU-aware)      Host Exchange \n");
-#else
-  if (rank==0 && verbose)
-    printf("   Method         Device Exchange (min, avg, max)  Host Exchange \n");
-#endif
+  if (comm.gpuAware()) {
+    if (rank==0 && verbose)
+      printf("   Method         Device Exchange (min, avg, max)  Device Exchange (GPU-aware)      Host Exchange \n");
+  } else {
+    if (rank==0 && verbose)
+      printf("   Method         Device Exchange (min, avg, max)  Host Exchange \n");
+  }
 
   //Trigger JIT kernel builds
   InitializeKernels(platform, ogs::Dfloat, ogs::Add);
@@ -209,22 +209,22 @@ ogsExchange_t* ogsBase_t::AutoSetup(const dlong Nshared,
   pairwise->gpu_aware=false;
 
   double pairwiseTime[3];
+  double pairwiseGATime[3];
+
   DeviceExchangeTest(pairwise, pairwiseTime);
   double pairwiseAvg = pairwiseTime[0];
 
-#ifdef GPU_AWARE_MPI
-  //test GPU-aware exchange
-  pairwise->gpu_aware=true;
+  if (comm.gpuAware()) {
+    //test GPU-aware exchange
+    pairwise->gpu_aware=true;
 
-  double pairwiseGATime[3];
-  DeviceExchangeTest(pairwise, pairwiseGATime);
+    DeviceExchangeTest(pairwise, pairwiseGATime);
 
-  if (pairwiseGATime[0] < pairwiseAvg)
-    pairwiseAvg = pairwiseGATime[0];
-  else
-    pairwise->gpu_aware=false;
-
-#endif
+    if (pairwiseGATime[0] < pairwiseAvg)
+      pairwiseAvg = pairwiseGATime[0];
+    else
+      pairwise->gpu_aware=false;
+  }
 
   //test exchange from host memory (just for reporting)
   double pairwiseHostTime[3];
@@ -234,18 +234,18 @@ ogsExchange_t* ogsBase_t::AutoSetup(const dlong Nshared,
   method = Pairwise;
   bestTime = pairwiseAvg;
 
-#ifdef GPU_AWARE_MPI
-  if (rank==0 && verbose)
-    printf("   Pairwise       %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e \n",
-            pairwiseTime[0],     pairwiseTime[1],     pairwiseTime[2],
-            pairwiseGATime[0],   pairwiseGATime[1],   pairwiseGATime[2],
-            pairwiseHostTime[0], pairwiseHostTime[1], pairwiseHostTime[2]);
-#else
-  if (rank==0 && verbose)
-    printf("   Pairwise       %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e \n",
-            pairwiseTime[0],     pairwiseTime[1],     pairwiseTime[2],
-            pairwiseHostTime[0], pairwiseHostTime[1], pairwiseHostTime[2]);
-#endif
+  if (comm.gpuAware()) {
+    if (rank==0 && verbose)
+      printf("   Pairwise       %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e \n",
+              pairwiseTime[0],     pairwiseTime[1],     pairwiseTime[2],
+              pairwiseGATime[0],   pairwiseGATime[1],   pairwiseGATime[2],
+              pairwiseHostTime[0], pairwiseHostTime[1], pairwiseHostTime[2]);
+  } else {
+    if (rank==0 && verbose)
+      printf("   Pairwise       %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e \n",
+              pairwiseTime[0],     pairwiseTime[1],     pairwiseTime[2],
+              pairwiseHostTime[0], pairwiseHostTime[1], pairwiseHostTime[2]);
+  }
 
   /********************************
    * All-to-All
@@ -265,22 +265,22 @@ ogsExchange_t* ogsBase_t::AutoSetup(const dlong Nshared,
   alltoall->gpu_aware=false;
 
   double alltoallTime[3];
+  double alltoallGATime[3];
+
   DeviceExchangeTest(alltoall, alltoallTime);
   double alltoallAvg = alltoallTime[0];
 
-#ifdef GPU_AWARE_MPI
-  //test GPU-aware exchange
-  alltoall->gpu_aware=true;
+  if (comm.gpuAware()) {
+    //test GPU-aware exchange
+    alltoall->gpu_aware=true;
 
-  double alltoallGATime[3];
-  DeviceExchangeTest(alltoall, alltoallGATime);
+    DeviceExchangeTest(alltoall, alltoallGATime);
 
-  if (alltoallGATime[0] < alltoallAvg)
-    alltoallAvg = alltoallGATime[0];
-  else
-    alltoall->gpu_aware=false;
-
-#endif
+    if (alltoallGATime[0] < alltoallAvg)
+      alltoallAvg = alltoallGATime[0];
+    else
+      alltoall->gpu_aware=false;
+  }
 
   //test exchange from host memory (just for reporting)
   double alltoallHostTime[3];
@@ -295,18 +295,18 @@ ogsExchange_t* ogsBase_t::AutoSetup(const dlong Nshared,
     delete alltoall;
   }
 
-#ifdef GPU_AWARE_MPI
-  if (rank==0 && verbose)
-    printf("   AllToAll       %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e \n",
-            alltoallTime[0],     alltoallTime[1],     alltoallTime[2],
-            alltoallGATime[0],   alltoallGATime[1],   alltoallGATime[2],
-            alltoallHostTime[0], alltoallHostTime[1], alltoallHostTime[2]);
-#else
-  if (rank==0 && verbose)
-    printf("   AllToAll       %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e \n",
-            alltoallTime[0],     alltoallTime[1],     alltoallTime[2],
-            alltoallHostTime[0], alltoallHostTime[1], alltoallHostTime[2]);
-#endif
+  if (comm.gpuAware()) {
+    if (rank==0 && verbose)
+      printf("   AllToAll       %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e \n",
+              alltoallTime[0],     alltoallTime[1],     alltoallTime[2],
+              alltoallGATime[0],   alltoallGATime[1],   alltoallGATime[2],
+              alltoallHostTime[0], alltoallHostTime[1], alltoallHostTime[2]);
+  } else {
+    if (rank==0 && verbose)
+      printf("   AllToAll       %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e \n",
+              alltoallTime[0],     alltoallTime[1],     alltoallTime[2],
+              alltoallHostTime[0], alltoallHostTime[1], alltoallHostTime[2]);
+  }
 
   /********************************
    * Crystal Router
@@ -328,22 +328,22 @@ ogsExchange_t* ogsBase_t::AutoSetup(const dlong Nshared,
   crystal->gpu_aware=false;
 
   double crystalTime[3];
+  double crystalGATime[3];
+
   DeviceExchangeTest(crystal, crystalTime);
   double crystalAvg = crystalTime[0];
 
-#ifdef GPU_AWARE_MPI
-  //test GPU-aware exchange
-  crystal->gpu_aware=true;
+  if (comm.gpuAware()) {
+    //test GPU-aware exchange
+    crystal->gpu_aware=true;
 
-  double crystalGATime[3];
-  DeviceExchangeTest(crystal, crystalGATime);
+    DeviceExchangeTest(crystal, crystalGATime);
 
-  if (crystalGATime[0] < crystalAvg)
-    crystalAvg = crystalGATime[0];
-  else
-    crystal->gpu_aware=false;
-
-#endif
+    if (crystalGATime[0] < crystalAvg)
+      crystalAvg = crystalGATime[0];
+    else
+      crystal->gpu_aware=false;
+  }
 
   //test exchange from host memory (just for reporting)
   double crystalHostTime[3];
@@ -358,18 +358,18 @@ ogsExchange_t* ogsBase_t::AutoSetup(const dlong Nshared,
     delete crystal;
   }
 
-#ifdef GPU_AWARE_MPI
-  if (rank==0 && verbose)
-    printf("   CrystalRouter  %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e \n",
-            crystalTime[0],     crystalTime[1],     crystalTime[2],
-            crystalGATime[0],   crystalGATime[1],   crystalGATime[2],
-            crystalHostTime[0], crystalHostTime[1], crystalHostTime[2]);
-#else
-  if (rank==0 && verbose)
-    printf("   CrystalRouter  %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e \n",
-            crystalTime[0],     crystalTime[1],     crystalTime[2],
-            crystalHostTime[0], crystalHostTime[1], crystalHostTime[2]);
-#endif
+  if (comm.gpuAware()) {
+    if (rank==0 && verbose)
+      printf("   CrystalRouter  %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e \n",
+              crystalTime[0],     crystalTime[1],     crystalTime[2],
+              crystalGATime[0],   crystalGATime[1],   crystalGATime[2],
+              crystalHostTime[0], crystalHostTime[1], crystalHostTime[2]);
+  } else {
+    if (rank==0 && verbose)
+      printf("   CrystalRouter  %5.3e %5.3e %5.3e    %5.3e %5.3e %5.3e \n",
+              crystalTime[0],     crystalTime[1],     crystalTime[2],
+              crystalHostTime[0], crystalHostTime[1], crystalHostTime[2]);
+  }
 
   if (rank==0 && verbose) {
     switch (method) {
