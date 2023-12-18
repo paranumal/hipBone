@@ -33,11 +33,15 @@ hipBoneSettings_t::hipBoneSettings_t(const int argc, char** argv, comm_t _comm):
   platformAddSettings(*this);
   meshAddSettings(*this);
 
-  newSetting("-v", "--verbose",
-             "VERBOSE",
-             "FALSE",
-             "Enable verbose output",
-             {"TRUE", "FALSE"});
+  newToggle("-v", "--verbose",
+            "VERBOSE",
+            "FALSE",
+            "Enable verbose output");
+
+  newToggle("-ga", "--gpu-aware-mpi",
+            "GPU-AWARE MPI",
+            "FALSE",
+            "Enable direct access of GPU memory in MPI");
 
   parseSettings(argc, argv);
 }
@@ -48,5 +52,7 @@ void hipBoneSettings_t::report() {
     std::cout << "Settings:\n\n";
     platformReportSettings(*this);
     meshReportSettings(*this);
+
+    reportSetting("GPU-AWARE MPI");
   }
 }
