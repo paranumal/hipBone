@@ -1,0 +1,12 @@
+//Default
+{"Name":"ogsKernels.okl","keys":{},"props":{"GS_BLOCKSIZE":256,"GS_NODESPERBLOCK":512,"G_BLOCKSIZE":256,"G_NODESPERBLOCK":512,"S_BLOCKSIZE":256,"S_NODESPERBLOCK":512}}
+
+//HIP mode, tuned on MI200 (gfx90a)
+{"Name":"ogsKernels.okl","keys":{"mode":"HIP"},"props":{"GS_BLOCKSIZE":512,"GS_NODESPERBLOCK":1024,"G_BLOCKSIZE":512,"G_NODESPERBLOCK":2048,"S_BLOCKSIZE":512,"S_NODESPERBLOCK":1024}}
+
+//HIP mode, MI300
+{"Name":"ogsKernels.okl","keys":{"mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"GS_BLOCKSIZE":256,"GS_NODESPERBLOCK":512,"G_BLOCKSIZE":128,"G_NODESPERBLOCK":512,"S_BLOCKSIZE":128,"S_NODESPERBLOCK":512}}
+
+//CUDA mode, tuned on A100 (sm_80)
+{"Name":"ogsKernels.okl","keys":{"mode":"CUDA"},"props":{"GS_BLOCKSIZE":192,"GS_NODESPERBLOCK":960,"G_BLOCKSIZE":96,"G_NODESPERBLOCK":576,"S_BLOCKSIZE":96,"S_NODESPERBLOCK":480}}
+

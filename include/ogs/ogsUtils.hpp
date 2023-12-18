@@ -51,6 +51,10 @@ template<> struct ogsType<long long int> {
   static constexpr Type get() { return Int64; }
 };
 
+void InitializeParams(platform_t& platform,
+                      comm_t& comm,
+                      const bool verbose);
+
 } //namespace ogs
 
 } //namespace libp
