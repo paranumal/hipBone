@@ -495,16 +495,11 @@ SOFTWARE.
 //padding for bank conflicts
 #define p_pad 1
 
-@kernel void bp5AxHex3D(const dlong Nelements,
+@kernel void hipBoneAx(const dlong Nelements,
                         @restrict const  dlong  *  elementList,
                         @restrict const  dlong  *  GlobalToLocal,
-                        @restrict const  dfloat *  wJ,
-                        @restrict const  dfloat *  vgeo,
                         @restrict const  dfloat *  ggeo,
-                        @restrict const  dfloat *  gllw,
                         @restrict const  dfloat *  D,
-                        @restrict const  dfloat *  S,
-                        @restrict const  dfloat *  MM,
                         const dfloat lambda,
                         @restrict const  dfloat *  q,
                               @restrict dfloat *  Aq){
@@ -571,15 +566,15 @@ SOFTWARE.
 
           if(i<p_Nq && j<p_Nq){
             // prefetch geometric factors
-            const dlong gbase = element*p_Np + k*p_Nq*p_Nq + j*p_Nq + i;
+            const dlong gbase = p_Nggeo*(element*p_Np + k*p_Nq*p_Nq + j*p_Nq + i);
 
-            r_GwJ = wJ[gbase];
-            r_G00 = ggeo[p_Nggeo*gbase+p_G00ID];
-            r_G01 = ggeo[p_Nggeo*gbase+p_G01ID];
-            r_G11 = ggeo[p_Nggeo*gbase+p_G11ID];
-            r_G12 = ggeo[p_Nggeo*gbase+p_G12ID];
-            r_G02 = ggeo[p_Nggeo*gbase+p_G02ID];
-            r_G22 = ggeo[p_Nggeo*gbase+p_G22ID];
+            r_GwJ = ggeo[gbase+p_GWJID];
+            r_G00 = ggeo[gbase+p_G00ID];
+            r_G01 = ggeo[gbase+p_G01ID];
+            r_G11 = ggeo[gbase+p_G11ID];
+            r_G12 = ggeo[gbase+p_G12ID];
+            r_G02 = ggeo[gbase+p_G02ID];
+            r_G22 = ggeo[gbase+p_G22ID];
           }
 
           dfloat ur = 0.;
