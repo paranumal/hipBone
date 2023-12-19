@@ -42,6 +42,8 @@ void platform_t::DeviceProperties(){
   Props["kernel"].asObject();
   Props["memory"].asObject();
 
+  Props["serial/include_std"] = true;
+
   if(sizeof(dfloat)==4){
     Props["defines/" "dfloat"]="float";
     Props["defines/" "dfloat2"]="float2";
@@ -54,7 +56,7 @@ void platform_t::DeviceProperties(){
     Props["defines/" "dfloat4"]="double4";
     Props["defines/" "dfloat8"]="double8";
   }
-  
+
   if(sizeof(dlong)==4){
     Props["defines/" "dlong"]="int";
   }
