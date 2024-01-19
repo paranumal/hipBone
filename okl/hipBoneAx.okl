@@ -646,7 +646,7 @@ SOFTWARE.
           const dlong id = element*p_Np + j*p_Nq + i;
 
           for (int k=0;k<p_Nq;k++) {
-            Aq[id+k*p_Nq*p_Nq] = r_Au[k];
+            __builtin_nontemporal_store(r_Au[k], &(Aq[id+k*p_Nq*p_Nq]));
           }
         }
       }
