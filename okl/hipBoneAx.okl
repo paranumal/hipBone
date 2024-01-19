@@ -523,10 +523,6 @@ SOFTWARE.
     for(int j=0;j<16;++j;@inner(1)){
       for(int i=0;i<16;++i;@inner(0)){
 
-        s_q[j][i] = 0.0;
-        s_v[j][i] = 0.0;
-        s_w[j][i] = 0.0;
-
         //load D into local memory
         // s_D[i][j] = d \phi_i at node j
         s_D[j][i] = (i<p_Nq && j<p_Nq) ? D[p_Nq*j+i] : 0.0;
@@ -600,11 +596,19 @@ SOFTWARE.
             us = __builtin_amdgcn_mfma_f64_4x4x4f64(A, B, us, 0, 0, 0); // y-deriv
           }
 
-          s_w[j][i] = (r_G01*ur + r_G11*us + r_G12*ut);
-          s_v[j][i] = (r_G00*ur + r_G01*us + r_G02*ut);
-          r_GDut    = (r_G02*ur + r_G12*us + r_G22*ut);
+          if (i<p_Nq && j<p_Nq) {
+            s_w[j][i] = (r_G01*ur + r_G11*us + r_G12*ut);
+            s_v[j][i] = (r_G00*ur + r_G01*us + r_G02*ut);
+            r_GDut    = (r_G02*ur + r_G12*us + r_G22*ut);
 
-          r_Auk = r_GwJ*lambda*r_u[k];
+            r_Auk = r_GwJ*lambda*r_u[k];
+          }
+          else {
+            s_w[j][i] = 0.0;
+            s_v[j][i] = 0.0;
+            r_GDut    = 0.0;
+            r_Auk = 0.0;
+          }
         }
       }
 
