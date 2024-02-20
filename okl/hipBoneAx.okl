@@ -24,21 +24,11 @@ SOFTWARE.
 
 */
 
-#if p_N<=8
-#define USE_3D_SHMEM 1
-#else
-#define USE_3D_SHMEM 0
-#endif
 
-#if !USE_3D_SHMEM
-
-
+#if KERNEL_NUMBER==0
 //This kernel processes 2D slices of the element in shmem and uses register arrays
 // to store the element itself. May be slower for low order but allows us to run
 // high degree efficiently
-
-/* The NV compiler doesn't like the blocked kernel. Skip using it. */
-#if OCCA_USE_CUDA==1 && p_N>8
 
 //padding for bank conflicts
 #if p_Nq==16
@@ -179,43 +169,9 @@ SOFTWARE.
     }
   }
 }
-
-#else
-
-/* Blocked version */
-#if p_N==1
-#define p_NelementsPerBlk 16
-#elif p_N==2
-#define p_NelementsPerBlk 56
-#elif p_N==3
-#define p_NelementsPerBlk 32
-#elif p_N==4
-#define p_NelementsPerBlk 5
-#elif p_N==5
-#define p_NelementsPerBlk 1
-#elif p_N==6
-#define p_NelementsPerBlk 5
-#elif p_N==7
-#define p_NelementsPerBlk 1
-#elif p_N==8
-#define p_NelementsPerBlk 3
-#elif p_N==9
-#define p_NelementsPerBlk 1
-#elif p_N==10
-#define p_NelementsPerBlk 1
-#elif p_N==11
-#define p_NelementsPerBlk 1
-#elif p_N==12
-#define p_NelementsPerBlk 1
-#elif p_N==13
-#define p_NelementsPerBlk 1
-#elif p_N==14
-#define p_NelementsPerBlk 1
-#elif p_N==15
-#define p_NelementsPerBlk 1
-#else
-#define p_NelementsPerBlk 1
 #endif
+
+#if KERNEL_NUMBER==1 /* Blocked version */
 
 //padding for bank conflicts
 #if p_Nq==16
@@ -381,27 +337,9 @@ SOFTWARE.
 }
 #endif
 
-#elif USE_3D_SHMEM
+#if KERNEL_NUMBER==2
 //This kernel stores the entire hex element in shmem.
 // Good for low orders, but will exceed 1024 threads per block after N=9
-
-#if p_N==1
-#define p_NelementsPerBlk 8
-#elif p_N==2
-#define p_NelementsPerBlk 4
-#elif p_N==3
-#define p_NelementsPerBlk 2
-#elif p_N==4
-#define p_NelementsPerBlk 1
-#elif p_N==5
-#define p_NelementsPerBlk 1
-#elif p_N==6
-#define p_NelementsPerBlk 1
-#elif p_N==7
-#define p_NelementsPerBlk 1
-#else
-#define p_NelementsPerBlk 1
-#endif
 
 @kernel void hipBoneAx(const dlong Nelements,
                         @restrict const  dlong  *  elementList,
@@ -413,11 +351,7 @@ SOFTWARE.
                               @restrict dfloat *  Aq){
 
 //padding for bank conflicts
-#if p_Nq==8 || p_Nq==4
 #define p_pad 1
-#else
-#define p_pad 0
-#endif
 
   for(int eo=0;eo<Nelements;eo+=p_NelementsPerBlk;@outer(0)){
 
@@ -553,5 +487,328 @@ SOFTWARE.
     }
   }
 }
+#endif
 
+#if KERNEL_NUMBER==3
+// MFMA kernel for high order
+
+//padding for bank conflicts
+#define p_pad 1
+
+@kernel void hipBoneAx(const dlong Nelements,
+                        @restrict const  dlong  *  elementList,
+                        @restrict const  dlong  *  GlobalToLocal,
+                        @restrict const  dfloat *  ggeo,
+                        @restrict const  dfloat *  D,
+                        const dfloat lambda,
+                        @restrict const  dfloat *  q,
+                              @restrict dfloat *  Aq){
+
+  for(dlong e=0; e<Nelements; e++; @outer(0)){
+
+    @shared dfloat s_D[16][16+p_pad];
+    @shared dfloat s_q[16][16+p_pad];
+    @shared dfloat s_v[16][16+p_pad];
+    @shared dfloat s_w[16][16+p_pad];
+
+    @exclusive dfloat r_GDut, r_Auk;
+
+    // register array to hold u(i,j,0:N) private to thread
+    @exclusive dfloat r_u[p_Nq];
+    // array for results Au(i,j,0:N)
+    @exclusive dfloat r_Au[p_Nq];
+
+    @exclusive dlong element;
+
+    for(int j=0;j<16;++j;@inner(1)){
+      for(int i=0;i<16;++i;@inner(0)){
+
+        //load D into local memory
+        // s_D[i][j] = d \phi_i at node j
+        s_D[j][i] = (i<p_Nq && j<p_Nq) ? D[p_Nq*j+i] : 0.0;
+
+        element = elementList[e];
+
+        const dlong base = i + j*p_Nq + element*p_Np;
+
+        // load pencil of u into register
+        for (int k=0;k<p_Nq;k++) {
+          const dlong id = (i<p_Nq && j<p_Nq) ? GlobalToLocal[base + k*p_Nq*p_Nq] : -1;
+          r_u[k] = (id!=-1) ? q[id] : 0.0;
+        }
+
+        for (int k=0;k<p_Nq;k++) {
+          r_Au[k] = 0.0;
+        }
+      }
+    }
+
+    // Layer by layer
+    for(int k=0; k<p_Nq; k++){
+
+      for(int j=0;j<16;++j;@inner(1)){
+        for(int i=0;i<16;++i;@inner(0)){
+          if (i<p_Nq && j < p_Nq) {
+            // share u(:,:,k)
+            s_q[j][i] = r_u[k];
+          }
+        }
+      }
+
+      for(int j=0;j<16;++j;@inner(1)){
+        for(int i=0;i<16;++i;@inner(0)){
+
+          dfloat r_G00, r_G01, r_G02, r_G11, r_G12, r_G22, r_GwJ;
+
+          if(i<p_Nq && j<p_Nq){
+            // prefetch geometric factors
+            const dlong gbase = p_Nggeo*(element*p_Np + k*p_Nq*p_Nq + j*p_Nq + i);
+
+            r_GwJ = ggeo[gbase+p_GWJID];
+            r_G00 = ggeo[gbase+p_G00ID];
+            r_G01 = ggeo[gbase+p_G01ID];
+            r_G11 = ggeo[gbase+p_G11ID];
+            r_G12 = ggeo[gbase+p_G12ID];
+            r_G02 = ggeo[gbase+p_G02ID];
+            r_G22 = ggeo[gbase+p_G22ID];
+          }
+
+          dfloat ur = 0.;
+          dfloat us = 0.;
+          dfloat ut = 0.;
+
+          for (int m=0;m<p_Nq;m++) {
+            ut += s_D[k][m]*r_u[m];
+          }
+
+          for (int m=0;m<p_Nq;m+=4) {
+            const dfloat B = s_D[i][m+(j%4)];
+            const dfloat A = s_q[(i%4)+4*(j/4)][m+(j%4)];
+
+            ur = __builtin_amdgcn_mfma_f64_4x4x4f64(A, B, ur, 0, 0, 0); // x-deriv
+          }
+
+          for (int m=0;m<p_Nq;m+=4) {
+            const dfloat B = s_q[m+j%4][i];
+            const dfloat A = s_D[i%4+4*(j/4)][m+j%4];
+
+            // Ordering of the result is the same as the B matrix
+            us = __builtin_amdgcn_mfma_f64_4x4x4f64(A, B, us, 0, 0, 0); // y-deriv
+          }
+
+          if (i<p_Nq && j<p_Nq) {
+            s_w[j][i] = (r_G01*ur + r_G11*us + r_G12*ut);
+            s_v[j][i] = (r_G00*ur + r_G01*us + r_G02*ut);
+            r_GDut    = (r_G02*ur + r_G12*us + r_G22*ut);
+
+            r_Auk = r_GwJ*lambda*r_u[k];
+          }
+          else {
+            s_w[j][i] = 0.0;
+            s_v[j][i] = 0.0;
+            r_GDut    = 0.0;
+            r_Auk = 0.0;
+          }
+        }
+      }
+
+      for(int j=0;j<16;++j;@inner(1)){
+        for(int i=0;i<16;++i;@inner(0)){
+
+          for (int m=0;m<p_Nq;m++) {
+            r_Au[m] += s_D[k][m]*r_GDut;
+          }
+
+          for (int m=0;m<p_Nq;m+=4) {
+            const dfloat B = s_w[m+j%4][i];
+            const dfloat A = s_D[m+j%4][i%4+4*(j/4)];
+
+            // Ordering of the result is the same as the B matrix
+            r_Auk = __builtin_amdgcn_mfma_f64_4x4x4f64(A, B, r_Auk, 0, 0, 0); // y-deriv
+          }
+
+          for (int m=0;m<p_Nq;m+=4) {
+            const dfloat B = s_D[m+j%4][i];
+            const dfloat A = s_v[i%4+4*(j/4)][m+j%4];
+
+            r_Auk = __builtin_amdgcn_mfma_f64_4x4x4f64(A, B, r_Auk, 0, 0, 0); // x-deriv
+          }
+
+          r_Au[k] += r_Auk;
+        }
+      }
+    } //end Layer by layer
+
+    // write out
+    for(int j=0;j<16;++j;@inner(1)){
+      for(int i=0;i<16;++i;@inner(0)){
+        if(i<p_Nq && j<p_Nq){
+          const dlong id = element*p_Np + j*p_Nq + i;
+
+          for (int k=0;k<p_Nq;k++) {
+            __builtin_nontemporal_store(r_Au[k], &(Aq[id+k*p_Nq*p_Nq]));
+          }
+        }
+      }
+    }
+  }
+}
+#endif
+
+#if KERNEL_NUMBER==4
+// MFMA kernel for high order
+
+//padding for bank conflicts
+#define p_pad 1
+
+@kernel void hipBoneAx(const dlong Nelements,
+                        @restrict const  dlong  *  elementList,
+                        @restrict const  dlong  *  GlobalToLocal,
+                        @restrict const  dfloat *  ggeo,
+                        @restrict const  dfloat *  D,
+                        const dfloat lambda,
+                        @restrict const  dfloat *  q,
+                              @restrict dfloat *  Aq){
+
+  for(dlong e=0; e<Nelements; e++; @outer(0)){
+
+    @shared dfloat s_D[16][16+p_pad];
+    @shared dfloat s_q[16][16+p_pad];
+    @shared dfloat s_v[16][16+p_pad];
+    @shared dfloat s_w[16][16+p_pad];
+
+    @exclusive dfloat r_GDut, r_Auk;
+
+    // register array to hold u(i,j,0:N) private to thread
+    @exclusive dfloat r_u[p_Nq];
+    // array for results Au(i,j,0:N)
+    @exclusive dfloat r_Au[p_Nq];
+
+    @exclusive dlong element;
+
+    for(int j=0;j<16;++j;@inner(1)){
+      for(int i=0;i<16;++i;@inner(0)){
+
+        //load D into local memory
+        // s_D[i][j] = d \phi_i at node j
+        s_D[j][i] = D[p_Nq*j+i];
+
+        element = elementList[e];
+
+        const dlong base = i + j*p_Nq + element*p_Np;
+
+        // load pencil of u into register
+        for (int k=0;k<p_Nq;k++) {
+          const dlong id = GlobalToLocal[base + k*p_Nq*p_Nq];
+          r_u[k] = (id!=-1) ? q[id] : 0.0;
+        }
+
+        for (int k=0;k<p_Nq;k++) {
+          r_Au[k] = 0.0;
+        }
+      }
+    }
+
+    // Layer by layer
+    for(int k=0; k<p_Nq; k++){
+
+      for(int j=0;j<16;++j;@inner(1)){
+        for(int i=0;i<16;++i;@inner(0)){
+          if (i<p_Nq && j < p_Nq) {
+            // share u(:,:,k)
+            s_q[j][i] = r_u[k];
+          }
+        }
+      }
+
+      for(int j=0;j<16;++j;@inner(1)){
+        for(int i=0;i<16;++i;@inner(0)){
+
+          dfloat r_G00, r_G01, r_G02, r_G11, r_G12, r_G22, r_GwJ;
+
+          if(i<p_Nq && j<p_Nq){
+            // prefetch geometric factors
+            const dlong gbase = p_Nggeo*(element*p_Np + k*p_Nq*p_Nq + j*p_Nq + i);
+
+            r_GwJ = ggeo[gbase+p_GWJID];
+            r_G00 = ggeo[gbase+p_G00ID];
+            r_G01 = ggeo[gbase+p_G01ID];
+            r_G11 = ggeo[gbase+p_G11ID];
+            r_G12 = ggeo[gbase+p_G12ID];
+            r_G02 = ggeo[gbase+p_G02ID];
+            r_G22 = ggeo[gbase+p_G22ID];
+          }
+
+          dfloat ur = 0.;
+          dfloat us = 0.;
+          dfloat ut = 0.;
+
+          for (int m=0;m<p_Nq;m++) {
+            ut += s_D[k][m]*r_u[m];
+          }
+
+          for (int m=0;m<p_Nq;m+=4) {
+            const dfloat B = s_D[i][m+(j%4)];
+            const dfloat A = s_q[(i%4)+4*(j/4)][m+(j%4)];
+
+            ur = __builtin_amdgcn_mfma_f64_4x4x4f64(A, B, ur, 0, 0, 0); // x-deriv
+          }
+
+          for (int m=0;m<p_Nq;m+=4) {
+            const dfloat B = s_q[m+j%4][i];
+            const dfloat A = s_D[i%4+4*(j/4)][m+j%4];
+
+            // Ordering of the result is the same as the B matrix
+            us = __builtin_amdgcn_mfma_f64_4x4x4f64(A, B, us, 0, 0, 0); // y-deriv
+          }
+
+          s_w[j][i] = (r_G01*ur + r_G11*us + r_G12*ut);
+          s_v[j][i] = (r_G00*ur + r_G01*us + r_G02*ut);
+          r_GDut    = (r_G02*ur + r_G12*us + r_G22*ut);
+
+          r_Auk = r_GwJ*lambda*r_u[k];
+        }
+      }
+
+      for(int j=0;j<16;++j;@inner(1)){
+        for(int i=0;i<16;++i;@inner(0)){
+
+          for (int m=0;m<p_Nq;m++) {
+            r_Au[m] += s_D[k][m]*r_GDut;
+          }
+
+          for (int m=0;m<p_Nq;m+=4) {
+            const dfloat B = s_w[m+j%4][i];
+            const dfloat A = s_D[m+j%4][i%4+4*(j/4)];
+
+            // Ordering of the result is the same as the B matrix
+            r_Auk = __builtin_amdgcn_mfma_f64_4x4x4f64(A, B, r_Auk, 0, 0, 0); // y-deriv
+          }
+
+          for (int m=0;m<p_Nq;m+=4) {
+            const dfloat B = s_D[m+j%4][i];
+            const dfloat A = s_v[i%4+4*(j/4)][m+j%4];
+
+            r_Auk = __builtin_amdgcn_mfma_f64_4x4x4f64(A, B, r_Auk, 0, 0, 0); // x-deriv
+          }
+
+          r_Au[k] += r_Auk;
+        }
+      }
+    } //end Layer by layer
+
+    // write out
+    for(int j=0;j<16;++j;@inner(1)){
+      for(int i=0;i<16;++i;@inner(0)){
+        if(i<p_Nq && j<p_Nq){
+          const dlong id = element*p_Np + j*p_Nq + i;
+
+          for (int k=0;k<p_Nq;k++) {
+            __builtin_nontemporal_store(r_Au[k], &(Aq[id+k*p_Nq*p_Nq]));
+          }
+        }
+      }
+    }
+  }
+}
 #endif

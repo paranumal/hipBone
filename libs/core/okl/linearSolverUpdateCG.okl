@@ -24,80 +24,72 @@
 
 */
 
-// WARNING: p_blockSize must be a power of 2
-
-@kernel void updateCG_1(const dlong N,
-                       const dlong Nblocks,
-                       @restrict const dfloat *Ap,
-                       const dfloat alpha,
-                       @restrict dfloat *r,
-                       @restrict dfloat *redr){
+@kernel void updateCG(const dlong N,
+                      const dlong Nblocks,
+                      @restrict const dfloat *Ap,
+                      const dfloat alpha,
+                      @restrict dfloat *r,
+                      @restrict dfloat *redr){
 
   for(dlong b=0;b<Nblocks;++b;@outer(0)){
 
-    @shared dfloat s_dot[p_blockSize];
+    @shared dfloat s_dot[AXPYDOT_BLOCKSIZE];
 
-    for(int t=0;t<p_blockSize;++t;@inner(0)){
-      dlong id = t + b*p_blockSize;
-
-      dfloat r_dot = 0.0;
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)){
+      dlong id = t + b*AXPYDOT_BLOCKSIZE;
+      dfloat r_ddot = 0.0;
       while (id<N) {
-        const dfloat rn = r[id] - alpha*Ap[id];
-        r[id] = rn;
-        r_dot += rn*rn;
-        id += p_blockSize*Nblocks;
+        const dfloat r_r = r[id] - alpha*Ap[id];
+        r[id] = r_r;
+        r_ddot += r_r*r_r;
+        id += AXPYDOT_BLOCKSIZE*Nblocks;
       }
-      s_dot[t] = r_dot;
+      s_dot[t] = r_ddot;
     }
 
-#if p_blockSize>512
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<512) s_dot[t] += s_dot[t+512];
+#if AXPYDOT_BLOCKSIZE>512
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t<512 && t+512<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+512];
 #endif
-#if p_blockSize>256
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<256) s_dot[t] += s_dot[t+256];
+#if AXPYDOT_BLOCKSIZE>256
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t<256 && t+256<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+256];
 #endif
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<128) s_dot[t] += s_dot[t+128];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 64) s_dot[t] += s_dot[t+ 64];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 32) s_dot[t] += s_dot[t+ 32];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 16) s_dot[t] += s_dot[t+ 16];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  8) s_dot[t] += s_dot[t+  8];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  4) s_dot[t] += s_dot[t+  4];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  2) s_dot[t] += s_dot[t+  2];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  1) redr[b] = s_dot[0] + s_dot[1];
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t<128 && t+128<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+128];
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t< 64 && t+ 64<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+ 64];
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t< 32 && t+ 32<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+ 32];
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t< 16 && t+ 16<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+ 16];
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t<  8 && t+  8<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+  8];
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t<  4 && t+  4<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+  4];
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t<  2 && t+  2<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+  2];
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t<  1 && t+  1<AXPYDOT_BLOCKSIZE) redr[b] = s_dot[0] + s_dot[1];
   }
-}
-
-
-@kernel void updateCG_2(const dlong Nblocks,
-                        @restrict dfloat *redr){
 
   for(dlong b=0;b<1;++b;@outer(0)){
 
-    @shared dfloat s_dot[p_blockSize];
+    @shared dfloat s_dot[AXPYDOT_BLOCKSIZE];
 
-    for(int t=0;t<p_blockSize;++t;@inner(0)){
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)){
       dlong id = t;
-      dfloat r_dot = 0.0;
+      dfloat r_ddot = 0.0;
       while (id<Nblocks) {
-        r_dot += redr[id];
-        id += p_blockSize;
+        r_ddot += redr[id];
+        id += AXPYDOT_BLOCKSIZE;
       }
-      s_dot[t] = r_dot;
+      s_dot[t] = r_ddot;
     }
 
-#if p_blockSize>512
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<512) s_dot[t] += s_dot[t+512];
+#if AXPYDOT_BLOCKSIZE>512
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t<512 && t+512<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+512];
 #endif
-#if p_blockSize>256
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<256) s_dot[t] += s_dot[t+256];
+#if AXPYDOT_BLOCKSIZE>256
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t<256 && t+256<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+256];
 #endif
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<128) s_dot[t] += s_dot[t+128];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 64) s_dot[t] += s_dot[t+ 64];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 32) s_dot[t] += s_dot[t+ 32];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t< 16) s_dot[t] += s_dot[t+ 16];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  8) s_dot[t] += s_dot[t+  8];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  4) s_dot[t] += s_dot[t+  4];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  2) s_dot[t] += s_dot[t+  2];
-    for(int t=0;t<p_blockSize;++t;@inner(0)) if(t<  1) redr[0] = s_dot[0] + s_dot[1];
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t<128 && t+128<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+128];
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t< 64 && t+ 64<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+ 64];
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t< 32 && t+ 32<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+ 32];
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t< 16 && t+ 16<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+ 16];
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t<  8 && t+  8<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+  8];
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t<  4 && t+  4<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+  4];
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t<  2 && t+  2<AXPYDOT_BLOCKSIZE) s_dot[t] += s_dot[t+  2];
+    for(int t=0;t<AXPYDOT_BLOCKSIZE;++t;@inner(0)) if(t<  1 && t+  1<AXPYDOT_BLOCKSIZE) redr[b] = s_dot[0] + s_dot[1];
   }
 }

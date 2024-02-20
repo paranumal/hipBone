@@ -108,6 +108,8 @@ void ogsBase_t::Setup(const dlong _N,
   kind = _kind;
   unique = _unique;
 
+  InitializeParams(platform, comm, verbose);
+
   // Seed RNG
   int rank = comm.rank();
   prim::seedRNG(rank);

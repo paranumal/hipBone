@@ -71,6 +71,7 @@ class comm_t {
   std::shared_ptr<MPI_Comm> comm_ptr;
   int _rank=0;
   int _size=0;
+  bool _gpuAware=false;
 
  public:
   comm_t() = default;
@@ -95,6 +96,12 @@ class comm_t {
 
   /*MPI_Comm getter*/
   MPI_Comm comm() const;
+
+  /*GPU-aware setter*/
+  void setGpuAware(const bool flag);
+
+  /*GPU-aware getter*/
+  const bool gpuAware() const;
 
   using request_t = MPI_Request;
 

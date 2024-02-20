@@ -33,11 +33,12 @@ using std::string;
 
 setting_t::setting_t(string shortkey_, string longkey_,
                      string name_, string val_,
-                     string description_, vector<string> options_)
+                     string description_, vector<string> options_,
+                     bool isToggle_)
   : shortkey{shortkey_}, longkey{longkey_},
     name{name_}, val{val_},
     description{description_}, options{options_},
-    check{0} {}
+    isToggle{isToggle_}, check{0} {}
 
 void setting_t::updateVal(const string newVal){
   if (!options.size()) {
@@ -108,6 +109,28 @@ std::ostream& operator<<(std::ostream& os, const setting_t& setting) {
 settings_t::settings_t(comm_t _comm):
   comm(_comm) {}
 
+void settings_t::newToggle(const string shortkey, const string longkey,
+                           const string name, const string val,
+                           const string description) {
+
+  for(auto it = settings.begin(); it != settings.end(); ++it) {
+    setting_t &setting = it->second;
+    LIBP_ABORT("Setting with key: [" << shortkey << "] already exists.",
+                  !setting.shortkey.compare(shortkey));
+    LIBP_ABORT("Setting with key: [" << longkey << "] already exists.",
+                  !setting.longkey.compare(longkey));
+  }
+
+  auto search = settings.find(name);
+  if (search == settings.end()) {
+    settings[name] = setting_t(shortkey, longkey, name, val, description,
+                               {}, true);
+    insertOrder.push_back(name);
+  } else {
+    LIBP_FORCE_ABORT("Setting with name: [" << name << "] already exists.");
+  }
+}
+
 void settings_t::newSetting(const string shortkey, const string longkey,
                             const string name, const string val,
                             const string description,
@@ -151,25 +174,29 @@ void settings_t::parseSettings(const int argc, char** argv) {
       return;
     }
 
-    for(auto it = settings.begin(); it != settings.end(); ++it) {
+    auto it = settings.begin();
+    for(; it != settings.end(); ++it) {
       setting_t &setting = it->second;
       if (strcmp(argv[i], setting.shortkey.c_str()) == 0 ||
           strcmp(argv[i], setting.longkey.c_str()) == 0) {
         if (setting.check!=0) {
           LIBP_FORCE_ABORT("Cannot set setting [" << setting.name << "] twice in run command.");
-        } else {
-          if (strcmp(argv[i], "-v") == 0 ||
-              strcmp(argv[i], "--verbose") == 0) {
-            changeSetting("VERBOSE", "TRUE");
-            i++;
-          } else {
-            changeSetting(setting.name, string(argv[i+1]));
-            i+=2;
-          }
-          setting.check=1;
-          break;
         }
+
+        if (setting.isToggle) {
+          changeSetting(setting.name, "TRUE");
+          i++;
+        } else {
+          changeSetting(setting.name, string(argv[i+1]));
+          i+=2;
+        }
+        setting.check=1;
+        break;
       }
+    }
+
+    if (it == settings.end()) {
+      LIBP_FORCE_ABORT("Unrecognized setting [" << argv[i] << "]");
     }
   }
 }

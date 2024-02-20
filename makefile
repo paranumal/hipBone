@@ -141,7 +141,9 @@ endif
 install:
 	@${MAKE} -C ${HIPBONE_LIBS_DIR} install PREFIX=${PREFIX} --no-print-directory
 	@install -d ${PREFIX}/okl -v
+	@install -d ${PREFIX}/json -v
 	@install -m 750 okl/*.okl -t ${PREFIX}/okl/ -v
+	@install -m 750 json/*.json -t ${PREFIX}/json/ -v
 	@install -m 750 hipBone ${PREFIX}/hipBone -v
 
 #cleanup

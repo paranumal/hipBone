@@ -24,38 +24,30 @@ SOFTWARE.
 
 */
 
-#ifndef OGS_UTILS_HPP
-#define OGS_UTILS_HPP
+#ifndef PARAMETERS_HPP
+#define PARAMETERS_HPP
 
-#include "ogs.hpp"
+#include "core.hpp"
+#include "comm.hpp"
 
 namespace libp {
 
-namespace ogs {
+// Class for loading a list of tuning parameters from a .json file and
+// finding a best match for a given set of user-provided runtime options
+class parameters_t {
+ public:
+  // Load a list of kernel parameters from a .json file
+  void load(std::string filename, comm_t& comm);
 
-template<typename T>
-struct ogsType {
-  static constexpr Type get();
-};
+  // Find best match for a set of keys in list of loaded parameters
+  properties_t findProperties(std::string name, properties_t& keys);
 
-template<> struct ogsType<float> {
-  static constexpr Type get() { return Float; }
-};
-template<> struct ogsType<double> {
-  static constexpr Type get() { return Double; }
-};
-template<> struct ogsType<int> {
-  static constexpr Type get() { return Int32; }
-};
-template<> struct ogsType<long long int> {
-  static constexpr Type get() { return Int64; }
-};
+  //Convert a property to a single line string
+  std::string toString(properties_t& prop);
 
-void InitializeParams(platform_t& platform,
-                      comm_t& comm,
-                      const bool verbose);
-
-} //namespace ogs
+ private:
+  std::vector<properties_t> dataBase;
+};
 
 } //namespace libp
 

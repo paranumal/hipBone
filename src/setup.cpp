@@ -25,6 +25,7 @@ SOFTWARE.
 */
 
 #include "hipBone.hpp"
+#include "parameters.hpp"
 
 void hipBone_t::Setup(platform_t& _platform, mesh_t& _mesh){
 
@@ -45,11 +46,41 @@ void hipBone_t::Setup(platform_t& _platform, mesh_t& _mesh){
   // OCCA build stuff
   properties_t kernelInfo = mesh.props; //copy mesh occa properties
 
+  forcingKernel = platform.buildKernel("okl/hipBoneRhs.okl",
+                                       "hipBoneRhs", kernelInfo);
+
+  parameters_t tuningParameters;
+  std::string filename = platform.exePath() + "/json/hipBoneAx.json";
+
+  properties_t keys;
+  keys["dfloat"] = (sizeof(dfloat)==4) ? "float" : "double";
+  keys["N"] = mesh.N;
+  keys["mode"] = platform.device.mode();
+
+  std::string arch = platform.device.arch();
+  if (platform.device.mode()=="HIP") {
+    arch = arch.substr(0,arch.find(":")); //For HIP mode, remove the stuff after the :
+  }
+  keys["arch"] = arch;
+
+  std::string name = "hipBoneAx.okl";
+
+  if (platform.settings().compareSetting("VERBOSE", "TRUE") && mesh.rank==0) {
+    std::cout << "Loading Tuning Parameters, looking for match for Name:'" << name << "', keys:" << tuningParameters.toString(keys) << std::endl;
+  }
+
+  tuningParameters.load(filename, mesh.comm);
+  properties_t matchProps = tuningParameters.findProperties(name, keys);
+
+  if (platform.settings().compareSetting("VERBOSE", "TRUE") && mesh.rank==0) {
+    std::cout << "Found best match = " << tuningParameters.toString(matchProps) << std::endl;
+  }
+
+  //add defines
+  kernelInfo["defines"] += matchProps["props"];
+
   // Ax kernel
   operatorKernel = platform.buildKernel("okl/hipBoneAx.okl",
-                                   "hipBoneAx", kernelInfo);
-
-  forcingKernel = platform.buildKernel("okl/hipBoneRhs.okl",
-                                   "hipBoneRhs", kernelInfo);
+                                        "hipBoneAx", kernelInfo);
 }
 

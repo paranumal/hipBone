@@ -24,8 +24,6 @@ SOFTWARE.
 
 */
 
-#define AXPY_BLOCKSIZE 1024
-
 @kernel void axpy(const dlong N,
                   const dfloat alpha,
                   @restrict const dfloat *x,

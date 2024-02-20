@@ -38,6 +38,10 @@ int main(int argc, char **argv){
     if (settings.compareSetting("VERBOSE", "TRUE"))
       settings.report();
 
+    //Toggle GPU-aware MPI functionality
+    comm.setGpuAware(settings.compareSetting("GPU-AWARE MPI", "TRUE"));
+    settings.comm.setGpuAware(comm.gpuAware());
+
     // set up platform
     platform_t platform(settings);
 

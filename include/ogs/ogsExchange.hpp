@@ -46,11 +46,7 @@ public:
   stream_t dataStream;
   static kernel_t extractKernel[4];
 
-#ifdef GPU_AWARE_MPI
-  bool gpu_aware=true;
-#else
   bool gpu_aware=false;
-#endif
 
   ogsExchange_t(platform_t &_platform, comm_t _comm,
                 stream_t _datastream):
@@ -59,6 +55,7 @@ public:
     dataStream(_datastream) {
     rank = comm.rank();
     size = comm.size();
+    gpu_aware = comm.gpuAware();
   }
   virtual ~ogsExchange_t() {}
 

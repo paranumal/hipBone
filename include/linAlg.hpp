@@ -41,7 +41,8 @@ public:
   platform_t *platform;
   properties_t kernelInfo;
 
-  int blocksize;
+  int normBlockSize;
+  int innerProdBlockSize;
 
   //scratch space for reductions
   deviceMemory<dfloat> o_scratch;
@@ -74,10 +75,8 @@ public:
 
   kernel_t setKernel;
   kernel_t axpyKernel;
-  kernel_t norm2Kernel1;
-  kernel_t norm2Kernel2;
-  kernel_t innerProdKernel1;
-  kernel_t innerProdKernel2;
+  kernel_t norm2Kernel;
+  kernel_t innerProdKernel;
 
   static void matrixRightSolve(int NrowsA, int NcolsA, double *A, int NrowsB, int NcolsB, double *B, double *C);
   static void matrixRightSolve(int NrowsA, int NcolsA, float *A, int NrowsB, int NcolsB, float *B, float *C);

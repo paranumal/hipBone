@@ -25,10 +25,9 @@ SOFTWARE.
 */
 
 #include "linearSolver.hpp"
+#include "parameters.hpp"
 
 namespace libp {
-
-constexpr int CG_BLOCKSIZE = 512;
 
 cg::cg(platform_t& _platform, dlong _N, dlong _Nhalo):
   linearSolver_t(_platform, _N, _Nhalo) {
@@ -43,20 +42,39 @@ cg::cg(platform_t& _platform, dlong _N, dlong _Nhalo):
   dummy.free();
 
   //pinned tmp buffer for reductions
+  const int maxBlockSize = 1024;
   h_tmprdotr = platform.hostMalloc<dfloat>(1);
-  o_tmprdotr = platform.malloc<dfloat>(CG_BLOCKSIZE);
+  o_tmprdotr = platform.malloc<dfloat>(maxBlockSize);
 
   /* build kernels */
   properties_t kernelInfo = platform.props(); //copy base properties
 
+  parameters_t tuningParameters;
+  std::string filename = platform.exePath() + "/json/linearSolver.json";
+
+  properties_t keys;
+  keys["dfloat"] = (sizeof(dfloat)==4) ? "float" : "double";
+  keys["mode"] = platform.device.mode();
+
+  std::string arch = platform.device.arch();
+  if (platform.device.mode()=="HIP") {
+    arch = arch.substr(0,arch.find(":")); //For HIP mode, remove the stuff after the :
+  }
+  keys["arch"] = arch;
+
+  std::string name = "linearSolverCG.okl";
+  tuningParameters.load(filename, comm);
+  properties_t matchProps = tuningParameters.findProperties(name, keys);
+
   //add defines
-  kernelInfo["defines/" "p_blockSize"] = (int)CG_BLOCKSIZE;
+  kernelInfo["defines"] += matchProps["props"];
+
+  /*Read blocksizes from properties*/
+  cgBlockSize = static_cast<int>(matchProps["props/AXPYDOT_BLOCKSIZE"]);
 
   // combined CG update and r.r kernel
-  updateCGKernel1 = platform.buildKernel("libs/core/okl/linearSolverUpdateCG.okl",
-                                "updateCG_1", kernelInfo);
-  updateCGKernel2 = platform.buildKernel("libs/core/okl/linearSolverUpdateCG.okl",
-                                "updateCG_2", kernelInfo);
+  updateCGKernel = platform.buildKernel("libs/core/okl/linearSolverUpdateCG.okl",
+                                        "updateCG", kernelInfo);
 }
 
 int cg::Solve(solver_t& solver,
@@ -136,11 +154,10 @@ dfloat cg::UpdateCG(const dfloat alpha,
 
   // r <= r - alpha*A*p
   // dot(r,r)
-  int Nblocks = (N+CG_BLOCKSIZE-1)/CG_BLOCKSIZE;
-  Nblocks = (Nblocks>CG_BLOCKSIZE) ? CG_BLOCKSIZE : Nblocks; //limit to CG_BLOCKSIZE entries
+  int Nblocks = (N+cgBlockSize-1)/cgBlockSize;
+  Nblocks = (Nblocks>cgBlockSize) ? cgBlockSize : Nblocks; //limit to cgBlockSize entries
 
-  updateCGKernel1(N, Nblocks, o_Ap, alpha, o_r, o_tmprdotr);
-  updateCGKernel2(Nblocks, o_tmprdotr);
+  updateCGKernel(N, Nblocks, o_Ap, alpha, o_r, o_tmprdotr);
 
   h_tmprdotr.copyFrom(o_tmprdotr, 1, 0, properties_t("async", true));
   platform.finish();

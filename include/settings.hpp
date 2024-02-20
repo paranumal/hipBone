@@ -51,13 +51,15 @@ public:
   string description;
   std::vector<string> options;
 
+  bool isToggle;
   int check;
 
 
   setting_t() = default;
   setting_t(string shortkey_, string longkey_,
             string name_, string val_,
-            string description_="", std::vector<string> options_={});
+            string description_="", std::vector<string> options_={},
+            bool isToggle_ = false);
 
   ~setting_t() = default;
 
@@ -96,12 +98,16 @@ public:
 
   std::map<string, setting_t> settings;
 
-  settings_t() = delete;
+  settings_t() = default;
   settings_t(comm_t _comm);
 
   //copy
   settings_t(const settings_t& other)=default;
   settings_t& operator=(const settings_t& other)=default;
+
+  void newToggle(const string shortkey, const string longkey,
+                 const string name, const string val,
+                 const string description="");
 
   void newSetting(const string shortkey, const string longkey,
                   const string name, const string val,
