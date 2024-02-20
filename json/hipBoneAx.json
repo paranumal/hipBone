@@ -39,7 +39,7 @@
 {"Name":"hipBoneAx.okl","keys":{"N":12,"dfloat":"double","mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":3}}
 {"Name":"hipBoneAx.okl","keys":{"N":13,"dfloat":"double","mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":3}}
 {"Name":"hipBoneAx.okl","keys":{"N":14,"dfloat":"double","mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":3}}
-{"Name":"hipBoneAx.okl","keys":{"N":15,"dfloat":"double","mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":3}}
+{"Name":"hipBoneAx.okl","keys":{"N":15,"dfloat":"double","mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":4}}
 
 //CUDA
 {"Name":"hipBoneAx.okl","keys":{"N":1,"mode":"CUDA"},"props":{"KERNEL_NUMBER":2,"p_NelementsPerBlk":8}}
