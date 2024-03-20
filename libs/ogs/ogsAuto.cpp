@@ -212,7 +212,7 @@ ogsExchange_t* ogsBase_t::AutoSetup(const dlong Nshared,
   double pairwiseGATime[3];
 
   DeviceExchangeTest(pairwise, pairwiseTime);
-  double pairwiseAvg = pairwiseTime[0];
+  double pairwiseAvg = pairwiseTime[1];
 
   if (comm.gpuAware()) {
     //test GPU-aware exchange
@@ -220,8 +220,8 @@ ogsExchange_t* ogsBase_t::AutoSetup(const dlong Nshared,
 
     DeviceExchangeTest(pairwise, pairwiseGATime);
 
-    if (pairwiseGATime[0] < pairwiseAvg)
-      pairwiseAvg = pairwiseGATime[0];
+    if (pairwiseGATime[1] < pairwiseAvg)
+      pairwiseAvg = pairwiseGATime[1];
     else
       pairwise->gpu_aware=false;
   }
@@ -276,8 +276,8 @@ ogsExchange_t* ogsBase_t::AutoSetup(const dlong Nshared,
 
     DeviceExchangeTest(alltoall, alltoallGATime);
 
-    if (alltoallGATime[0] < alltoallAvg)
-      alltoallAvg = alltoallGATime[0];
+    if (alltoallGATime[1] < alltoallAvg)
+      alltoallAvg = alltoallGATime[1];
     else
       alltoall->gpu_aware=false;
   }
@@ -339,8 +339,8 @@ ogsExchange_t* ogsBase_t::AutoSetup(const dlong Nshared,
 
     DeviceExchangeTest(crystal, crystalGATime);
 
-    if (crystalGATime[0] < crystalAvg)
-      crystalAvg = crystalGATime[0];
+    if (crystalGATime[1] < crystalAvg)
+      crystalAvg = crystalGATime[1];
     else
       crystal->gpu_aware=false;
   }
