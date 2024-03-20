@@ -220,10 +220,10 @@ void ogs_t::GatherStart(deviceMemory<T> o_gv,
                         const Transpose trans){
   AssertGatherDefined();
 
-  deviceMemory<T> o_sendBuf = exchange->getDeviceSendBuffer();
-
   if (trans==Trans) { //if trans!=ogs::Trans theres no comms required
     exchange->AllocBuffer(k*sizeof(T));
+
+    deviceMemory<T> o_sendBuf = exchange->getDeviceSendBuffer();
 
     //collect halo buffer
     gatherHalo->Gather(o_sendBuf, o_v, k, op, Trans);
@@ -407,10 +407,10 @@ void ogs_t::ScatterStart(deviceMemory<T> o_v,
                          const Transpose trans){
   AssertGatherDefined();
 
-  deviceMemory<T> o_sendBuf = exchange->getDeviceSendBuffer();
-
   if (trans==NoTrans) { //if trans!=ogs::NoTrans theres no comms required
     exchange->AllocBuffer(k*sizeof(T));
+
+    deviceMemory<T> o_sendBuf = exchange->getDeviceSendBuffer();
 
     device_t &device = platform.device;
 
