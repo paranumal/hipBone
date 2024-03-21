@@ -387,15 +387,15 @@ ogsPairwise_t::ogsPairwise_t(Kind kind,
 }
 
 void ogsPairwise_t::AllocBuffer(size_t Nbytes) {
-  if (o_sendspace.size() < data[Sym].Ncols*Nbytes) {
+  if (o_sendspace.byte_size() < data[Sym].Ncols*Nbytes) {
     h_sendspace = platform.hostMalloc<char>(data[Sym].Ncols*Nbytes);
     o_sendspace = platform.malloc<char>(data[Sym].Ncols*Nbytes);
   }
-  if (o_workspace.size() < data[Sym].Nsend*Nbytes) {
+  if (o_workspace.byte_size() < data[Sym].Nsend*Nbytes) {
     h_workspace = platform.hostMalloc<char>(data[Sym].Nsend*Nbytes);
     o_workspace = platform.malloc<char>(data[Sym].Nsend*Nbytes);
   }
-  if (o_recvspace.size() < data[Sym].Nrows*Nbytes) {
+  if (o_recvspace.byte_size() < data[Sym].Nrows*Nbytes) {
     h_recvspace = platform.hostMalloc<char>(data[Sym].Nrows*Nbytes);
     o_recvspace = platform.malloc<char>(data[Sym].Nrows*Nbytes);
   }
