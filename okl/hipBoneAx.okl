@@ -548,10 +548,8 @@ SOFTWARE.
 
       for(int j=0;j<16;++j;@inner(1)){
         for(int i=0;i<16;++i;@inner(0)){
-          if (i<p_Nq && j < p_Nq) {
-            // share u(:,:,k)
-            s_q[j][i] = r_u[k];
-          }
+          // share u(:,:,k)
+          s_q[j][i] = r_u[k];
         }
       }
 
