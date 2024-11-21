@@ -46,7 +46,7 @@ export HIPBONE_LD = mpic++
 
 export HIPBONE_INCLUDES=-I${HIPBONE_INCLUDE_DIR} -I${OCCA_DIR}/include
 export HIPBONE_LIBS= ${HIPBONE_BLAS_LIB}  \
-                     -Wl,-rpath,$(OCCA_DIR)/lib -Wl,-rpath,${OPENBLAS_DIR} -L$(OCCA_DIR)/lib -locca
+                     -Wl,-rpath,$(OCCA_DIR)/lib -Wl,-rpath,${OPENBLAS_DIR} -L$(OCCA_DIR)/lib -locca -lhwloc
 
 ifneq (,${debug})
   export HIPBONE_CFLAGS=-O0 -g -Wall -Wshadow -Wno-unused-function -Wno-unknown-pragmas
