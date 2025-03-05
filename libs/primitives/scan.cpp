@@ -32,7 +32,16 @@ namespace prim {
 
 // Check if compiler supports the OMP v5.0 'scan' feature
 #if (__GNUC__ >= 10) || (__clang_major__ >= 11) //gcc-10 or higher, or clang-11 or higher
-#define HAS_OMP_SCAN
+#define LIBP_HAS_OMP_SCAN
+#else
+#undef LIBP_HAS_OMP_SCAN
+#endif
+
+/* NC: Clang currently has a bug with some OMP reductions and fails to compile */
+#if defined(LIBP_HAS_OMP_SCAN) && defined(_OPENMP) && !defined(LIBP_DEBUG) && !defined(__clang__)
+#define LIBP_USE_OMP_SCAN
+#else
+#undef LIBP_USE_OMP_SCAN
 #endif
 
 template<typename T>
@@ -42,11 +51,10 @@ void exclusiveScan(const dlong N, memory<T> v) {
 
   T scan_v{0};
 
-#if defined(HAS_OMP_SCAN) && defined(_OPENMP) && !defined(LIBP_DEBUG) && !defined(__clang__)
+#ifdef LIBP_USE_OMP_SCAN
   /*This looks totally wrong, but is the only way OpenMP will compile
   it, and suprisingly does the right thing. Without OpenMP enabled, however
   this *is* totally wrong*/
-  /* NC: Also clang currently has a bug with this type of reduction and fails to compile */
   #pragma omp parallel for reduction(inscan, +:scan_v)
   for(int n = 0; n < N; ++n){
     v[n] = scan_v;
@@ -76,7 +84,7 @@ void exclusiveScan(const dlong N, const memory<T> v, memory<T> w) {
 
   T scan_v{0};
 
-#ifdef HAS_OMP_SCAN
+#ifdef LIBP_USE_OMP_SCAN
   #pragma omp parallel for reduction(inscan, +:scan_v)
   for(int n = 0; n < N; ++n){
     w[n] = scan_v;
@@ -104,7 +112,7 @@ void inclusiveScan(const dlong N, memory<T> v) {
 
   T scan_v{0};
 
-#ifdef HAS_OMP_SCAN
+#ifdef LIBP_USE_OMP_SCAN
   #pragma omp parallel for reduction(inscan, +:scan_v)
   for(int n = 0; n < N; ++n){
     scan_v += v[n];
@@ -132,7 +140,7 @@ void inclusiveScan(const dlong N, const memory<T> v, memory<T> w) {
 
   T scan_v{0};
 
-#ifdef HAS_OMP_SCAN
+#ifdef LIBP_USE_OMP_SCAN
   #pragma omp parallel for reduction(inscan, +:scan_v)
   for(int n = 0; n < N; ++n){
     scan_v += v[n];
