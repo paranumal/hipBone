@@ -43,7 +43,7 @@ hipBoneSettings_t::hipBoneSettings_t(const int argc, char** argv, comm_t _comm):
             "FALSE",
             "Enable direct access of GPU memory in MPI");
 
-  newToggle("-ver", "--version",
+  newToggle("-V", "--version",
             "VERSION",
             "FALSE",
             "Hipbone Version string");
