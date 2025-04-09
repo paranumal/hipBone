@@ -14,6 +14,7 @@ How to compile `hipBone`
 
 There are a couple of prerequisites for building `hipBone`;
 
+- A compiler that supports C++17;
 - An MPI stack.  Any will work;
 - OpenBlas.
 
