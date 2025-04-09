@@ -38,6 +38,10 @@ int main(int argc, char **argv){
     if (settings.compareSetting("VERBOSE", "TRUE"))
       settings.report();
 
+    if (settings.compareSetting("VERSION", "TRUE") && comm.rank()==0) {
+      std::cout << "hipBone " << HIPBONE_VERSION_STR << std::endl;
+    }
+
     //Toggle GPU-aware MPI functionality
     comm.setGpuAware(settings.compareSetting("GPU-AWARE MPI", "TRUE"));
     settings.comm.setGpuAware(comm.gpuAware());
