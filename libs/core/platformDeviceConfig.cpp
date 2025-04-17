@@ -25,6 +25,7 @@ SOFTWARE.
 */
 
 #include "platform.hpp"
+#include <hwloc.h>
 #include <omp.h>
 
 namespace libp {
@@ -102,28 +103,24 @@ void platform_t::DeviceConfig(){
 
 #if !defined(LIBP_DEBUG)
   /*set number of omp threads to use*/
-  /*Use lscpu to determine core and socket counts */
-  FILE *pipeCores   = popen("lscpu | grep \"Core(s) per socket\" | awk '{print $4}'", "r");
-  FILE *pipeSockets = popen("lscpu | grep \"Socket(s)\" | awk '{print $2}'", "r");
-  LIBP_ABORT("popen() failed!",
-                !pipeCores || !pipeSockets);
+  /*Use hwloc to determine physical core count */
+  hwloc_topology_t topology;
+  hwloc_topology_init(&topology);
+  hwloc_topology_load(topology);
 
-  std::array<char, 128> buffer;
-  //read to end of line
-  LIBP_ABORT("Error reading core count",
-                !fgets(buffer.data(), buffer.size(), pipeCores));
-  int Ncores = std::stoi(buffer.data());
+  int depth = hwloc_get_type_depth(topology, HWLOC_OBJ_CORE);
+  int NcoresPerNode;
+  if (depth == HWLOC_TYPE_DEPTH_UNKNOWN) {
+    // Default to 1 if there's a problem.
+    NcoresPerNode = 1;
+  }
+  else {
+    NcoresPerNode = hwloc_get_nbobjs_by_depth(topology, depth);
+  }
 
-  //read to end of line
-  LIBP_ABORT("Error reading core count",
-                !fgets(buffer.data(), buffer.size(), pipeSockets));
-  int Nsockets = std::stoi(buffer.data());
+  // Clean up
+  hwloc_topology_destroy(topology);
 
-  pclose(pipeCores);
-  pclose(pipeSockets);
-
-  // int Ncores = omp_get_num_procs();
-  int NcoresPerNode = Ncores*Nsockets;
   int Nthreads=0;
 
   /*Check OMP_NUM_THREADS env variable*/
