@@ -25,21 +25,21 @@
 {"Name":"hipBoneAx.okl","keys":{"N":15,"dfloat":"double","mode":"HIP","arch":"gfx90a"},"props":{"KERNEL_NUMBER":4}}
 
 //HIP - MI300
-{"Name":"hipBoneAx.okl","keys":{"N":1,"mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":2,"p_NelementsPerBlk":32}}
-{"Name":"hipBoneAx.okl","keys":{"N":2,"mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":2,"p_NelementsPerBlk":14}}
-{"Name":"hipBoneAx.okl","keys":{"N":3,"mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":2,"p_NelementsPerBlk":3}}
-{"Name":"hipBoneAx.okl","keys":{"N":4,"mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":2,"p_NelementsPerBlk":2}}
-{"Name":"hipBoneAx.okl","keys":{"N":5,"mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":2,"p_NelementsPerBlk":2}}
-{"Name":"hipBoneAx.okl","keys":{"N":6,"mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":1,"p_NelementsPerBlk":5}}
-{"Name":"hipBoneAx.okl","keys":{"N":7,"mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":1,"p_NelementsPerBlk":4}}
-{"Name":"hipBoneAx.okl","keys":{"N":8,"mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":1,"p_NelementsPerBlk":3}}
-{"Name":"hipBoneAx.okl","keys":{"N":9,"mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":1,"p_NelementsPerBlk":2}}
-{"Name":"hipBoneAx.okl","keys":{"N":10,"mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":1,"p_NelementsPerBlk":2}}
-{"Name":"hipBoneAx.okl","keys":{"N":11,"dfloat":"double","mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":3}}
-{"Name":"hipBoneAx.okl","keys":{"N":12,"dfloat":"double","mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":3}}
-{"Name":"hipBoneAx.okl","keys":{"N":13,"dfloat":"double","mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":3}}
-{"Name":"hipBoneAx.okl","keys":{"N":14,"dfloat":"double","mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":3}}
-{"Name":"hipBoneAx.okl","keys":{"N":15,"dfloat":"double","mode":"HIP","arch":"gfx940,gfx941,gfx942"},"props":{"KERNEL_NUMBER":4}}
+{"Name":"hipBoneAx.okl","keys":{"N":1,"mode":"HIP","arch":"gfx940,gfx941,gfx942,gfx950"},"props":{"KERNEL_NUMBER":2,"p_NelementsPerBlk":32}}
+{"Name":"hipBoneAx.okl","keys":{"N":2,"mode":"HIP","arch":"gfx940,gfx941,gfx942,gfx950"},"props":{"KERNEL_NUMBER":2,"p_NelementsPerBlk":14}}
+{"Name":"hipBoneAx.okl","keys":{"N":3,"mode":"HIP","arch":"gfx940,gfx941,gfx942,gfx950"},"props":{"KERNEL_NUMBER":2,"p_NelementsPerBlk":3}}
+{"Name":"hipBoneAx.okl","keys":{"N":4,"mode":"HIP","arch":"gfx940,gfx941,gfx942,gfx950"},"props":{"KERNEL_NUMBER":2,"p_NelementsPerBlk":2}}
+{"Name":"hipBoneAx.okl","keys":{"N":5,"mode":"HIP","arch":"gfx940,gfx941,gfx942,gfx950"},"props":{"KERNEL_NUMBER":2,"p_NelementsPerBlk":2}}
+{"Name":"hipBoneAx.okl","keys":{"N":6,"mode":"HIP","arch":"gfx940,gfx941,gfx942,gfx950"},"props":{"KERNEL_NUMBER":1,"p_NelementsPerBlk":5}}
+{"Name":"hipBoneAx.okl","keys":{"N":7,"mode":"HIP","arch":"gfx940,gfx941,gfx942,gfx950"},"props":{"KERNEL_NUMBER":1,"p_NelementsPerBlk":4}}
+{"Name":"hipBoneAx.okl","keys":{"N":8,"mode":"HIP","arch":"gfx940,gfx941,gfx942,gfx950"},"props":{"KERNEL_NUMBER":1,"p_NelementsPerBlk":3}}
+{"Name":"hipBoneAx.okl","keys":{"N":9,"mode":"HIP","arch":"gfx940,gfx941,gfx942,gfx950"},"props":{"KERNEL_NUMBER":1,"p_NelementsPerBlk":2}}
+{"Name":"hipBoneAx.okl","keys":{"N":10,"mode":"HIP","arch":"gfx940,gfx941,gfx942,gfx950"},"props":{"KERNEL_NUMBER":1,"p_NelementsPerBlk":2}}
+{"Name":"hipBoneAx.okl","keys":{"N":11,"dfloat":"double","mode":"HIP","arch":"gfx940,gfx941,gfx942,gfx950"},"props":{"KERNEL_NUMBER":3}}
+{"Name":"hipBoneAx.okl","keys":{"N":12,"dfloat":"double","mode":"HIP","arch":"gfx940,gfx941,gfx942,gfx950"},"props":{"KERNEL_NUMBER":3}}
+{"Name":"hipBoneAx.okl","keys":{"N":13,"dfloat":"double","mode":"HIP","arch":"gfx940,gfx941,gfx942,gfx950"},"props":{"KERNEL_NUMBER":3}}
+{"Name":"hipBoneAx.okl","keys":{"N":14,"dfloat":"double","mode":"HIP","arch":"gfx940,gfx941,gfx942,gfx950"},"props":{"KERNEL_NUMBER":3}}
+{"Name":"hipBoneAx.okl","keys":{"N":15,"dfloat":"double","mode":"HIP","arch":"gfx940,gfx941,gfx942,gfx950"},"props":{"KERNEL_NUMBER":4}}
 
 //CUDA
 {"Name":"hipBoneAx.okl","keys":{"N":1,"mode":"CUDA"},"props":{"KERNEL_NUMBER":2,"p_NelementsPerBlk":8}}
