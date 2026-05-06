@@ -16,10 +16,11 @@ There are a couple of prerequisites for building `hipBone`;
 
 - A compiler that supports C++17;
 - An MPI stack.  Any will work;
-- OpenBlas.
+- OpenBlas;
+- hwloc.
 
-Installing `MPI` and `OpenBlas` can be done using whatever package manager your
-operating system provides.
+Installing `MPI`, `OpenBlas`, and `hwloc` can be done using whatever package
+manager your operating system provides.
 
 To build and run `hipBone`, there is an included `run.sh` script which will
 build the third party `OCCA`, then build `hipBone`, and run
